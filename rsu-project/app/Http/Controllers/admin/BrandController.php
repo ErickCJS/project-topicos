@@ -42,22 +42,11 @@ public function index(Request $request)
 
             ->addColumn('delete', function ($brand) {
 
-                return '<form action="' . route('brands.destroy', $brand->id) . '"
-                        method="POST"
-                        class="frmEliminar">
-
-                        ' . csrf_field() . '
-
-                        <input type="hidden"
-                               name="_method"
-                               value="DELETE">
-
-                        <button type="submit"
-                                class="btn btn-sm btn-danger">
+                return '<button
+                            class="btn btn-sm btn-danger btnEliminar"
+                            data-id="' . $brand->id . '">
                             <i class="bi bi-trash3"></i>
-                        </button>
-
-                    </form>';
+                        </button>';
             })
 
             ->rawColumns([
@@ -86,27 +75,21 @@ public function index(Request $request)
     public function store(Request $request)
     {
         try {
-
             $logo = '';
-
             $request->validate([
                 'name' => 'unique:brands'
             ]);
-
             if ($request->logo != '') {
                 $image = $request->file('logo')->store('brand_logo', 'public');
                 $logo = Storage::url($image);
             }
-
             Brand::create([
                 'name' => $request->name,
                 'logo' => $logo,
                 'description' => $request->descriptopn
             ]);
             return response()->json(["mensaje"=> "marca registrada correctamente"], 200);
-            //return redirect()->route('brands.index')->with('success', 'Marca registrada');
         } catch (\Throwable $th) {
-            //return redirect()->route('brands.index')->with('error', 'Error en el registro: ' . $th->getMessage());
             return response()->json(["mensaje"=> "error de registro". $th->getMessage()], 500);
         }
     }
@@ -159,10 +142,9 @@ public function index(Request $request)
                 ]);*/
                 $brand->update($request->except('logo'));
             }
-            return redirect()->route('brands.index')->with('success', 'Marca actualizada');
+            return response()->json(["mensaje" => "marca actualizada correctamente"], 200);
         } catch (\Throwable $th) {
-            //return redirect()->route('brands.index')->with('error', 'Error en la actualización: ' . $th->getMessage());
-            return back()->withInput()->with('error', 'Error en la actualización: ' . $th->getMessage());
+            return response()->json(["mensaje" => "error de actualización" . $th->getMessage()], 500);
         }
     }
 
@@ -174,9 +156,9 @@ public function index(Request $request)
         try {
             $brand = Brand::find($id);
             $brand->delete();
-            return redirect()->route('brands.index')->with('success', 'Marca eliminada');
+            return response()->json(["mensaje" => "Marca eliminada correctamente"], 200);
         } catch (\Throwable $th) {
-            return redirect()->route('brands.index')->with('error', 'Error de eliminación: ' . $th->getMessage());
+            return response()->json(["mensaje" => "Error de eliminación"], 200);
         }
     }
 }

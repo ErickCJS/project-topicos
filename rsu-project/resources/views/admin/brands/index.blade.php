@@ -59,6 +59,27 @@
 @section('js')
 <script>
 
+    function mostrar_modal (titulo, response){
+        $('#formModal #formModalLabel').html(titulo);
+        $('#formModal .modal-body').html(response);
+        $('#formModal').modal('show');
+    }
+    function cerrar_modal(){
+        $('#formModal').modal('hide');
+    }
+
+
+    function mostrar_alerta(tipo, mensaje){
+        var icono = tipo == 0 ? 'error' : 'success';
+        var titulo = tipo == 0 ? 'Ocurrió un error!' : 'Proceso exitoso!';
+        Swal.fire({
+            title: titulo,
+            icon: icono,
+            text: mensaje,
+            draggable: true
+        });
+    }
+
     var table;
 
     // ==========================================
@@ -68,113 +89,57 @@
     $('#btnNuevo').click(function () {
 
         $.ajax({
-
             url: "{{ route('brands.create') }}",
             type: "GET",
-
             success: function (response) {
-
-                $('#formModal #formModalLabel').html("Nueva Marca");
-
-                $('#formModal .modal-body').html(response);
-
-                $('#formModal').modal('show');
-
-
-                $("#formModal form").on('submit', function (e) {
-
-                    e.preventDefault();
-
-                    var form = $(this);
-
-                    var formData = new FormData(this);
-
-
-                    $.ajax({
-
-                        url: form.attr('action'),
-
-                        type: form.attr('method'),
-
-                        data: formData,
-
-                        processData: false,
-
-                        contentType: false,
-
-
-                        success: function (response) {
-
-                            // Cerrar modal
-                            $('#formModal').modal('hide');
-
-
-                            // Recargar DataTable
-                            refresTable();
-
-
-                            Swal.fire({
-                                title: "Proceso exitoso!",
-                                icon: "success",
-                                text: response.message,
-                                draggable: true
-                            });
-
-                        },
-
-
-                        error: function (err) {
-
-                            console.log(err);
-
-                            var response = err.responseJSON;
-
-                            Swal.fire({
-                                title: "Ocurrió un error!",
-                                icon: "error",
-                                text: response?.message ?? "Ocurrió un error.",
-                                draggable: true
-                            });
-
-                        }
-
-                    });
-
-                });
-
+                mostrar_modal('Nueva Marca', response);
             }
-
         });
 
     });
 
+    //FUNCIONALIDAD GENERAL PARA PETICIONES 
+    $(document).on('submit', '#formModal form', function (e) {
+        e.preventDefault();
+        var form = $(this);
+        var formData = new FormData(this);
+        $.ajax({
+            url: form.attr('action'),
+            type: form.attr('method'),
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                //cerramos el modal
+                cerrar_modal();
+                // Recargar DataTable
+                refresTable();
+                //mostramos una alerta
+                mostrar_alerta(1, response.mensaje);
+            },
+            error: function (err) {
+                //cerramos el modal
+                cerrar_modal();
+                var response = err.responseJSON;
+                mostrar_alerta(0, response.mensaje);
+            }
+        });
+    });
 
     // ==========================================
     // EDITAR
     // ==========================================
-
+    // guarda el evento en el document, y espera si ese btn tiene esa clase se ejecuta
     $(document).on('click', '.btnEditar', function () {
-
         var id = $(this).data('id');
-
         $.ajax({
-
             url: "{{ route('brands.edit', ':id') }}".replace(':id', id),
-
             type: "GET",
-
             success: function (response) {
-
-                $('#formModal #formModalLabel').html("Editar Marca");
-
-                $('#formModal .modal-body').html(response);
-
-                $('#formModal').modal('show');
-
+                mostrar_modal('Editar Marca',response);
             }
 
         });
-
     });
 
 
@@ -182,40 +147,38 @@
     // ELIMINAR
     // ==========================================
 
-    $(document).on('submit', '.frmEliminar', function (e) {
-
+    $(document).on('click', '.btnEliminar', function (e) {
         e.preventDefault();
-
-        var form = this;
-
+        var id = $(this).data('id');
         Swal.fire({
-
             title: "¿Está seguro de eliminar?",
-
             text: "Esto no se puede revertir!",
-
             icon: "warning",
-
             showCancelButton: true,
-
             confirmButtonColor: "#3085d6",
-
             cancelButtonColor: "#d33",
-
             confirmButtonText: "Sí, eliminar!",
-
             cancelButtonText: "Cancelar"
-
         }).then((result) => {
-
             if (result.isConfirmed) {
-
-                form.submit();
-
+                $.ajax({
+                    url: "{{ route('brands.destroy', ':id') }}".replace(':id', id),
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function (response) {
+                        refresTable();
+                        //mostramos una alerta
+                        mostrar_alerta(1, response.mensaje);
+                    },
+                    error: function (err) {
+                        var response = err.responseJSON;
+                        mostrar_alerta(0, response.mensaje);
+                    }
+                });
             }
-
         });
-
     });
 
 
@@ -291,29 +254,5 @@
     }
 
 </script>
-
-
-
-    @if (session('success') != null)
-        <script>
-            Swal.fire({
-                title: "Proceso exitoso!",
-                icon: "success",
-                text: '{{ session('success') }}',
-                draggable: true
-            });
-        </script>
-    @endif
-
-    @if (session('error') != null)
-        <script>
-            Swal.fire({
-                title: "Ocurrió un error!",
-                icon: "error",
-                text: '{{ session('error') }}',
-                draggable: true
-            });
-        </script>
-    @endif
 
 @stop

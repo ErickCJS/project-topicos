@@ -8,4 +8,3 @@ Route::get('/', [AdminController::class, 'index']);
 Route::resource('brands', BrandController::class)->names('brands');
 
 
-Route::resource('brandmodels', BrandModelControlerController::class)->names('brandmodel');
