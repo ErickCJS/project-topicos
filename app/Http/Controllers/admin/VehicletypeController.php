@@ -12,7 +12,7 @@ class VehicletypeController extends Controller
      */
     public function index()
     {
-        //
+        return view('admin.type.index');
     }
 
     /**

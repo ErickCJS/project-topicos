@@ -803,17 +803,17 @@ return [
         ],
         [
             'text' => 'Modelos',
-            'route' => 'brandmodel.index',
+            'route' => 'brandsmodel.index',
             'icon' => 'bi bi-boxes',
         ],
         [
             'text' => 'Color Vehículo',
-            'route' => 'brandmodel.index',
+            'route' => 'vehiclescolor.index',
             'icon' => 'bi bi-palette',
         ],
         [
             'text' => 'Tipo Vehículo',
-            'route' => 'brandmodel.index',
+            'route' => 'vehiclestype.index',
             'icon' => 'bi bi-list-ul',
         ],
         [

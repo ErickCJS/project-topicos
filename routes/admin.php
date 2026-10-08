@@ -12,5 +12,5 @@ Route::get('/', [AdminController::class, 'index']);
 Route::resource('brands', BrandController::class)->names('brands');
 Route::get('vehicles', [VehiclesController::class, 'index'])->name('vehicles.index');
 Route::resource('brandsmodel', BrandModelController::class)->names('brandsmodel');
-Route::resource('brandstype', VehicletypeController::class)->names('vehiclestype');
+Route::resource('vehiclestype', VehicletypeController::class)->names('vehiclestype');
 Route::resource('vehiclescolor', VehicleColorController::class)->names('vehiclescolor');
