@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Vehicle;
+use App\Models\admin\Vehicle;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 

@@ -9,7 +9,7 @@
                 <h4>Listado de Marcas</h4>
             </div>
             <div class="w-50 d-flex justify-content-end">
-                <button class="btn btn-success" id="btnNuevo"><i class="bi bi-plus-circle"></i> Nueva
+                <button class="btn btn-success" id="btnNuevo"><i class="fas fa-plus-circle"></i> Nueva
                     Marca</button>
             </div>
 

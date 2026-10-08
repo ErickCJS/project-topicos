@@ -799,67 +799,29 @@ return [
         [
             'text' => 'Marcas',
             'route' => 'brands.index',
-            'icon' => 'bi bi-ev-front-fill',
+            'icon' => 'bi bi-tag',
         ],
         [
             'text' => 'Modelos',
             'route' => 'brandmodel.index',
-            'icon' => 'bi bi-truck-front-fill',
+            'icon' => 'bi bi-boxes',
         ],
         [
-            'text' => 'multilevel',
-            'icon' => 'bi bi-share',
-            'submenu' => [
-                [
-                    'text' => 'level_one',
-                    'url' => '#',
-                ],
-                [
-                    'text' => 'level_one',
-                    'url' => '#',
-                    'submenu' => [
-                        [
-                            'text' => 'level_two',
-                            'url' => '#',
-                        ],
-                        [
-                            'text' => 'level_two',
-                            'url' => '#',
-                            'submenu' => [
-                                [
-                                    'text' => 'level_three',
-                                    'url' => '#',
-                                ],
-                                [
-                                    'text' => 'level_three',
-                                    'url' => '#',
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-                [
-                    'text' => 'level_one',
-                    'url' => '#',
-                ],
-            ],
-        ],
-        ['header' => 'labels'],
-        [
-            'text' => 'important',
-            'icon_color' => 'danger',
-            'url' => '#',
+            'text' => 'Color Vehículo',
+            'route' => 'brandmodel.index',
+            'icon' => 'bi bi-palette',
         ],
         [
-            'text' => 'warning',
-            'icon_color' => 'warning',
-            'url' => '#',
+            'text' => 'Tipo Vehículo',
+            'route' => 'brandmodel.index',
+            'icon' => 'bi bi-list-ul',
         ],
         [
-            'text' => 'information',
-            'icon_color' => 'info',
-            'url' => '#',
+            'text' => 'Vehículo',
+            'route' => 'brandmodel.index',
+            'icon' => 'bi bi-car-front',
         ],
+        
     ],
 
     /*

@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\admin;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\admin\Vehicle;
 
 class Color extends Model
 {

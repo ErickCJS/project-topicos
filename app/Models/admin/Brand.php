@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\admin;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\admin\Brandmodel;
+use App\Models\admin\Vehicle;
 
 class Brand extends Model
 {

@@ -1,8 +1,13 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\admin;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\admin\Brand;
+use App\Models\admin\Brandmodel;
+use App\Models\admin\Color;
+use App\Models\admin\Vehicletype;
+use App\Models\admin\VehicleImage;
 
 class Vehicle extends Model
 {

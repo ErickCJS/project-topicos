@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Brand;
+use App\Models\admin\Brand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\Facades\DataTables;
@@ -36,7 +36,7 @@ public function index(Request $request)
                 return '<button
                             class="btn btn-primary btn-sm btnEditar"
                             data-id="' . $brand->id . '">
-                            <i class="bi bi-pencil-square"></i>
+                            <i class="fas fa-pencil-alt"></i>
                         </button>';
             })
 
@@ -45,7 +45,7 @@ public function index(Request $request)
                 return '<button
                             class="btn btn-sm btn-danger btnEliminar"
                             data-id="' . $brand->id . '">
-                            <i class="bi bi-trash3"></i>
+                            <i class="fas fa-trash"></i>
                         </button>';
             })
 
