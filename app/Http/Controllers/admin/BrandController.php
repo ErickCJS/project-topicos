@@ -7,6 +7,7 @@ use App\Models\admin\Brand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\Facades\DataTables;
+use \Carbon\Carbon;
 
 class BrandController extends Controller
 {
@@ -30,7 +31,12 @@ public function index(Request $request)
                 return '<img src="' . $logo . '"
                         style="width:70px; height:50px; object-fit:contain;">';
             })
-
+            ->addColumn('created_at', function ($brand) {
+                return Carbon::parse($brand->created_at)->format('d/m/Y H:i:s');
+            })
+            ->addColumn('updated_at', function ($brand) {
+                return Carbon::parse($brand->updated_at)->format('d/m/Y H:i:s');
+            })
             ->addColumn('edit', function ($brand) {
 
                 return '<button
@@ -77,9 +83,13 @@ public function index(Request $request)
         try {
             $logo = '';
             $request->validate([
-                'name' => 'unique:brands'
+                'name' => 'required|unique:brands,name'
+            ],[
+                'name.required' => 'El nombre de la marca es obligatorio.',
+                'name.unique'=> ' esta marca ya se encuentra registrada.'
             ]);
-            if ($request->logo != '') {
+
+            if ($request->hasFile('logo')) {
                 $image = $request->file('logo')->store('brand_logo', 'public');
                 $logo = Storage::url($image);
             }
@@ -90,7 +100,7 @@ public function index(Request $request)
             ]);
             return response()->json(["mensaje"=> "marca registrada correctamente"], 200);
         } catch (\Throwable $th) {
-            return response()->json(["mensaje"=> "error de registro". $th->getMessage()], 500);
+            return response()->json(["mensaje"=> "error de registro: ". $th->getMessage()], 500);
         }
     }
 
@@ -122,26 +132,23 @@ public function index(Request $request)
 
             $request->validate([
                 'name' => 'unique:brands,name,' . $id,
+            ],[
+                'name.required' => 'El nombre de la marca es obligatorio.',
+                'name.unique' => ' esta marca ya se encuentra registrada.'
             ]);
 
-            $logo = '';
+            $logo = $brand->logo;
 
-            if ($request->logo != '') {
+            if ($request->hasFile('logo')) {
                 $image = $request->file('logo')->store('brand_logo', 'public');
                 $logo = Storage::url($image);
-
-                $brand->update([
-                    'name' => $request->name,
-                    'logo' => $logo,
-                    'description' => $request->description
-                ]);
-            } else {
-                /*$brand->update([
-                    'name' => $request->name,
-                    'description' => $request->description
-                ]);*/
-                $brand->update($request->except('logo'));
-            }
+            } 
+            $brand->update([
+                'name' => $request->name,
+                'logo' => $logo,
+                'description' => $request->description
+            ]);
+            $brand->update();
             return response()->json(["mensaje" => "marca actualizada correctamente"], 200);
         } catch (\Throwable $th) {
             return response()->json(["mensaje" => "error de actualización" . $th->getMessage()], 500);
@@ -154,11 +161,16 @@ public function index(Request $request)
     public function destroy(string $id)
     {
         try {
-            $brand = Brand::find($id);
+            $brand = Brand::with(['models', 'vehicles'])->findOrFail($id);
+
+            if($brand->models()->exists() || $brand->vehicles()->exists()){
+                return response()->json(["mensaje" => "No se puede eliminar esta marca porque tiene relación con otras tablas"], 409);
+            }
+
             $brand->delete();
             return response()->json(["mensaje" => "Marca eliminada correctamente"], 200);
         } catch (\Throwable $th) {
-            return response()->json(["mensaje" => "Error de eliminación"], 200);
+            return response()->json(["mensaje" => "Error de eliminación" . $th->getMessage()], 500);
         }
     }
 }

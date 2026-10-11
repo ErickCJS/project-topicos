@@ -1,75 +1,73 @@
 <div class="row">
-    <div class="col-8">
-        <div class="form-group">
-            {!! Form::label('name', 'Nombre') !!}
-            {!! Form::text('name', null, ['class' => 'form-control', 'placeholder' => 'Nombre de la marca', 'required']) !!}
-        </div>
-        <div class="form-group">
-            {!! Form::label('description', 'Descripción') !!}
-            {!! Form::textarea('description', null, [
-                'class' => 'form-control',
-                'placeholder' => 'Agregue una descripción',
-                'rows' => 3,
-            ]) !!}
-        </div>
-    </div>
-    <div class="col-4">
-        <div class="form-group">
-            <div id="imageButton" style="width: 100%; text-align:center; padding:10px;">
-                <img id="imagePreview"
-                    src={{ empty($brand->logo) ? asset('storage/images/no_logo.png') : asset($brand->logo) }}
-                    alt="Vista previa de la imagen" style="width: 100%;height:180px;cursor: pointer;">
-                <p style="font-size:12px">Haga click para seleccionar una imagen</p>
+    <div class="col-6 ">
+        <div >
+            <div class="form-group">
+                {!! Form::label('name', 'Nombre') !!}
+                {!! Form::text('name', null, ['class' => 'form-control', 'placeholder' => 'Nombre de la marca', 'required']) !!}
+            </div>
+            <div class="form-group mt-2">
+                {!! Form::label('description', 'Descripción') !!}
+                {!! Form::textarea('description', null, [
+                    'class' => 'form-control',
+                    'placeholder' => 'Agregue una descripción',
+                    'rows' => 3,
+                ]) !!}
+            </div>
+            <div class="form-group mt-2">
+                {!! Form::file('logo', [
+                    'class' => 'form-control',
+                    'id' => 'logo',
+                    'accept' => 'image/*'
+                ]) !!}
             </div>
         </div>
-        <div class="form-group">
-            {!! Form::file('logo', [
-                'class' => 'form-control-file d-none', // Oculta el input
-                'accept' => 'image/*',
-                'id' => 'imageInput',
-            ]) !!}
-            <!--<button type="button" class="btn btn-primary" id="_imageButton"><i class="fas fa-image"></i> Imagen</button>-->
+        
+    </div>
+    <div class="col-6 d-flex justify-content-center align-items-center ">
+        <div class="text-center">
+            <p class="mb-2">Vista previa</p>
+            <img
+                id="preview-logo"
+                src="{{ isset($brand) && $brand->logo ? asset($brand->logo) : '#' }}"
+                alt="Vista previa"
+                style="
+                    width: 250px;
+                    height: 250px;
+                    object-fit: contain;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 10px;
+                    {{ isset($brand) && $brand->logo ? '' : 'display:none;' }}
+                "
+            >
+            <div
+                id="preview-placeholder"
+                style="{{ isset($brand) && $brand->logo ? 'display:none;' : '' }}"
+            >
+                <i class="bi bi-image" style="font-size: 80px;"></i>
+                <p class="text-muted">No se ha seleccionado una imagen</p>
+            </div>
+
         </div>
+
     </div>
 </div>
 
 <script>
-    $(document).ready(function() {
+    
+    $('#logo').on('change', function (event) {
+        const file = event.target.files[0];
+        const preview = $('#preview-logo');
+        const placeholder = $('#preview-placeholder');
 
-        $('#imageInput').change(function(event) {
-
-            const file = event.target.files[0];
-
-            if (file) {
-
-                const reader = new FileReader();
-
-                reader.onload = function(e) {
-                    $('#imagePreview')
-                        .attr('src', e.target.result)
-                        .show();
-                };
-
-                reader.readAsDataURL(file);
-            }
-        });
-
-        $('#imageButton').click(function() {
-            $('#imageInput').click();
-        });
-
+        if (file) {
+            preview.attr('src', URL.createObjectURL(file));
+            preview.show();
+            placeholder.hide();
+        } else {
+            preview.hide();
+            placeholder.show();
+        }
     });
-</script>
 
-@section('js')
-    @if (session('error') != null)
-        <script>
-            Swal.fire({
-                title: "Ocurrió un error!",
-                icon: "error",
-                text: '{{ session('error') }}',
-                draggable: true
-            });
-        </script>
-    @endif
-@endsection
+</script>
