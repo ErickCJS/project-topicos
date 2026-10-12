@@ -14,6 +14,7 @@ class Vehicle extends Model
     protected $fillable = [
         'code', 'name', 'plate', 'year', 'load_capacity', 'occupats_capacity',
         'fuel_capacity', 'compact_capacity', 'type_id', 'brand_id', 'model_id', 'color_id',
+        'description'
     ];
 
     public function brand()

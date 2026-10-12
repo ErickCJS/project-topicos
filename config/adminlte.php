@@ -818,7 +818,7 @@ return [
         ],
         [
             'text' => 'Vehículo',
-            'route' => 'brandmodel.index',
+            'route' => 'vehicles.index',
             'icon' => 'bi bi-car-front',
         ],
         

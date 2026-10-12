@@ -10,7 +10,16 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index']);
 Route::resource('brands', BrandController::class)->names('brands');
-Route::get('vehicles', [VehiclesController::class, 'index'])->name('vehicles.index');
+Route::resource('vehicles', VehiclesController::class)->names('vehicles');
+Route::get('vehicles/retonar_models/{id_brand}', [VehiclesController::class, 'retonar_models'])->name('vehicles.retonar_models');
+
 Route::resource('brandsmodel', BrandModelController::class)->names('brandsmodel');
 Route::resource('vehiclestype', VehicletypeController::class)->names('vehiclestype');
 Route::resource('vehiclescolor', VehicleColorController::class)->names('vehiclescolor');
+
+
+Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');
+Route::post('subirimagenes/{id_products}', [VehiclesController::class, 'subirimagenes'])->name('vehicles.photo.subirimagenes');
+Route::get('retonar_rutas_fotos/{id_product}', [VehiclesController::class, 'retonar_rutas_fotos'])->name('vehicles.photo.retonar_rutas_fotos');
+Route::delete('eliminar_imagen/{id_product}', [VehiclesController::class, 'eliminar_imagen'])->name('vehicles.photo.eliminar_imagen');
+Route::patch('photos/{id_foto}/seleccionar', [VehiclesController::class, 'seleccionar_foto_principal'])->name('vehicles.photo.seleccionar');
