@@ -3,7 +3,7 @@
 use App\Http\Controllers\admin\AdminController;
 use App\Http\Controllers\admin\BrandController;
 use App\Http\Controllers\admin\BrandModelController;
-use App\Http\Controllers\admin\VehicleColorController;
+use App\Http\Controllers\admin\ColorController;
 use App\Http\Controllers\admin\VehiclesController;
 use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;
@@ -15,7 +15,9 @@ Route::get('vehicles/retonar_models/{id_brand}', [VehiclesController::class, 're
 
 Route::resource('brandsmodel', BrandModelController::class)->names('brandsmodel');
 Route::resource('vehiclestype', VehicletypeController::class)->names('vehiclestype');
-Route::resource('vehiclescolor', VehicleColorController::class)->names('vehiclescolor');
+Route::resource('vehiclescolor', ColorController::class)
+    ->only(['index', 'store', 'edit', 'update', 'destroy'])
+    ->names('vehiclescolor');
 
 
 Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');
