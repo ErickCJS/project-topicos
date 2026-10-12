@@ -1,7 +1,7 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-<x-guest-layout>
+<x-guest-layout class="complete">
     <main class="login-page">
         <div class="login-container">
 
@@ -188,6 +188,21 @@
 
     <style>
         /* Configuración general */
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Contenedor que agrega el layout de invitados de Laravel */
+        body > .font-sans {
+            width: 100%;
+            min-height: 100vh;
+            min-height: 100svh;
+        }
+
         .login-page,
         .login-page *,
         .login-page *::before,
@@ -209,10 +224,9 @@
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             width: 100%;
-            max-width: 1600px;
             min-height: 100vh;
             min-height: 100svh;
-            margin: 0 auto;
+            margin: 0;
             overflow: hidden;
             background: #fff;
         }
