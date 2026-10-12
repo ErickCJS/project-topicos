@@ -4,6 +4,30 @@
 @section('css')
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+<link href="{{ asset('css/vehicle-select2.css') }}" rel="stylesheet">
+<style>
+    .vehicle-logo-preview {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        border-radius: .25rem;
+        cursor: zoom-in;
+    }
+
+    .vehicle-logo-preview img {
+        width: 70px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .vehicle-logo-preview:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 2px;
+    }
+</style>
 @stop
 @section('content')
     <div class="card">
@@ -31,9 +55,7 @@
             <th>Modelo</th>
             <th>Tipo</th>
             <th>Color</th>
-            <th>Imagen</th>
-            <th>Editar</th>
-            <th>Eliminar</th>
+            <th>Acciones</th>
         </tr>
     </thead>
 
@@ -54,6 +76,20 @@
                 </div>
                 <div class="modal-body">
                     ...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="vehicleLogoModal" tabindex="-1" aria-labelledby="vehicleLogoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="vehicleLogoModalLabel">Imagen del vehículo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="vehicleLogoModalImage" class="img-fluid" alt="" style="max-height: 70vh; object-fit: contain;">
                 </div>
             </div>
         </div>
@@ -132,10 +168,18 @@
                 mostrar_alerta(1, response.mensaje);
             },
             error: function (err) {
-                //cerramos el modal
-                cerrar_modal();
                 var response = err.responseJSON;
-                mostrar_alerta(0, response.mensaje);
+
+                if (err.status === 422) {
+                    var firstError = response?.errors
+                        ? Object.values(response.errors).flat()[0]
+                        : response?.message;
+                    mostrar_alerta(0, firstError || 'Revisa los datos del formulario.');
+                    return;
+                }
+
+                cerrar_modal();
+                mostrar_alerta(0, response?.mensaje || 'No se pudo guardar el vehículo.');
             }
         });
     });
@@ -220,17 +264,7 @@
                 { data: "color", name: "color.name", orderable: false,
                     searchable: false },
                 {
-                    data: "image",
-                    orderable: false,
-                    searchable: false
-                },
-                {
-                    data: "edit",
-                    orderable: false,
-                    searchable: false
-                },
-                {
-                    data: "delete",
+                    data: "actions",
                     orderable: false,
                     searchable: false
                 }
@@ -239,6 +273,23 @@
                 url: "https://cdn.datatables.net/plug-ins/1.10.16/i18n/Spanish.json"
             }
         });
+    });
+
+    $(document).on('click', '.vehicle-logo-preview, .ampliar_foto', function () {
+        var isVehicleLogo = $(this).hasClass('vehicle-logo-preview');
+        var vehicleName = $(this).data('vehicle');
+        var imageTitle = isVehicleLogo ? 'Imagen de ' + vehicleName : 'Imagen del vehículo';
+        var imageUrl = $(this).data('image') || this.src;
+
+        $('#vehicleLogoModalLabel').text(imageTitle);
+        $('#vehicleLogoModalImage')
+            .attr('src', imageUrl)
+            .attr('alt', imageTitle);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('vehicleLogoModal')).show();
+    });
+
+    $('#vehicleLogoModal').on('hidden.bs.modal', function () {
+        $('#vehicleLogoModalImage').attr('src', '').attr('alt', '');
     });
 
     $(document).on('click', '.btnImagen', function(){
@@ -303,10 +354,11 @@
                             <tr>
                                 <td>
                                     <img src="/storage/${photo.imagen}"
-                                        alt="Foto del producto"
+                                        class="img-thumbnail ampliar_foto"
+                                        alt="Foto del vehículo"
                                         width="80"
                                         height="80"
-                                        style="object-fit: cover;">
+                                        style="object-fit: cover; cursor: zoom-in;">
                                 </td>
                                 <td class="text-center">
                                     <input type="radio"
@@ -382,13 +434,6 @@
                 mostrar_alerta(0, xhr.responseJSON?.mensaje ?? 'Error al seleccionar la imagen principal', xhr.responseJSON?.titulo);
             }
         });
-    });
-    
-    $(document).on('click', '.ampliar_foto', function () {
-        $('#zoomImagen').prop('checked', false);
-        $('#imagenZoom').css('transform-origin', 'center');
-        $('#imagenZoom').attr('src', this.src);
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalZoom')).show();
     });
     
 </script>

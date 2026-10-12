@@ -1,9 +1,9 @@
 {{-- Modal crear color --}}
 <div class="modal fade color-modal" id="modalCrearColor" tabindex="-1" aria-labelledby="modalCrearColorLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form id="formCrearColor" class="modal-content shadow-lg" novalidate>
+        <form id="formCrearColor" class="modal-content" novalidate>
             <div class="modal-header">
-                <h5 class="modal-title fw-semibold" id="modalCrearColorLabel"><i class="bi bi-palette-fill me-2"></i>Nuevo Color</h5>
+                <h5 class="modal-title" id="modalCrearColorLabel">Nuevo Color</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body p-4">
@@ -29,9 +29,9 @@
                 <label class="form-label mb-2">Vista Previa del Color</label>
                 <div class="color-preview" id="crearPreview">#000000</div>
             </div>
-            <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>Guardar</button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times-circle"></i> Cancelar</button>
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar</button>
             </div>
         </form>
     </div>
@@ -40,9 +40,9 @@
 {{-- Modal editar color --}}
 <div class="modal fade color-modal" id="modalEditarColor" tabindex="-1" aria-labelledby="modalEditarColorLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form id="formEditarColor" class="modal-content shadow-lg" novalidate>
+        <form id="formEditarColor" class="modal-content" novalidate>
             <div class="modal-header">
-                <h5 class="modal-title fw-semibold" id="modalEditarColorLabel"><i class="bi bi-palette-fill me-2"></i>Editar Color</h5>
+            <h5 class="modal-title" id="modalEditarColorLabel">Editar Color</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body p-4">
@@ -69,9 +69,9 @@
                 <label class="form-label mb-2">Vista Previa del Color</label>
                 <div class="color-preview" id="editarPreview">#000000</div>
             </div>
-            <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-1"></i>Cancelar</button>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-floppy me-1"></i>Guardar Cambios</button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times-circle"></i> Cancelar</button>
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar Cambios</button>
             </div>
         </form>
     </div>

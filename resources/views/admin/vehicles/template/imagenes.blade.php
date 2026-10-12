@@ -28,7 +28,7 @@
             @forelse ($photos as $photo)
                 <tr>
                     <td>
-                        <img src="{{ asset('storage/' . $photo->imagen) }}"  class="img-thumbnail ampliar_foto"
+                        <img src="{{ asset('storage/' . $photo->imagen) }}" alt="Foto del vehículo" class="img-thumbnail ampliar_foto"
                             width="80"
                             height="80"
                             style="object-fit: cover; cursor: zoom-in;">

@@ -794,32 +794,36 @@ return [
             'text' => 'Buscar',
         ],
 
-
-        ['header' => 'GESTIÓN DE VEHÍCULOS'],
         [
-            'text' => 'Marcas',
-            'route' => 'brands.index',
-            'icon' => 'bi bi-tag',
-        ],
-        [
-            'text' => 'Modelos',
-            'route' => 'brandsmodel.index',
-            'icon' => 'bi bi-boxes',
-        ],
-        [
-            'text' => 'Color Vehículo',
-            'route' => 'vehiclescolor.index',
-            'icon' => 'bi bi-palette',
-        ],
-        [
-            'text' => 'Tipo Vehículo',
-            'route' => 'vehiclestype.index',
-            'icon' => 'bi bi-list-ul',
-        ],
-        [
-            'text' => 'Vehículo',
-            'route' => 'vehicles.index',
+            'text' => 'Gestión de Vehículos',
             'icon' => 'bi bi-car-front',
+            'submenu' => [
+                [
+                    'text' => 'Marcas',
+                    'route' => 'brands.index',
+                    'icon' => 'bi bi-tag',
+                ],
+                [
+                    'text' => 'Modelos',
+                    'route' => 'brandsmodel.index',
+                    'icon' => 'bi bi-boxes',
+                ],
+                [
+                    'text' => 'Color Vehículo',
+                    'route' => 'vehiclescolor.index',
+                    'icon' => 'bi bi-palette',
+                ],
+                [
+                    'text' => 'Tipo Vehículo',
+                    'route' => 'vehiclestype.index',
+                    'icon' => 'bi bi-list-ul',
+                ],
+                [
+                    'text' => 'Vehículo',
+                    'route' => 'vehicles.index',
+                    'icon' => 'bi bi-car-front',
+                ],
+            ],
         ],
         
     ],

@@ -71,10 +71,10 @@
 </div>
 
 <script>
-$(document).on('change', '#brand_id', function () {
+$(document).off('change.vehicleModel', '#brand_id').on('change.vehicleModel', '#brand_id', function () {
     const id_brand = $(this).val();
     const model = $('#model_id');
-        model.empty();
+    model.empty().append($('<option>', { value: '', text: 'Seleccione un modelo' }));
     if (!id_brand) return;
 
     $.ajax({
@@ -92,6 +92,7 @@ $(document).on('change', '#brand_id', function () {
                     })
                 );
             });
+            model.trigger('change.select2');
         },
 
         error: function (xhr) {

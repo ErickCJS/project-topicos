@@ -23,8 +23,7 @@
             <th>Descripción</th>
             <th>Creación</th>
             <th>Actualización</th>
-            <th>Editar</th>
-            <th>Eliminar</th>
+            <th>Acciones</th>
         </tr>
     </thead>
 
@@ -49,11 +48,46 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="brandLogoModal" tabindex="-1" aria-labelledby="brandLogoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="brandLogoModalLabel">Logo de marca</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="brandLogoModalImage" class="img-fluid" alt="" style="max-height: 70vh; object-fit: contain;">
+                </div>
+            </div>
+        </div>
+    </div>
 @stop
 
 @section('css')
-    {{-- Add here extra stylesheets --}}
-    {{-- <link rel="stylesheet" href="/css/admin_custom.css"> --}}
+<style>
+    .brand-logo-preview {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        border-radius: .25rem;
+        cursor: zoom-in;
+    }
+
+    .brand-logo-preview img {
+        width: 70px;
+        height: 50px;
+        object-fit: contain;
+    }
+
+    .brand-logo-preview:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 2px;
+    }
+</style>
 @stop
 
 @section('js')
@@ -221,13 +255,7 @@
                 },
 
                 {
-                    data: "edit",
-                    orderable: false,
-                    searchable: false
-                },
-
-                {
-                    data: "delete",
+                    data: "actions",
                     orderable: false,
                     searchable: false
                 }
@@ -238,6 +266,19 @@
                 url: "https://cdn.datatables.net/plug-ins/1.10.16/i18n/Spanish.json"
             }
 
+        });
+
+        $('#DataTable').on('click', '.brand-logo-preview', function () {
+            var brandName = $(this).data('brand');
+            $('#brandLogoModalLabel').text('Logo de ' + brandName);
+            $('#brandLogoModalImage')
+                .attr('src', $(this).data('image'))
+                .attr('alt', 'Logo de ' + brandName);
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('brandLogoModal')).show();
+        });
+
+        $('#brandLogoModal').on('hidden.bs.modal', function () {
+            $('#brandLogoModalImage').attr('src', '').attr('alt', '');
         });
 
     });

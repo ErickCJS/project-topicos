@@ -8,8 +8,11 @@ use App\Models\admin\Brandmodel;
 use App\Models\admin\Color;
 use App\Models\admin\Vehicle;
 use App\Models\admin\VehicleImage;
+use App\Models\admin\Vehicletype;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
 
 class VehiclesController extends Controller
@@ -50,8 +53,9 @@ class VehiclesController extends Controller
                         ? asset('storage/images/no_logo.png')
                         : asset('storage/' . $vehicle->logo);
 
-                    return '<img src="' . $logo . '"
-                            style="width:70px; height:50px; object-fit:contain;">';
+                    return '<button type="button" class="vehicle-logo-preview" data-image="' . e($logo) . '" data-vehicle="' . e($vehicle->name) . '" title="Ver imagen de ' . e($vehicle->name) . '" aria-label="Ver imagen de ' . e($vehicle->name) . '">
+                                <img src="' . e($logo) . '" alt="Imagen de ' . e($vehicle->name) . '">
+                            </button>';
                     })
                 ->addColumn('color', function ($vehicle) {
                     return '<div style="
@@ -63,22 +67,20 @@ class VehiclesController extends Controller
                         display: inline-block;
                     "></div>';
                 })
-                ->addColumn('image', function ($vehicle) {
-                    return '<button class="btn btn-secondary btn-sm btnImagen" data-id="' . $vehicle->id . '">
-                        <i class="fas fa-image"></i>
-                    </button>';
+                ->addColumn('actions', function ($vehicle) {
+                    return '<div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm btnImagen" data-id="' . $vehicle->id . '" title="Imágenes" aria-label="Imágenes del vehículo">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm btnEditar" data-id="' . $vehicle->id . '" title="Editar" aria-label="Editar vehículo">
+                            <i class="fas fa-pencil-alt"></i>
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm btnEliminar" data-id="' . $vehicle->id . '" title="Eliminar" aria-label="Eliminar vehículo">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>';
                 })
-                ->addColumn('edit', function ($vehicle) {
-                    return '<button class="btn btn-primary btn-sm btnEditar" data-id="' . $vehicle->id . '">
-                        <i class="fas fa-pencil-alt"></i>
-                    </button>';
-                })
-                ->addColumn('delete', function ($vehicle) {
-                    return '<button class="btn btn-danger btn-sm btnEliminar" data-id="' . $vehicle->id . '">
-                        <i class="fas fa-trash"></i>
-                    </button>';
-                })
-                ->rawColumns(['logo','image','color','edit', 'delete'])
+                ->rawColumns(['logo', 'color', 'actions'])
                 ->make(true);
         }
 
@@ -93,8 +95,8 @@ class VehiclesController extends Controller
         $brands = Brand::has('models')->pluck('name', 'id');
         $brand_first = $brands->keys()->first();
         $models = Brandmodel::where('brand_id', $brand_first)->pluck('name', 'id');
-        $types = Vehicle::all()->pluck('name', 'id');
-        $colors = Color::all()->pluck('name', 'id');
+        $types = Vehicletype::orderBy('name')->pluck('name', 'id');
+        $colors = Color::orderBy('name')->pluck('name', 'id');
         return view('admin.vehicles.create', compact('brands', 'models', 'types', 'colors'));
     }
 
@@ -103,7 +105,28 @@ class VehiclesController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:100', 'unique:vehicles,code'],
+            'name' => ['required', 'string', 'max:100'],
+            'plate' => ['required', 'string', 'max:10', 'unique:vehicles,plate'],
+            'year' => ['required', 'integer', 'min:1900', 'max:' . (now()->year + 1)],
+            'load_capacity' => ['required', 'integer', 'min:0'],
+            'occupats_capacity' => ['required', 'integer', 'min:0'],
+            'fuel_capacity' => ['required', 'integer', 'min:0'],
+            'compact_capacity' => ['required', 'integer', 'min:0'],
+            'type_id' => ['required', 'exists:vehicletypes,id'],
+            'brand_id' => ['required', 'exists:brands,id'],
+            'model_id' => [
+                'required',
+                Rule::exists('brandmodels', 'id')->where('brand_id', $request->input('brand_id')),
+            ],
+            'color_id' => ['required', 'exists:color,id'],
+            'description' => ['nullable', 'string'],
+        ], $this->validationMessages());
+
+        Vehicle::create($validated);
+
+        return response()->json(['mensaje' => 'Vehículo registrado correctamente'], 201);
     }
 
     /**
@@ -118,13 +141,12 @@ class VehiclesController extends Controller
      * Show the form for editing the specified resource.
      */
     public function edit(string $id)
-    {   
-        $vehicle = Vehicle::find($id);
+    {
+        $vehicle = Vehicle::findOrFail($id);
         $brands = Brand::has('models')->pluck('name', 'id');
-        $brand_first = $brands->keys()->first();
-        $models = Brandmodel::where('brand_id', $brand_first)->pluck('name', 'id');
-        $types = Vehicle::all()->pluck('name', 'id');
-        $colors = Color::all()->pluck('name', 'id');
+        $models = Brandmodel::where('brand_id', $vehicle->brand_id)->pluck('name', 'id');
+        $types = Vehicletype::orderBy('name')->pluck('name', 'id');
+        $colors = Color::orderBy('name')->pluck('name', 'id');
         return view('admin.vehicles.edit', compact('vehicle','brands', 'models', 'types', 'colors'));
     }
 
@@ -133,7 +155,30 @@ class VehiclesController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $vehicle = Vehicle::findOrFail($id);
+
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:100', Rule::unique('vehicles', 'code')->ignore($vehicle->id)],
+            'name' => ['required', 'string', 'max:100'],
+            'plate' => ['required', 'string', 'max:10', Rule::unique('vehicles', 'plate')->ignore($vehicle->id)],
+            'year' => ['required', 'integer', 'min:1900', 'max:' . (now()->year + 1)],
+            'load_capacity' => ['required', 'integer', 'min:0'],
+            'occupats_capacity' => ['required', 'integer', 'min:0'],
+            'fuel_capacity' => ['required', 'integer', 'min:0'],
+            'compact_capacity' => ['required', 'integer', 'min:0'],
+            'type_id' => ['required', 'exists:vehicletypes,id'],
+            'brand_id' => ['required', 'exists:brands,id'],
+            'model_id' => [
+                'required',
+                Rule::exists('brandmodels', 'id')->where('brand_id', $request->input('brand_id')),
+            ],
+            'color_id' => ['required', 'exists:color,id'],
+            'description' => ['nullable', 'string'],
+        ], $this->validationMessages());
+
+        $vehicle->update($validated);
+
+        return response()->json(['mensaje' => 'Vehículo actualizado correctamente']);
     }
 
     /**
@@ -141,7 +186,49 @@ class VehiclesController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $imagePaths = DB::transaction(function () use ($id) {
+            $vehicle = Vehicle::findOrFail($id);
+            $imagePaths = $vehicle->images()
+                ->pluck('imagen')
+                ->filter(fn ($path) => filled($path))
+                ->all();
+
+            $vehicle->images()->delete();
+            $vehicle->delete();
+
+            return $imagePaths;
+        });
+
+        if ($imagePaths) {
+            Storage::disk('public')->delete($imagePaths);
+        }
+
+        return response()->json(['mensaje' => 'Vehículo y todas sus imágenes eliminados correctamente']);
+    }
+
+    private function validationMessages(): array
+    {
+        return [
+            'code.required' => 'El código del vehículo es obligatorio.',
+            'code.unique' => 'Ya existe un vehículo con ese código.',
+            'name.required' => 'El nombre del vehículo es obligatorio.',
+            'plate.required' => 'La placa del vehículo es obligatoria.',
+            'plate.unique' => 'Ya existe un vehículo con esa placa.',
+            'year.required' => 'El año del vehículo es obligatorio.',
+            'year.max' => 'El año no puede ser posterior al próximo año.',
+            'load_capacity.required' => 'La capacidad de carga es obligatoria.',
+            'occupats_capacity.required' => 'La capacidad de personas es obligatoria.',
+            'fuel_capacity.required' => 'La capacidad de combustible es obligatoria.',
+            'compact_capacity.required' => 'La capacidad de compactación es obligatoria.',
+            'type_id.required' => 'Selecciona el tipo de vehículo.',
+            'type_id.exists' => 'El tipo de vehículo seleccionado no existe.',
+            'brand_id.required' => 'Selecciona la marca del vehículo.',
+            'brand_id.exists' => 'La marca seleccionada no existe.',
+            'model_id.required' => 'Selecciona el modelo del vehículo.',
+            'model_id.exists' => 'El modelo no pertenece a la marca seleccionada.',
+            'color_id.required' => 'Selecciona el color del vehículo.',
+            'color_id.exists' => 'El color seleccionado no existe.',
+        ];
     }
 
     public function retonar_models(int $brand_id)

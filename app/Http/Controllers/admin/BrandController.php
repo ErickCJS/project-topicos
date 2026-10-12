@@ -28,8 +28,9 @@ public function index(Request $request)
                     ? asset('storage/images/no_logo.png')
                     : asset($brand->logo);
 
-                return '<img src="' . $logo . '"
-                        style="width:70px; height:50px; object-fit:contain;">';
+                return '<button type="button" class="brand-logo-preview" data-image="' . e($logo) . '" data-brand="' . e($brand->name) . '" title="Ver logo de ' . e($brand->name) . '" aria-label="Ver logo de ' . e($brand->name) . '">
+                            <img src="' . e($logo) . '" alt="Logo de ' . e($brand->name) . '">
+                        </button>';
             })
             ->addColumn('created_at', function ($brand) {
                 return Carbon::parse($brand->created_at)->format('d/m/Y H:i:s');
@@ -37,28 +38,20 @@ public function index(Request $request)
             ->addColumn('updated_at', function ($brand) {
                 return Carbon::parse($brand->updated_at)->format('d/m/Y H:i:s');
             })
-            ->addColumn('edit', function ($brand) {
-
-                return '<button
-                            class="btn btn-primary btn-sm btnEditar"
-                            data-id="' . $brand->id . '">
-                            <i class="fas fa-pencil-alt"></i>
-                        </button>';
-            })
-
-            ->addColumn('delete', function ($brand) {
-
-                return '<button
-                            class="btn btn-sm btn-danger btnEliminar"
-                            data-id="' . $brand->id . '">
-                            <i class="fas fa-trash"></i>
-                        </button>';
+            ->addColumn('actions', function ($brand) {
+                return '<div class="d-flex justify-content-center gap-2">
+                            <button type="button" class="btn btn-primary btn-sm btnEditar" data-id="' . $brand->id . '" title="Editar" aria-label="Editar marca">
+                                <i class="fas fa-pencil-alt"></i>
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm btnEliminar" data-id="' . $brand->id . '" title="Eliminar" aria-label="Eliminar marca">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>';
             })
 
             ->rawColumns([
                 'logo',
-                'edit',
-                'delete'
+                'actions'
             ])
 
             ->make(true);
