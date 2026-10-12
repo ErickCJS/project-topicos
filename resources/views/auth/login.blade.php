@@ -1,49 +1,689 @@
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
 <x-guest-layout>
-    <main class="flex min-h-screen w-full flex-col md:flex-row">
-        <section class="relative hidden min-h-screen flex-col justify-end bg-cover bg-center p-8 text-white md:flex md:w-1/2 md:p-12"
-            style="background-image: url('https://scontent.fcix4-1.fna.fbcdn.net/v/t39.30808-6/493520269_1295107909129480_3447796301901916944_n.jpg?stp=dst-jpg_tt6&cstp=mx2048x1365&ctp=s2048x1365&_nc_cat=105&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=127cfc&_nc_ohc=7X0rK128m7IQ7kNvwGYhlQD&_nc_oc=Ado--cBnyiRwPrsISdP-xtKItPXpn2uxzAvSUpTpR2xq9bxDx6_CKCrc46M6BkLofsU&_nc_zt=23&_nc_ht=scontent.fcix4-1.fna&_nc_gid=Wv4l0h-xKlcedMUcHKiXPA&_nc_ss=7b2a8&oh=00_AQMOraO8AtEgETVLUtsx1fTxlOxSvh0iGxGp6I1Db96mJg&oe=6AD249C1');">
-            <div class="absolute inset-0 bg-black/40"></div>
-            <div class="relative z-10 mt-auto max-w-2xl">
-                <h1 class="mb-5 text-4xl font-bold leading-tight lg:text-5xl">Gestionando residuos para un JLO más limpio.</h1>
-                <p class="max-w-xl text-base leading-relaxed text-white/90 lg:text-lg">Plataforma para la gestión, planificación y supervisión de las operaciones de recolección de residuos en José Leonardo Ortiz.</p>
-                <footer class="mt-10 border-t border-white/30 pt-5 text-xs font-medium tracking-wide text-white/80 sm:text-sm">© 2026 USAT - UNIVERSIDAD CATÓLICA SANTO TORIBIO DE MOGROVEJO</footer>
-            </div>
-        </section>
+    <main class="login-page">
+        <div class="login-container">
 
-        <section class="flex min-h-screen w-full items-center justify-center bg-white px-5 py-10 sm:px-8 md:w-1/2 md:px-10 lg:px-16">
-            <div class="w-full max-w-md">
-                <img src="https://jloenlinea.munijlo.gob.pe/assets/modern-logo-EliRhkgI.png" alt="Municipalidad José Leonardo Ortiz" class="mx-auto mb-4 w-48 max-w-full">
-                <p class="text-center text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">ACCESO AL SISTEMA</p>
-                <h2 class="mb-2 mt-2 text-center text-3xl font-bold tracking-tight text-blue-700 sm:text-4xl">Bienvenido de nuevo</h2>
-                <p class="mb-7 text-center text-sm leading-relaxed text-gray-600">Por favor, ingrese sus credenciales para acceder al sistema administrativo.</p>
+            {{-- Panel izquierdo --}}
+            <section class="login-banner">
+                <div class="login-banner-content">
+                    <div>
+                        <h1>Gestionando residuos<br>para un JLO más limpio.</h1>
+                        <p>
+                            Plataforma para la gestión, planificación y supervisión de las operaciones
+                            de recolección de residuos en José Leonardo Ortiz.
+                        </p>
+                    </div>
 
-                @session('status')
-                    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">{{ $value }}</div>
-                @endsession
+                    <footer>
+                        © {{ date('Y') }} USAT - UNIVERSIDAD CATÓLICA SANTO TORIBIO DE MOGROVEJO
+                    </footer>
+                </div>
+            </section>
 
-                <form method="POST" action="{{ route('login') }}" novalidate>
-                    @csrf
-                    <div class="mb-3">
-                        <label for="email" class="mb-1.5 block text-sm font-medium text-gray-800">Correo</label>
-                        <input id="email" type="email" name="email" value="{{ old('email') }}" placeholder="Ingrese su correo electrónico" autocomplete="username" required autofocus class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring focus:ring-blue-200">
-                    </div>
-                    <div class="mb-2">
-                        <label for="password" class="mb-1.5 block text-sm font-medium text-gray-800">Contraseña</label>
-                        <input id="password" type="password" name="password" placeholder="Ingrese su contraseña" autocomplete="current-password" required class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring focus:ring-blue-200">
-                    </div>
-                    <div class="mb-4 flex items-center">
-                        <input id="remember_me" type="checkbox" name="remember" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" @checked(old('remember'))>
-                        <label for="remember_me" class="ml-2 text-sm text-gray-700">Recordarme</label>
-                    </div>
-                    <div class="mb-5 text-right">
-                        @if (Route::has('password.request'))
-                            <a href="{{ route('password.request') }}" class="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">¿Olvidó su contraseña?</a>
-                        @endif
-                    </div>
-                    <button type="submit" class="w-full rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Iniciar Sesión</button>
-                </form>
-            </div>
-        </section>
+            {{-- Panel derecho --}}
+            <section class="login-form-section">
+                <div class="login-form-container">
+
+                    <img
+                        src="{{ asset('storage/logos/lg.png') }}"
+                        class="login-logo"
+                        alt="Logo del sistema"
+                    >
+
+                    <p class="login-kicker">Acceso al sistema</p>
+                    <h2 class="login-title">Bienvenido de nuevo</h2>
+
+                    <p class="login-description">
+                        Por favor, ingrese sus credenciales para acceder al sistema administrativo.
+                    </p>
+
+                    <form method="POST" action="{{ route('login') }}">
+                        @csrf
+
+                        {{-- Correo electrónico --}}
+                        <div class="login-field">
+                            <label for="email" class="form-label">Correo electrónico</label>
+
+                            <div class="login-input">
+                                <span class="login-input-icon" aria-hidden="true">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+
+                                <input
+                                    id="email"
+                                    type="email"
+                                    name="email"
+                                    value="{{ old('email') }}"
+                                    class="form-control"
+                                    placeholder="Ingrese su correo electrónico"
+                                    autocomplete="username"
+                                    required
+                                    autofocus
+                                >
+                            </div>
+                        </div>
+
+                        {{-- Contraseña --}}
+                        <div class="login-field login-password-field">
+                            <label for="password" class="form-label">Contraseña</label>
+
+                            <div class="login-input">
+                                <span class="login-input-icon" aria-hidden="true">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+
+                                <input
+                                    id="password"
+                                    type="password"
+                                    name="password"
+                                    class="form-control"
+                                    placeholder="Ingrese su contraseña"
+                                    autocomplete="current-password"
+                                    required
+                                >
+
+                                <button
+                                    type="button"
+                                    class="login-eye"
+                                    id="togglePassword"
+                                    aria-label="Mostrar contraseña"
+                                    aria-controls="password"
+                                    aria-pressed="false"
+                                >
+                                    <i class="bi bi-eye" id="eyeIcon" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Recuperación de contraseña --}}
+                        <div class="login-forgot">
+                            @if (Route::has('password.request'))
+                                <a
+                                    href="{{ route('password.request') }}"
+                                    class="forgot-password"
+                                >
+                                    ¿Olvidó su contraseña?
+                                </a>
+                            @endif
+                        </div>
+
+                        {{-- Botón de acceso --}}
+                        <button type="submit" class="login-button">
+                            <span>Iniciar sesión</span>
+                            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                        </button>
+                    </form>
+
+     
+
+                </div>
+            </section>
+
+        </div>
     </main>
-    @include('components.alerts-auth')
+
+    {{-- SweetAlert2 --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    {{-- Alertas de autenticación --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            @if ($errors->any())
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No se pudo iniciar sesión',
+                    text: 'El correo electrónico o la contraseña son incorrectos. Verifique sus datos e inténtelo nuevamente.',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#1769aa',
+                    allowOutsideClick: false,
+                    customClass: {
+                        popup: 'login-swal-popup',
+                        confirmButton: 'login-swal-button'
+                    }
+                });
+            @elseif (session('status'))
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Operación exitosa!',
+                    text: @json(session('status')),
+                    confirmButtonText: 'Continuar',
+                    confirmButtonColor: '#1769aa',
+                    customClass: {
+                        popup: 'login-swal-popup',
+                        confirmButton: 'login-swal-button'
+                    }
+                });
+            @endif
+        });
+    </script>
+
+    {{-- Mostrar y ocultar contraseña --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const boton = document.getElementById('togglePassword');
+            const password = document.getElementById('password');
+            const icono = document.getElementById('eyeIcon');
+
+            if (!boton || !password || !icono) return;
+
+            boton.addEventListener('click', function () {
+                const mostrar = password.type === 'password';
+
+                password.type = mostrar ? 'text' : 'password';
+
+                icono.classList.toggle('bi-eye', !mostrar);
+                icono.classList.toggle('bi-eye-slash', mostrar);
+
+                boton.setAttribute(
+                    'aria-label',
+                    mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                );
+
+                boton.setAttribute('aria-pressed', String(mostrar));
+            });
+        });
+    </script>
+
+    <style>
+        /* Configuración general */
+        .login-page,
+        .login-page *,
+        .login-page *::before,
+        .login-page *::after {
+            box-sizing: border-box;
+        }
+
+        .login-page {
+            width: 100%;
+            min-height: 100vh;
+            min-height: 100svh;
+            margin: 0;
+            padding: 0;
+            overflow-x: clip;
+            background: #fff;
+        }
+
+        .login-container {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            width: 100%;
+            max-width: 1600px;
+            min-height: 100vh;
+            min-height: 100svh;
+            margin: 0 auto;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .login-banner,
+        .login-form-section {
+            min-width: 0;
+        }
+
+        /* Panel izquierdo */
+        .login-banner {
+            position: relative;
+            display: flex;
+            min-height: 600px;
+            background-image:
+                linear-gradient(
+                    to bottom,
+                    rgba(12, 25, 42, .10),
+                    rgba(8, 17, 29, .80)
+                ),
+                url('/storage/logos/91a3d343-e34e-41bc-97fb-f8c5d6790e23.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: #fff;
+        }
+
+        .login-banner-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            width: 100%;
+            min-width: 0;
+            padding: 40px 36px 24px;
+        }
+
+        .login-banner h1 {
+            max-width: 660px;
+            margin: 0;
+            color: #fff;
+            font-size: clamp(32px, 3.2vw, 52px);
+            font-weight: 800;
+            line-height: 1.08;
+            letter-spacing: -1.5px;
+            overflow-wrap: break-word;
+            text-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+        }
+
+        .login-banner p {
+            max-width: 580px;
+            margin: 22px 0 0;
+            color: rgba(255, 255, 255, .92);
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.7;
+        }
+
+        .login-banner footer {
+            margin-top: 42px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, .35);
+            color: rgba(255, 255, 255, .78);
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.7;
+            letter-spacing: .04em;
+        }
+
+        /* Panel derecho */
+        .login-form-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            padding: 40px;
+            background: #fff;
+        }
+
+        .login-form-container {
+            width: 100%;
+            max-width: 440px;
+            min-width: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        .login-logo {
+            display: block;
+            width: auto;
+            max-width: min(170px, 100%);
+            height: 58px;
+            margin: 0 auto 30px;
+            object-fit: contain;
+        }
+
+        .login-kicker {
+            margin: 0 0 10px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .login-title {
+            margin: 0 0 12px;
+            color: #1769aa;
+            font-size: clamp(27px, 2.5vw, 34px);
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -.7px;
+            text-align: center;
+            overflow-wrap: break-word;
+        }
+
+        .login-description {
+            margin: 0 0 28px;
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.65;
+            text-align: center;
+        }
+
+        /* Etiquetas */
+        .login-field {
+            margin-bottom: 18px;
+        }
+
+        .login-password-field {
+            margin-bottom: 0;
+        }
+
+        .login-form-container .form-label {
+            display: block;
+            margin-bottom: 7px;
+            color: #263445;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Inputs compactos y alineados */
+        .login-input {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 48px;
+            min-height: 48px;
+            overflow: hidden;
+            border: 1px solid #d4dbe4;
+            border-radius: 6px;
+            background: #fff;
+            box-shadow: none;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+
+        .login-input:hover {
+            border-color: #aebbc9;
+        }
+
+        .login-input:focus-within {
+            border-color: #1769aa;
+            box-shadow: 0 0 0 1px #1769aa;
+        }
+
+        .login-input-icon {
+            display: flex;
+            flex: 0 0 42px;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #758397;
+        }
+
+        .login-input-icon i {
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .login-input .form-control {
+            display: block;
+            flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
+            height: 100%;
+            margin: 0;
+            padding: 0 8px 0 0;
+            border: 0 !important;
+            border-radius: 0;
+            outline: 0;
+            background: transparent !important;
+            color: #263445;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: normal;
+            box-shadow: none !important;
+        }
+
+        .login-input .form-control::placeholder {
+            color: #929eae;
+            opacity: 1;
+        }
+
+        .login-input .form-control:focus {
+            border: 0 !important;
+            outline: 0;
+            box-shadow: none !important;
+        }
+
+        .login-input .form-control:-webkit-autofill,
+        .login-input .form-control:-webkit-autofill:hover,
+        .login-input .form-control:-webkit-autofill:focus {
+            -webkit-text-fill-color: #263445;
+            transition: background-color 9999s ease-in-out 0s;
+        }
+
+        /* Botón para ver u ocultar la contraseña */
+        .login-eye {
+            display: flex;
+            flex: 0 0 40px;
+            align-items: center;
+            justify-content: center;
+            align-self: stretch;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            color: #758397;
+            font-size: 17px;
+            cursor: pointer;
+            transition: color .15s ease;
+        }
+
+        .login-eye:hover {
+            background: transparent;
+            color: #1769aa;
+        }
+
+        .login-eye:focus-visible {
+            outline: 2px solid #1769aa;
+            outline-offset: -4px;
+        }
+
+        /* Recuperación de contraseña */
+        .login-forgot {
+            display: flex;
+            justify-content: flex-end;
+            min-height: 38px;
+            padding-top: 10px;
+            margin-bottom: 14px;
+        }
+
+        .forgot-password {
+            color: #1769aa;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .forgot-password:hover {
+            color: #104e80;
+            text-decoration: underline;
+        }
+
+        /* Botón de inicio de sesión */
+        .login-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            min-height: 48px;
+            margin: 0;
+            padding: 12px 18px;
+            border: 1px solid #1769aa;
+            border-radius: 6px;
+            background: #1769aa;
+            color: #fff;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            box-shadow: none;
+            cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease;
+        }
+
+        .login-button:hover {
+            border-color: #12578e;
+            background: #12578e;
+            color: #fff;
+        }
+
+        .login-button:active {
+            background: #104e80;
+            color: #fff;
+        }
+
+        .login-button:focus-visible {
+            outline: 3px solid rgba(23, 105, 170, .25);
+            outline-offset: 3px;
+        }
+
+        .login-button i {
+            font-size: 17px;
+            transition: transform .15s ease;
+        }
+
+        .login-button:hover i {
+            transform: translateX(3px);
+        }
+
+        /* Información de seguridad */
+        .login-security {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 28px;
+            color: #8491a2;
+            font-size: 11px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .login-security i {
+            flex-shrink: 0;
+            color: #1769aa;
+            font-size: 14px;
+        }
+
+        /* SweetAlert2 */
+        .login-swal-popup {
+            width: min(420px, calc(100% - 32px)) !important;
+            border-radius: 12px !important;
+            padding: 28px !important;
+        }
+
+        .login-swal-button {
+            min-width: 120px;
+            padding: 11px 22px !important;
+            border-radius: 7px !important;
+            font-weight: 600 !important;
+        }
+
+        /* Tablets */
+        @media (max-width: 991.98px) {
+            .login-container {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .login-banner {
+                min-height: 360px;
+            }
+
+            .login-banner-content {
+                padding: 32px 28px 22px;
+            }
+
+            .login-banner h1 {
+                font-size: clamp(28px, 5vw, 38px);
+                letter-spacing: -.8px;
+            }
+
+            .login-banner p {
+                max-width: 600px;
+                font-size: 14px;
+            }
+
+            .login-banner footer {
+                margin-top: 25px;
+                padding-top: 18px;
+            }
+
+            .login-form-section {
+                padding: 42px 28px;
+            }
+
+            .login-form-container {
+                max-width: 440px;
+            }
+
+            .login-logo {
+                margin-bottom: 24px;
+            }
+        }
+
+        /* Celulares */
+        @media (max-width: 480px) {
+            .login-banner {
+                min-height: 320px;
+            }
+
+            .login-banner-content {
+                padding: 28px 22px 18px;
+            }
+
+            .login-banner h1 {
+                font-size: 28px;
+                line-height: 1.12;
+            }
+
+            .login-banner p {
+                margin-top: 15px;
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+            .login-banner footer {
+                margin-top: 22px;
+                font-size: 9px;
+            }
+
+            .login-form-section {
+                padding: 34px 22px;
+            }
+
+            .login-title {
+                font-size: 27px;
+            }
+
+            .login-description {
+                margin-bottom: 24px;
+                font-size: 13px;
+            }
+
+            .login-field {
+                margin-bottom: 16px;
+            }
+
+            .login-password-field {
+                margin-bottom: 0;
+            }
+
+            .login-input {
+                height: 46px;
+                min-height: 46px;
+            }
+
+            .login-input-icon {
+                flex-basis: 38px;
+            }
+
+            .login-eye {
+                flex-basis: 38px;
+            }
+
+            .login-input .form-control {
+                font-size: 14px;
+            }
+
+            .login-forgot {
+                min-height: 36px;
+                margin-bottom: 12px;
+            }
+
+            .login-security {
+                margin-top: 24px;
+                font-size: 10px;
+            }
+        }
+
+        /* Accesibilidad */
+        @media (prefers-reduced-motion: reduce) {
+            .login-input,
+            .login-eye,
+            .login-button,
+            .login-button i {
+                transition: none;
+            }
+        }
+    </style>
 </x-guest-layout>
