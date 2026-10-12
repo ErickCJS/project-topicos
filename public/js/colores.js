@@ -9,7 +9,13 @@
 
     function mensaje(texto, error = false) {
         if (window.Swal) {
-            Swal.fire({ icon: error ? 'error' : 'success', text: texto });
+            Swal.fire({
+                icon: error ? 'error' : 'success',
+                title: error ? 'Revisa los datos del color' : 'Listo',
+                text: texto,
+                confirmButtonColor: '#2563EB',
+                confirmButtonText: 'Entendido'
+            });
         } else {
             window.alert(texto);
         }
@@ -114,20 +120,12 @@
 
     function limpiarErrores($form) {
         $form.find('.is-invalid').removeClass('is-invalid');
-        $form.find('[data-error-for]').text('').removeClass('d-block');
     }
 
     function mostrarErrores($form, errores) {
         limpiarErrores($form);
-        Object.keys(errores).forEach(function (campo) {
-            const $input = $form.find('[name="' + campo + '"]');
-            $input.addClass('is-invalid');
-            $form.find('[data-error-for="' + campo + '"]')
-                .text(errores[campo][0])
-                .addClass('d-block');
-        });
-        const $primerError = $form.find('.is-invalid').first();
-        if ($primerError.length) $primerError.trigger('focus');
+        const mensajes = Object.values(errores).flat();
+        mensaje(mensajes.length ? mensajes.join(' ') : 'Verifica la información ingresada.', true);
     }
 
     function validarFormulario($form) {
@@ -265,7 +263,6 @@
             const $form = $(this).closest('form');
             const name = this.name;
             $form.find('[name="' + name + '"]').removeClass('is-invalid');
-            $form.find('[data-error-for="' + name + '"]').text('').removeClass('d-block');
             if (this.tagName === 'TEXTAREA') actualizarContador(this);
         });
         $('#crearDescription, #editarDescription').each(function () { actualizarContador(this); });
