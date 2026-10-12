@@ -793,6 +793,17 @@ return [
             'type' => 'sidebar-menu-search',
             'text' => 'Buscar',
         ],
+        [
+            'text' => 'Gestión de Personal',
+            'icon' => 'fas fa-users',
+            'submenu' => [
+                [
+                    'text' => 'Tipos de personal',
+                    'route' => 'employee-types.index',
+                    'icon' => 'fas fa-user-tag',
+                ],
+            ],
+        ],
 
         [
             'text' => 'Gestión de Vehículos',
