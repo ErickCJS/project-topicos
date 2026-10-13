@@ -5,7 +5,13 @@
 @section('content_header')
     <div class="rsu-page-heading">
         <div><span class="rsu-eyebrow">Panel principal</span><h1>Inicio</h1></div>
-        <div class="rsu-date"><i class="far fa-calendar-alt"></i> {{ now()->locale('es')->isoFormat('D [de] MMMM, YYYY') }}</div>
+        <div class="rsu-date" aria-label="Fecha de la jornada operativa de residuos sólidos urbanos">
+            <i class="far fa-calendar-alt" aria-hidden="true"></i>
+            <span>
+                <small>Jornada operativa RSU</small>
+                <strong>{{ now()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</strong>
+            </span>
+        </div>
     </div>
 @stop
 
@@ -1032,6 +1038,57 @@
 
     .rsu-dashboard .rsu-info-top h3 {
         font-size: 19px;
+    }
+}
+
+.rsu-date {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 12px;
+    border: 1px solid #e4e9e5;
+    border-radius: 9px;
+    background: #fff;
+}
+
+.rsu-date i {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    place-items: center;
+    margin: 0;
+    border: 1px solid #e5ece7;
+    border-radius: 7px;
+    color: #28754f;
+}
+
+.rsu-date span,
+.rsu-date small,
+.rsu-date strong {
+    display: block;
+}
+
+.rsu-date small {
+    margin-bottom: 3px;
+    color: #7d8c84;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.rsu-date strong {
+    color: #23372d;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+@media (max-width: 575px) {
+    .rsu-date {
+        display: inline-flex;
+        margin-top: 10px;
     }
 }
 
