@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\admin\AdminController;
 use App\Http\Controllers\admin\AttendancesController;
+use App\Http\Controllers\admin\ContractController;
 use App\Http\Controllers\admin\BrandController;
 use App\Http\Controllers\admin\BrandModelController;
 use App\Http\Controllers\admin\EmployeeTypeController;
@@ -11,6 +12,8 @@ use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
+Route::view('attendances', 'admin.attendances.index')->name('attendances.index');
+Route::resource('contracts', ContractController::class)->only(['index', 'create', 'store', 'edit', 'update'])->names('contracts');
 Route::resource('brands', BrandController::class)->names('brands');
 Route::resource('vehicles', VehiclesController::class)->names('vehicles');
 Route::get('vehicles/retonar_models/{id_brand}', [VehiclesController::class, 'retonar_models'])->name('vehicles.retonar_models');

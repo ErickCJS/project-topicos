@@ -780,6 +780,11 @@ return [
         ],
        
         [
+            'text' => 'Contratos',
+            'route' => 'contracts.index',
+            'icon' => 'bi bi-file-earmark-text',
+        ],
+        [
             'header' => 'Vehículos',
         ],
         [
