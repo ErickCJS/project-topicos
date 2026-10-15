@@ -795,6 +795,11 @@ return [
         ],
 
         [
+            'text' => 'Contratos',
+            'route' => 'contracts.index',
+            'icon' => 'bi bi-file-earmark-text',
+        ],
+        [
             'text' => 'Gestión de Vehículos',
             'icon' => 'bi bi-car-front',
             'submenu' => [
