@@ -391,7 +391,7 @@ return [
     */
 
     'color_mode' => [
-        'enabled' => true,
+        'enabled' => false,
         'default' => 'auto',
         'remember' => true,
         'no_flash_script' => true,
@@ -400,7 +400,7 @@ return [
         // mode toggle). Set it to false when your application provides its own
         // endpoint, or when the color mode is fully client side.
 
-        'routes' => true,
+        'routes' => false,
 
         // The color used for the 'theme-color' meta tags. These are used by
         // some browsers to colorize parts of their user interface.
@@ -542,7 +542,7 @@ return [
     'classes_content' => '',
     'classes_content_top_area' => '',
     'classes_content_bottom_area' => '',
-    'classes_sidebar' => 'bg-body-secondary shadow',
+    'classes_sidebar' => 'rsu-sidebar',
     'classes_sidebar_nav' => '',
     'classes_topnav' => 'bg-body',
     'classes_topnav_nav' => 'navbar-expand',
@@ -564,14 +564,14 @@ return [
     // the classic AdminLTE dark sidebar, 'light' for a light one, or null to
     // inherit the color mode of the page. Any other value is read as 'dark'.
 
-    'sidebar_theme' => 'dark',
+    'sidebar_theme' => null,
 
     // Behavior of the sidebar. The mini mode keeps the icons of a collapsed
     // sidebar visible, 'sidebar_collapse' starts the panel with the sidebar
     // already collapsed, and 'sidebar_without_hover' stops a collapsed
     // sidebar from expanding again on mouse hover.
 
-    'sidebar_mini' => true,
+    'sidebar_mini' => false,
     'sidebar_collapse' => false,
     'sidebar_without_hover' => false,
 
@@ -773,64 +773,57 @@ return [
     */
 
     'menu' => [
-        // Navbar items:
         [
-            'type' => 'navbar-search',
-            'text' => 'Buscar',
-            'topnav_right' => true,
+            'text' => 'Inicio',
+            'route' => 'admin.home',
+            'icon' => 'fas fa-house',
         ],
         [
-            'type' => 'darkmode-widget',
-            'topnav_right' => true,
+            'header' => 'Personal',
         ],
         [
-            'type' => 'fullscreen-widget',
-            'topnav_right' => true,
+            'text' => 'Tipos de personal',
+            'route' => 'employee-types.index',
+            'icon' => 'fas fa-users',
         ],
-
-        // Sidebar items:
         [
-            'type' => 'sidebar-menu-search',
-            'text' => 'Buscar',
+            'text' => 'Asistencias',
+            'route' => 'attendances.index',
+            'icon' => 'fas fa-clipboard-check',
         ],
-
         [
             'text' => 'Contratos',
             'route' => 'contracts.index',
             'icon' => 'bi bi-file-earmark-text',
         ],
         [
-            'text' => 'Gestión de Vehículos',
-            'icon' => 'bi bi-car-front',
-            'submenu' => [
-                [
-                    'text' => 'Marcas',
-                    'route' => 'brands.index',
-                    'icon' => 'bi bi-tag',
-                ],
-                [
-                    'text' => 'Modelos',
-                    'route' => 'brandsmodel.index',
-                    'icon' => 'bi bi-boxes',
-                ],
-                [
-                    'text' => 'Color Vehículo',
-                    'route' => 'vehiclescolor.index',
-                    'icon' => 'bi bi-palette',
-                ],
-                [
-                    'text' => 'Tipo Vehículo',
-                    'route' => 'vehiclestype.index',
-                    'icon' => 'bi bi-list-ul',
-                ],
-                [
-                    'text' => 'Vehículo',
-                    'route' => 'vehicles.index',
-                    'icon' => 'bi bi-car-front',
-                ],
-            ],
+            'header' => 'Vehículos',
         ],
-        
+        [
+            'text' => 'Vehículos',
+            'route' => 'vehicles.index',
+            'icon' => 'fas fa-truck',
+        ],
+        [
+            'text' => 'Marcas',
+            'route' => 'brands.index',
+            'icon' => 'fas fa-tag',
+        ],
+        [
+            'text' => 'Modelos',
+            'route' => 'brandsmodel.index',
+            'icon' => 'fas fa-cubes',
+        ],
+        [
+            'text' => 'Colores',
+            'route' => 'vehiclescolor.index',
+            'icon' => 'fas fa-palette',
+        ],
+        [
+            'text' => 'Tipos de vehículo',
+            'route' => 'vehiclestype.index',
+            'icon' => 'fas fa-list',
+        ],
     ],
 
     /*
