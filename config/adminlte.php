@@ -778,19 +778,7 @@ return [
             'route' => 'admin.home',
             'icon' => 'fas fa-house',
         ],
-        [
-            'header' => 'Personal',
-        ],
-        [
-            'text' => 'Tipos de personal',
-            'route' => 'employee-types.index',
-            'icon' => 'fas fa-users',
-        ],
-        [
-            'text' => 'Asistencias',
-            'route' => 'attendances.index',
-            'icon' => 'fas fa-clipboard-check',
-        ],
+       
         [
             'header' => 'Vehículos',
         ],
@@ -818,6 +806,19 @@ return [
             'text' => 'Tipos de vehículo',
             'route' => 'vehiclestype.index',
             'icon' => 'fas fa-list',
+        ],
+        [
+            'header' => 'Personal',
+        ],
+        [
+            'text' => 'Tipos de personal',
+            'route' => 'employee-types.index',
+            'icon' => 'fas fa-users',
+        ],
+        [
+            'text' => 'Asistencias',
+            'route' => 'attendances.index',
+            'icon' => 'fas fa-clipboard-check',
         ],
     ],
 
