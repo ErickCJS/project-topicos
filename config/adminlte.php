@@ -810,6 +810,11 @@ return [
             'header' => 'Personal',
         ],
         [
+            'text' => 'Personal',
+            'route' => 'personal.employees.index',
+            'icon' => 'bi bi-person-vcard',
+        ],
+        [
             'text' => 'Tipos de personal',
             'route' => 'employee-types.index',
             'icon' => 'fas fa-users',

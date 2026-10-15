@@ -6,6 +6,7 @@ use App\Http\Controllers\admin\ContractController;
 use App\Http\Controllers\admin\BrandController;
 use App\Http\Controllers\admin\BrandModelController;
 use App\Http\Controllers\admin\EmployeeTypeController;
+use App\Http\Controllers\admin\EmployeeController;
 use App\Http\Controllers\admin\ColorController;
 use App\Http\Controllers\admin\VehiclesController;
 use App\Http\Controllers\admin\VehicletypeController;
@@ -20,6 +21,7 @@ Route::get('vehicles/retonar_models/{id_brand}', [VehiclesController::class, 're
 
 Route::resource('brandsmodel', BrandModelController::class)->names('brandsmodel');
 Route::resource('employee-types', EmployeeTypeController::class)->names('employee-types');
+Route::resource('personal/employees', EmployeeController::class)->names('personal.employees');
 Route::resource('vehiclestype', VehicletypeController::class)->names('vehiclestype');
 Route::resource('vehiclescolor', ColorController::class)
     ->only(['index', 'store', 'edit', 'update', 'destroy'])

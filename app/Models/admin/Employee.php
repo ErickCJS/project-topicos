@@ -9,6 +9,16 @@ class Employee extends Model
 {
     protected $hidden = ['password'];
 
+    protected $fillable = [
+        'employee_type_id', 'dni', 'first_name', 'last_name', 'birthdate',
+        'license', 'phone', 'address', 'email', 'password', 'status', 'profile_photo_path',
+    ];
+
+    public function employeeType()
+    {
+        return $this->belongsTo(EmployeeType::class, 'employee_type_id');
+    }
+
     public function contracts(): HasMany
     {
         return $this->hasMany(Contract::class);
