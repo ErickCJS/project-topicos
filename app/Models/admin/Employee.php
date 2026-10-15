@@ -23,4 +23,16 @@ class Employee extends Model
     {
         return $this->hasMany(Contract::class);
     }
+
+    public function hasVigenteContract(): bool
+    {
+        return $this->contracts()
+            ->where('is_active', true)
+            ->whereDate('start_date', '<=', today())
+            ->where(function ($query) {
+                $query->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', today());
+            })
+            ->exists();
+    }
 }

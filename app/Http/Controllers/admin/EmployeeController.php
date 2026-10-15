@@ -9,14 +9,41 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Yajra\DataTables\Facades\DataTables;
 
 class EmployeeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $empleados = Employee::with('employeeType')->latest()->paginate(15);
+        if ($request->ajax()) {
+            return DataTables::eloquent(Employee::query()->with('employeeType'))
+                ->addColumn('photo', function (Employee $employee) {
+                    $photo = $employee->profile_photo_path
+                        ? asset('storage/'.$employee->profile_photo_path)
+                        : asset('storage/images/no_logo.png');
 
-        return view('personal.employees.index', compact('empleados'));
+                    return '<img src="'.e($photo).'" onerror="this.onerror=null;this.src=\''.e(asset('storage/images/no_logo.png')).'\'" alt="Foto de '.e($employee->first_name).'" class="rounded-circle" width="48" height="48" style="object-fit:cover">';
+                })
+                ->addColumn('type', fn (Employee $employee) => $employee->employeeType?->name ?? '')
+                ->editColumn('created_at', fn (Employee $employee) => $employee->created_at?->format('d/m/Y H:i'))
+                ->editColumn('status', function (Employee $employee) {
+                    $class = $employee->status === 'Activo' ? 'bg-success' : 'bg-secondary';
+
+                    return '<span class="badge '.$class.'">'.e($employee->status).'</span>';
+                })
+                ->addColumn('actions', function (Employee $employee) {
+                    return '<div class="d-flex justify-content-center gap-1">'
+                        .'<button type="button" class="btn btn-info btn-sm btnVerEmpleado" data-url="'.e(route('personal.employees.show', $employee)).'" title="Ver"><i class="bi bi-eye"></i></button>'
+                        .'<button type="button" class="btn btn-warning btn-sm btnEditarEmpleado" data-url="'.e(route('personal.employees.edit', $employee)).'" title="Editar"><i class="bi bi-pencil-square"></i></button>'
+                        .'<button type="button" class="btn btn-danger btn-sm btnEliminarEmpleado" data-url="'.e(route('personal.employees.destroy', $employee)).'" title="Eliminar"><i class="bi bi-trash"></i></button>'
+                        .'</div>';
+                })
+                ->rawColumns(['photo', 'status', 'actions'])
+                ->toJson();
+        }
+
+        return view('personal.employees.index');
     }
 
     public function create()
@@ -174,6 +201,12 @@ class EmployeeController extends Controller
             'licencia.max' => 'El número de licencia no debe superar los 20 caracteres.',
         ]);
 
+        if ($data['estado'] === 'Inactivo' && $employee->status !== 'Inactivo' && $employee->hasVigenteContract()) {
+            throw ValidationException::withMessages([
+                'estado' => 'No se puede dar de baja al empleado porque tiene un contrato vigente.',
+            ]);
+        }
+
         $employee->fill([
             'employee_type_id' => $data['tipo_personal_id'],
             'dni' => $data['dni'],
@@ -203,6 +236,12 @@ class EmployeeController extends Controller
 
     public function destroy(Employee $employee)
     {
+        if ($employee->hasVigenteContract()) {
+            return response()->json([
+                'mensaje' => 'No se puede dar de baja al empleado porque tiene un contrato vigente.',
+            ], 409);
+        }
+
         Storage::disk('public')->delete($employee->profile_photo_path);
         $employee->delete();
 

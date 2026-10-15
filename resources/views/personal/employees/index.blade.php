@@ -6,36 +6,49 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center"><h4 class="mb-0"><i class="bi bi-people me-2"></i>Personal</h4><button type="button" class="btn btn-success" id="btnNuevoEmpleado"><i class="bi bi-person-plus me-1"></i>Nuevo empleado</button></div>
     <div class="card-body table-responsive">
-        <table class="table table-striped table-hover align-middle">
+        <table class="table table-striped table-hover align-middle" id="tablaEmpleados" style="width:100%">
             <thead><tr><th><i class="bi bi-image me-1"></i>Foto</th><th><i class="bi bi-card-text me-1"></i>DNI</th><th><i class="bi bi-person me-1"></i>Nombre</th><th><i class="bi bi-people me-1"></i>Apellidos</th><th><i class="bi bi-envelope me-1"></i>Email</th><th><i class="bi bi-person-badge me-1"></i>Tipo</th><th><i class="bi bi-toggle-on me-1"></i>Estado</th><th><i class="bi bi-calendar3 me-1"></i>Creación</th><th><i class="bi bi-gear me-1"></i>Acciones</th></tr></thead>
-            <tbody>
-                @forelse($empleados as $empleado)
-                    <tr>
-                        <td><img src="{{ $empleado->profile_photo_path ? asset('storage/'.$empleado->profile_photo_path) : asset('storage/images/no_logo.png') }}" onerror="this.onerror=null;this.src='{{ asset('storage/images/no_logo.png') }}'" alt="Foto de {{ $empleado->first_name }}" class="rounded-circle" width="48" height="48" style="object-fit:cover"></td>
-                        <td>{{ $empleado->dni }}</td><td>{{ $empleado->first_name }}</td><td>{{ $empleado->last_name }}</td><td>{{ $empleado->email }}</td><td>{{ $empleado->employeeType?->name }}</td>
-                        <td><span class="badge {{ $empleado->status === 'Activo' ? 'bg-success' : 'bg-secondary' }}">{{ $empleado->status }}</span></td><td>{{ $empleado->created_at?->format('d/m/Y H:i') }}</td>
-                        <td class="text-nowrap">
-                            <button type="button" class="btn btn-info btn-sm btnVerEmpleado" data-target="#showEmployeeModal{{ $empleado->id }}" title="Ver"><i class="bi bi-eye"></i></button>
-                            <button type="button" class="btn btn-primary btn-sm btnEditarEmpleado" data-url="{{ route('personal.employees.edit', $empleado) }}" title="Editar"><i class="bi bi-pencil-square"></i></button>
-                            <button type="button" class="btn btn-danger btn-sm btnEliminarEmpleado" data-url="{{ route('personal.employees.destroy', $empleado) }}" title="Eliminar"><i class="bi bi-trash"></i></button>
-                        </td>
-                    </tr>
-                    @include('personal.employees.partials.show-modal', ['employee' => $empleado])
-                @empty
-                    <tr><td colspan="9" class="text-center">No hay personal registrado.</td></tr>
-                @endforelse
-            </tbody>
+            <tbody></tbody>
         </table>
-        <div class="d-flex justify-content-end">{{ $empleados->links('pagination::bootstrap-5') }}</div>
     </div>
 </div>
 <div class="modal fade" id="employeeFormModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content" id="employeeFormContent"></div></div></div>
+<div id="employeeShowModalHost"></div>
 @stop
 
 @section('js')
 <script>
 $(function () {
     const formModal = new bootstrap.Modal(document.getElementById('employeeFormModal'));
+    const table = $('#tablaEmpleados').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: @json(route('personal.employees.index')),
+        order: [[7, 'desc']],
+        columns: [
+            { data: 'photo', name: 'profile_photo_path', orderable: false, searchable: false },
+            { data: 'dni', name: 'dni' },
+            { data: 'first_name', name: 'first_name' },
+            { data: 'last_name', name: 'last_name' },
+            { data: 'email', name: 'email' },
+            { data: 'type', name: 'employeeType.name' },
+            { data: 'status', name: 'status' },
+            { data: 'created_at', name: 'created_at' },
+            { data: 'actions', orderable: false, searchable: false }
+        ],
+        language: {
+            processing: 'Cargando personal...',
+            search: 'Buscar:',
+            lengthMenu: 'Mostrar _MENU_ registros',
+            info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+            infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+            infoFiltered: '(filtrado de _MAX_ registros)',
+            loadingRecords: 'Cargando registros...',
+            zeroRecords: 'No se encontraron empleados',
+            emptyTable: 'Aún no hay personal registrado',
+            paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' }
+        }
+    });
 
     function mostrarMensaje(texto, error = false) {
         return Swal.fire({
@@ -94,7 +107,7 @@ $(function () {
             success: function (response) {
                 formModal.hide();
                 mostrarMensaje(response.mensaje || 'Personal guardado correctamente.').then(function () {
-                    window.location.reload();
+                    table.ajax.reload(null, false);
                 });
             },
             error: function (error) {
@@ -122,6 +135,18 @@ $(function () {
         }).fail(function (error) { mostrarError(error, 'No se pudo cargar el empleado.'); });
     });
 
+    $(document).on('click', '.btnVerEmpleado', function () {
+        $.get($(this).data('url'), function (html) {
+            $('#employeeShowModalHost').html(html);
+            const modalElement = $('#employeeShowModalHost .modal').get(0);
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                $('#employeeShowModalHost').empty();
+            }, { once: true });
+            modal.show();
+        }).fail(function (error) { mostrarError(error, 'No se pudieron cargar los datos del empleado.'); });
+    });
+
     $(document).on('click', '.btnEliminarEmpleado', function () {
         const url = $(this).data('url');
 
@@ -141,16 +166,12 @@ $(function () {
                 headers: { 'X-CSRF-TOKEN': @json(csrf_token()), Accept: 'application/json' },
                 success: function (response) {
                     mostrarMensaje(response.mensaje || 'Personal eliminado correctamente.').then(function () {
-                        window.location.reload();
+                        table.ajax.reload(null, false);
                     });
                 },
                 error: function (error) { mostrarError(error, 'No se pudo eliminar el empleado.'); }
             });
         });
-    });
-
-    $('.btnVerEmpleado').on('click', function () {
-        bootstrap.Modal.getOrCreateInstance(document.querySelector($(this).data('target'))).show();
     });
 });
 </script>
