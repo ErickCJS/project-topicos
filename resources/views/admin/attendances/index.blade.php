@@ -113,10 +113,10 @@
     $('#btnNuevo').click(function () {
 
         $.ajax({
-            url: "{{ route('brands.create') }}",
+            url: "{{ route('attendances.create') }}",
             type: "GET",
             success: function (response) {
-                mostrar_modal('Nueva Marca', response);
+                mostrar_modal('Nueva Asistencia', response);
             }
         });
 
