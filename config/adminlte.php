@@ -778,12 +778,6 @@ return [
             'route' => 'admin.home',
             'icon' => 'fas fa-house',
         ],
-       
-        [
-            'text' => 'Contratos',
-            'route' => 'contracts.index',
-            'icon' => 'bi bi-file-earmark-text',
-        ],
         [
             'header' => 'Vehículos',
         ],
@@ -819,6 +813,12 @@ return [
             'text' => 'Tipos de personal',
             'route' => 'employee-types.index',
             'icon' => 'fas fa-users',
+        ],
+
+        [
+            'text' => 'Contratos',
+            'route' => 'contracts.index',
+            'icon' => 'bi bi-file-earmark-text',
         ],
         [
             'text' => 'Asistencias',
