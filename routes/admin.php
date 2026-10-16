@@ -13,7 +13,6 @@ use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
-Route::view('attendances', 'admin.attendances.index')->name('attendances.index');
 Route::resource('contracts', ContractController::class)->only(['index', 'create', 'store', 'edit', 'update'])->names('contracts');
 Route::patch('contracts/{id}/cancel', [ContractController::class, 'cancel'])->name('contracts.cancel');
 Route::resource('brands', BrandController::class)->names('brands');

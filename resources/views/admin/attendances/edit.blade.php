@@ -1,6 +1,7 @@
-{!! Form::model($brand, ['route' => ['brands.update', $brand], 'method' => 'put', 'files' => true]) !!}
-@include('admin.brands.template.form')
-<br>
-<button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Actualizar</button>
-<button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times-circle"></i> Cancelar</button>
+{!! Form::model($attendance, ['route' => ['attendances.update', $attendance], 'method' => 'put']) !!}
+@include('admin.attendances.template.form')
+<div class="attendance-modal-footer">
+    <button type="submit" class="btn btn-success"><i class="bi bi-floppy me-1"></i>Actualizar</button>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>Cancelar</button>
+</div>
 {!! Form::close() !!}
