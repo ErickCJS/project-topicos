@@ -15,13 +15,21 @@
         </div>
         <div class="form-group mt-2">
             {!! Form::label('salary', 'Sueldo (S/) *') !!}
-            {!! Form::number('salary', null, ['class' => 'form-control', 'min' => 0, 'max' => '999999.99', 'step' => '0.01', 'required']) !!}
+            {!! Form::number('salary', null, ['class' => 'form-control', 'min' => '1350', 'max' => '999999.99', 'step' => '0.01', 'required']) !!}
         </div>
     </div>
     <div class="col-md-6">
         <div class="form-group">
             {!! Form::label('start_date', 'Fecha de inicio *') !!}
-            {!! Form::date('start_date', isset($contract) ? $contract->start_date->format('Y-m-d') : null, ['class' => 'form-control', 'required']) !!}
+            @php
+                $started = isset($contract) && $contract->start_date->lt(today());
+                $startAttributes = ['class' => 'form-control', 'min' => today()->toDateString(), 'required'];
+                if ($started) {
+                    $startAttributes['readonly'] = true;
+                    $startAttributes['min'] = $contract->start_date->toDateString();
+                }
+            @endphp
+            {!! Form::date('start_date', isset($contract) ? $contract->start_date->format('Y-m-d') : today()->toDateString(), $startAttributes) !!}
         </div>
         <div class="form-group mt-2" id="contract_end_group">
             {!! Form::label('contract_end_date', 'Fecha de término *') !!}

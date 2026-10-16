@@ -20,11 +20,17 @@ class ContractRules
             }
         }
 
-        $previous = collect($history)->map(fn ($contract) => [
-            'type' => $contract->type,
-            'start_date' => CarbonImmutable::parse($contract->start_date)->startOfDay(),
-            'end_date' => $contract->end_date ? CarbonImmutable::parse($contract->end_date)->startOfDay() : null,
-        ]);
+        $previous = collect($history)->map(function ($contract) {
+            $end = $contract->effectiveEndDate();
+            $start = CarbonImmutable::parse($contract->start_date)->startOfDay();
+
+            return [
+                'type' => $contract->type,
+                // A cancellation before the start preserves the scheduled dates in storage.
+                'start_date' => $end && $end->lt($start) ? CarbonImmutable::parse($end) : $start,
+                'end_date' => $end ? CarbonImmutable::parse($end)->startOfDay() : null,
+            ];
+        });
 
         if ($creating && $previous->isNotEmpty()) {
             if ($previous->contains(fn ($contract) => $contract['type'] !== 'Temporal' || !$contract['end_date'])) {

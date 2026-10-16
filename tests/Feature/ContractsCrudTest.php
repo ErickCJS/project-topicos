@@ -139,10 +139,10 @@ class ContractsCrudTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('start_date');
         $this->putJson(route('contracts.update', $first), $this->data([
             'start_date' => '2026-06-01', 'end_date' => '2026-08-13',
-        ]))->assertUnprocessable()->assertJsonValidationErrors('start_date');
+        ]))->assertUnprocessable()->assertJsonValidationErrors('contract');
         $this->putJson(route('contracts.update', $first), $this->data([
             'type' => 'Permanente', 'start_date' => '2026-06-01', 'end_date' => null,
-        ]))->assertUnprocessable()->assertJsonValidationErrors('type');
+        ]))->assertUnprocessable()->assertJsonValidationErrors('contract');
         $this->assertSame('2026-08-12', $first->fresh()->end_date->toDateString());
     }
 
@@ -168,13 +168,15 @@ class ContractsCrudTest extends TestCase
         $this->previous();
         $this->get(route('contracts.index'))->assertOk()->assertSee('Listado de Contratos');
         $this->get(route('contracts.create'))->assertOk()->assertSee('12345678 - Ana Perez')->assertDontSee('trial_period_months');
-        $this->get(route('contracts.edit', Contract::first()))->assertOk()->assertSee('2026-06-01');
+        $this->getJson(route('contracts.edit', Contract::first()))->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->get(route('contracts.edit', $this->previous(['start_date' => '2026-10-12', 'end_date' => '2026-12-12'])))
+            ->assertOk()->assertSee('2026-10-12');
         $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])->get(route('contracts.index', [
             'draw' => 1, 'start' => 0, 'length' => 1, 'search' => ['value' => '12345678'],
             'columns' => [['data' => 'dni', 'name' => 'employees.dni', 'searchable' => 'true', 'orderable' => 'true']],
             'order' => [['column' => 0, 'dir' => 'asc']],
         ]));
-        $response->assertOk()->assertJsonPath('recordsFiltered', 1)->assertJsonPath('data.0.employee', 'Ana Perez')
+        $response->assertOk()->assertJsonPath('recordsFiltered', 2)->assertJsonPath('data.0.employee', 'Ana Perez')
             ->assertJsonPath('data.0.next_hiring_date', '12/10/2026');
     }
 
@@ -205,11 +207,11 @@ class ContractsCrudTest extends TestCase
 
     public function test_edit_cannot_extend_temporal_over_three_months(): void
     {
-        $contract = $this->previous();
+        $contract = $this->previous(['start_date' => '2026-10-12', 'end_date' => '2026-12-12']);
         $this->putJson(route('contracts.update', $contract), $this->data([
-            'start_date' => '2026-06-01', 'end_date' => '2026-09-02',
+            'start_date' => '2026-10-12', 'end_date' => '2027-01-13',
         ]))->assertUnprocessable()->assertJsonValidationErrors('end_date');
-        $this->assertSame('2026-08-12', $contract->fresh()->end_date->toDateString());
+        $this->assertSame('2026-12-12', $contract->fresh()->end_date->toDateString());
     }
 
     public function test_new_contract_preserves_history_and_rejects_overlapping_periods(): void
@@ -227,5 +229,126 @@ class ContractsCrudTest extends TestCase
     {
         auth()->logout();
         $this->postJson(route('contracts.store'), $this->data())->assertUnauthorized();
+        $this->patchJson(route('contracts.cancel', 1))->assertUnauthorized();
+    }
+
+    public function test_new_contract_rejects_past_start_even_for_workers_without_history(): void
+    {
+        $this->postJson(route('contracts.store'), $this->data(['start_date' => '2026-10-11']))
+            ->assertUnprocessable()->assertJsonValidationErrors('start_date');
+        $this->assertDatabaseCount('contracts', 0);
+        $this->get(route('contracts.create'))->assertOk()->assertSee('min="2026-10-12"', false);
+    }
+
+    public function test_salary_must_be_at_least_1350_on_create_and_update(): void
+    {
+        foreach (['0', '-1', '1349.99'] as $salary) {
+            $this->postJson(route('contracts.store'), $this->data(['salary' => $salary]))
+                ->assertUnprocessable()->assertJsonValidationErrors('salary');
+        }
+        $this->postJson(route('contracts.store'), $this->data(['salary' => '1350.00']))->assertCreated();
+        $contract = Contract::first();
+        $this->putJson(route('contracts.update', $contract), $this->data(['salary' => '1349.99']))
+            ->assertUnprocessable()->assertJsonValidationErrors('salary');
+        $this->assertSame('1350.00', $contract->fresh()->salary);
+        $this->putJson(route('contracts.update', $contract), $this->data(['salary' => '1350.01']))->assertOk();
+        $this->assertSame('1350.01', $contract->fresh()->salary);
+    }
+
+    public function test_expired_contract_cannot_be_edited_cancelled_or_reactivated(): void
+    {
+        $contract = $this->previous();
+        $this->getJson(route('contracts.edit', $contract))->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->putJson(route('contracts.update', $contract), $this->data(['is_active' => true]))
+            ->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->patchJson(route('contracts.cancel', $contract))->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->assertSame('2026-08-12', $contract->fresh()->end_date->toDateString());
+        $this->assertNull($contract->fresh()->cancelled_at);
+        $this->assertSame('Finalizado', $contract->fresh()->statusLabel());
+    }
+
+    #[DataProvider('types')]
+    public function test_cancellation_preserves_history_and_cannot_be_undone(string $type): void
+    {
+        $this->postJson(route('contracts.store'), $this->data([
+            'type' => $type, 'end_date' => $type === 'Temporal' ? '2026-12-12' : null,
+        ]))->assertCreated();
+        $contract = Contract::first();
+        $this->patchJson(route('contracts.cancel', $contract))->assertOk();
+        $saved = $contract->fresh();
+        $this->assertFalse($saved->is_active);
+        $this->assertSame('2026-10-12', $saved->cancelled_at->toDateString());
+        $this->assertSame('2026-10-12', $saved->effectiveEndDate()->toDateString());
+        $this->assertSame($type === 'Temporal' ? '2026-12-12' : null, $saved->end_date?->toDateString());
+        $this->assertSame('Anulado', $saved->statusLabel());
+        $this->assertFalse($saved->allowsVacations());
+        $this->getJson(route('contracts.edit', $contract))->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->putJson(route('contracts.update', $contract), $this->data(['is_active' => true, 'cancelled_at' => null]))
+            ->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->patchJson(route('contracts.cancel', $contract))->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->assertDatabaseCount('contracts', 1);
+    }
+
+    public function test_cancelled_temporal_uses_cancellation_date_for_two_month_wait(): void
+    {
+        $this->postJson(route('contracts.store'), $this->data())->assertCreated();
+        $contract = Contract::first();
+        $this->patchJson(route('contracts.cancel', $contract))->assertOk();
+        $this->travelTo(now()->setDate(2026, 12, 11));
+        $next = $this->data(['start_date' => '2026-12-12', 'end_date' => '2027-01-12']);
+        $this->postJson(route('contracts.store'), $next)->assertUnprocessable()->assertJsonValidationErrors('employee_id');
+        $this->travelTo(now()->setDate(2026, 12, 12));
+        $this->postJson(route('contracts.store'), $next)->assertCreated();
+        $this->assertDatabaseCount('contracts', 2);
+        $this->assertSame('2026-12-12', $contract->fresh()->end_date->toDateString());
+    }
+
+    public function test_future_contract_can_be_cancelled_without_corrupting_scheduled_dates(): void
+    {
+        $this->postJson(route('contracts.store'), $this->data([
+            'start_date' => '2027-01-01', 'end_date' => '2027-02-01',
+        ]))->assertCreated();
+        $contract = Contract::first();
+        $this->patchJson(route('contracts.cancel', $contract))->assertOk();
+        $this->assertSame('2027-01-01', $contract->fresh()->start_date->toDateString());
+        $this->assertSame('2027-02-01', $contract->fresh()->end_date->toDateString());
+        $this->travelTo(now()->setDate(2026, 12, 12));
+        $this->postJson(route('contracts.store'), $this->data([
+            'start_date' => '2026-12-12', 'end_date' => '2027-01-12',
+        ]))->assertCreated();
+    }
+
+    #[DataProvider('indefiniteTypes')]
+    public function test_cancelled_indefinite_contract_still_does_not_allow_another_contract(string $type): void
+    {
+        $this->postJson(route('contracts.store'), $this->data(['type' => $type, 'end_date' => null]))->assertCreated();
+        $this->patchJson(route('contracts.cancel', Contract::first()))->assertOk();
+        $this->travelTo(now()->setDate(2027, 1, 12));
+        $this->postJson(route('contracts.store'), $this->data([
+            'start_date' => '2027-01-12', 'end_date' => '2027-02-12',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('employee_id');
+    }
+
+    public function test_active_contract_with_past_start_keeps_original_date_when_editing_salary(): void
+    {
+        $contract = $this->previous(['start_date' => '2026-10-01', 'end_date' => '2026-12-01']);
+        $this->putJson(route('contracts.update', $contract), $this->data([
+            'start_date' => '2026-10-01', 'end_date' => '2026-12-01', 'salary' => 1600,
+        ]))->assertOk();
+        $this->putJson(route('contracts.update', $contract), $this->data([
+            'start_date' => '2026-10-02', 'end_date' => '2026-12-01',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('start_date');
+    }
+
+    public function test_cancelled_contract_list_shows_closure_and_no_actions(): void
+    {
+        $this->postJson(route('contracts.store'), $this->data())->assertCreated();
+        $this->patchJson(route('contracts.cancel', Contract::first()))->assertOk();
+        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('contracts.index', ['draw' => 1, 'start' => 0, 'length' => 10]));
+        $response->assertOk()->assertJsonPath('data.0.status', 'Anulado')
+            ->assertJsonPath('data.0.end_date', '12/10/2026')
+            ->assertJsonPath('data.0.next_hiring_date', '12/12/2026')
+            ->assertJsonPath('data.0.edit', '');
     }
 }

@@ -20,7 +20,7 @@
             <div class="table-responsive">
                 <table class="table table-striped" id="DataTable">
                     <thead><tr>
-                        <th>DNI</th><th>Trabajador</th><th>Tipo</th><th>Inicio</th><th>Término</th><th>Fin de espera para recontratación</th><th>Sueldo (S/)</th><th>Estado</th><th>Editar</th>
+                        <th>DNI</th><th>Trabajador</th><th>Tipo</th><th>Inicio</th><th>Término</th><th>Fin de espera para recontratación</th><th>Sueldo (S/)</th><th>Estado</th><th>Acciones</th>
                     </tr></thead>
                     <tbody></tbody>
                 </table>
@@ -112,6 +112,26 @@
         $('#DataTable').on('click', '.btnEditar', function () {
             $.ajax({ url: "{{ route('contracts.edit', ':id') }}".replace(':id', $(this).data('id')), type: 'GET',
                 success: function (response) { mostrar_modal('Editar Contrato', response); }, error: mostrar_error });
+        });
+        $('#DataTable').on('click', '.btnAnular', function () {
+            var button = $(this);
+            Swal.fire({
+                title: '¿Está seguro de anular el contrato?',
+                text: 'Se cerrará con la fecha de hoy. Se conservará el historial y no podrá editarse ni reactivarse.',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#d33', confirmButtonText: 'Sí, anular', cancelButtonText: 'Cancelar'
+            }).then(function (result) {
+                if (!result.isConfirmed) return;
+                button.prop('disabled', true);
+                $.ajax({
+                    url: "{{ route('contracts.cancel', ':id') }}".replace(':id', button.data('id')),
+                    type: 'PATCH',
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    success: function (response) { table.ajax.reload(null, false); mostrar_alerta(1, response.mensaje); },
+                    error: mostrar_error,
+                    complete: function () { button.prop('disabled', false); }
+                });
+            });
         });
         $('#formModal').on('submit', 'form', function (e) {
             e.preventDefault();

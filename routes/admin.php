@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
 Route::view('attendances', 'admin.attendances.index')->name('attendances.index');
 Route::resource('contracts', ContractController::class)->only(['index', 'create', 'store', 'edit', 'update'])->names('contracts');
+Route::patch('contracts/{id}/cancel', [ContractController::class, 'cancel'])->name('contracts.cancel');
 Route::resource('brands', BrandController::class)->names('brands');
 Route::resource('vehicles', VehiclesController::class)->names('vehicles');
 Route::get('vehicles/retonar_models/{id_brand}', [VehiclesController::class, 'retonar_models'])->name('vehicles.retonar_models');
