@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use RuntimeException;
 use Tests\TestCase;
 
 class ContractsCrudTest extends TestCase
@@ -14,6 +15,16 @@ class ContractsCrudTest extends TestCase
     use RefreshDatabase;
 
     private int $employeeId;
+
+    protected function beforeRefreshingDatabase(): void
+    {
+        $connection = config('database.default');
+        $database = config("database.connections.{$connection}.database");
+
+        if ($connection !== 'sqlite' || $database !== ':memory:') {
+            throw new RuntimeException('ContractsCrudTest solo puede ejecutarse con SQLite en memoria.');
+        }
+    }
 
     protected function setUp(): void
     {
@@ -180,6 +191,107 @@ class ContractsCrudTest extends TestCase
             ->assertJsonPath('data.0.next_hiring_date', '12/10/2026');
     }
 
+    public function test_contract_can_be_viewed_in_read_only_mode_before_and_after_cancellation(): void
+    {
+        $contract = Contract::create($this->data());
+
+        $this->get(route('contracts.show', $contract))
+            ->assertOk()
+            ->assertSee('Detalle del contrato')
+            ->assertSee('Información de solo lectura')
+            ->assertSee('Ana Perez')
+            ->assertSee('12345678')
+            ->assertSee('Temporal')
+            ->assertSee('S/ 1,500.00')
+            ->assertSee('12/10/2026')
+            ->assertSee('12/12/2026')
+            ->assertSee('Vigente')
+            ->assertDontSee('Fecha de anulación')
+            ->assertDontSee('<form', false)
+            ->assertDontSee('<input', false)
+            ->assertDontSee('<select', false);
+
+        $this->patchJson(route('contracts.cancel', $contract))->assertOk();
+
+        $this->get(route('contracts.show', $contract))
+            ->assertOk()
+            ->assertSee('Anulado')
+            ->assertSee('Fecha de anulación')
+            ->assertSee('12/10/2026 00:00');
+
+        $this->getJson(route('contracts.show', 999999))->assertNotFound();
+    }
+
+    public function test_contract_actions_have_required_order_icons_colors_routes_and_visibility(): void
+    {
+        $contract = Contract::create($this->data());
+
+        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('contracts.index', ['draw' => 1, 'start' => 0, 'length' => 10]));
+
+        $response->assertOk();
+        $actions = (string) $response->json('data.0.edit');
+
+        $this->assertStringContainsString('btn btn-info btn-sm', $actions);
+        $this->assertStringContainsString('bi bi-eye', $actions);
+        $this->assertStringContainsString('title="Ver"', $actions);
+        $this->assertStringContainsString('aria-label="Ver contrato"', $actions);
+        $this->assertStringContainsString(route('contracts.show', $contract), $actions);
+        $this->assertStringContainsString('btn btn-warning btn-sm', $actions);
+        $this->assertStringContainsString('bi bi-pencil-square', $actions);
+        $this->assertStringContainsString('title="Editar"', $actions);
+        $this->assertStringContainsString('aria-label="Editar contrato"', $actions);
+        $this->assertStringContainsString(route('contracts.edit', $contract), $actions);
+        $this->assertStringContainsString('btn btn-danger btn-sm', $actions);
+        $this->assertStringContainsString('bi bi-ban', $actions);
+        $this->assertStringContainsString('title="Anular"', $actions);
+        $this->assertStringContainsString('aria-label="Anular contrato"', $actions);
+        $this->assertStringContainsString(route('contracts.cancel', $contract), $actions);
+        $this->assertLessThan(strpos($actions, 'btnEditar'), strpos($actions, 'btnVer'));
+        $this->assertLessThan(strpos($actions, 'btnAnular'), strpos($actions, 'btnEditar'));
+
+        $this->patchJson(route('contracts.cancel', $contract))->assertOk();
+
+        $closedResponse = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('contracts.index', ['draw' => 1, 'start' => 0, 'length' => 10]));
+        $closedActions = (string) $closedResponse->json('data.0.edit');
+
+        $this->assertStringContainsString('btnVer', $closedActions);
+        $this->assertStringNotContainsString('btnEditar', $closedActions);
+        $this->assertStringNotContainsString('btnAnular', $closedActions);
+    }
+
+    public function test_contract_views_use_the_approved_responsive_theme_design(): void
+    {
+        $contract = Contract::create($this->data());
+
+        $this->get(route('contracts.index'))
+            ->assertOk()
+            ->assertSee('class="btn btn-success ms-auto"', false)
+            ->assertSee('bi bi-plus-circle', false)
+            ->assertSee('class="table-responsive"', false)
+            ->assertSee('width: 36px;', false)
+            ->assertSee('height: 31px;', false)
+            ->assertSee('var(--bs-body-bg)', false)
+            ->assertSee('modal-dialog-scrollable', false)
+            ->assertSee('error.status === 422', false);
+
+        $this->get(route('contracts.create'))
+            ->assertOk()
+            ->assertSee('class="contract-form"', false)
+            ->assertSee('bi bi-floppy', false)
+            ->assertSee('btn btn-secondary', false)
+            ->assertSee('Guardar')
+            ->assertDontSee('fas fa-', false)
+            ->assertDontSee('btn btn-danger', false);
+
+        $this->get(route('contracts.edit', $contract))
+            ->assertOk()
+            ->assertSee('Actualizar')
+            ->assertSee('contract-select', false)
+            ->assertSee('btn btn-secondary', false);
+    }
+
     public static function temporalDurations(): array
     {
         return [
@@ -227,7 +339,9 @@ class ContractsCrudTest extends TestCase
 
     public function test_routes_require_authentication(): void
     {
+        $contract = Contract::create($this->data());
         auth()->logout();
+        $this->getJson(route('contracts.show', $contract))->assertUnauthorized();
         $this->postJson(route('contracts.store'), $this->data())->assertUnauthorized();
         $this->patchJson(route('contracts.cancel', 1))->assertUnauthorized();
     }
@@ -340,7 +454,7 @@ class ContractsCrudTest extends TestCase
         ]))->assertUnprocessable()->assertJsonValidationErrors('start_date');
     }
 
-    public function test_cancelled_contract_list_shows_closure_and_no_actions(): void
+    public function test_cancelled_contract_list_shows_closure_and_only_view_action(): void
     {
         $this->postJson(route('contracts.store'), $this->data())->assertCreated();
         $this->patchJson(route('contracts.cancel', Contract::first()))->assertOk();
@@ -348,7 +462,11 @@ class ContractsCrudTest extends TestCase
             ->get(route('contracts.index', ['draw' => 1, 'start' => 0, 'length' => 10]));
         $response->assertOk()->assertJsonPath('data.0.status', 'Anulado')
             ->assertJsonPath('data.0.end_date', '12/10/2026')
-            ->assertJsonPath('data.0.next_hiring_date', '12/12/2026')
-            ->assertJsonPath('data.0.edit', '');
+            ->assertJsonPath('data.0.next_hiring_date', '12/12/2026');
+
+        $actions = (string) $response->json('data.0.edit');
+        $this->assertStringContainsString('btnVer', $actions);
+        $this->assertStringNotContainsString('btnEditar', $actions);
+        $this->assertStringNotContainsString('btnAnular', $actions);
     }
 }

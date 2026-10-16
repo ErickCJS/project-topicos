@@ -1,6 +1,29 @@
-{!! Form::model($contract, ['route' => ['contracts.update', $contract], 'method' => 'put']) !!}
-@include('admin.contracts.template.form')
-<br>
-<button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Actualizar</button>
-<button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times-circle"></i> Cancelar</button>
+{!! Form::model($contract, [
+    'route' => ['contracts.update', $contract],
+    'method' => 'put',
+    'class' => 'contract-form',
+]) !!}
+<div class="modal-header contract-modal-header">
+    <div class="contract-modal-heading">
+        <span class="contract-modal-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
+        <div>
+            <h5 class="modal-title mb-0" id="contractFormModalLabel">Editar Contrato</h5>
+            <small>Actualice las condiciones permitidas</small>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+</div>
+
+<div class="modal-body contract-modal-body">
+    @include('admin.contracts.template.form')
+</div>
+
+<div class="modal-footer contract-modal-footer">
+    <button type="submit" class="btn btn-success">
+        <i class="bi bi-floppy me-1" aria-hidden="true"></i>Actualizar
+    </button>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancelar
+    </button>
+</div>
 {!! Form::close() !!}
