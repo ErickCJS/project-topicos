@@ -1,105 +1,143 @@
-<div class="row">
-    <div class="col-md-6">
-        <div class="form-group">
-            {!! Form::label('code', 'Código *') !!}
-            {!! Form::text('code', null, ['class' => 'form-control', 'placeholder' => 'Ingrese el código (Ej: VEH-2XIP0)', 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('name', 'Nombre del vehículo *') !!}
-            {!! Form::text('name', null, ['class' => 'form-control', 'placeholder' => 'Ingrese el nombre (Ej: VEHICUL001)', 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('year', 'Año *') !!}
-            {!! Form::number('year', null, ['class' => 'form-control', 'placeholder' => 'Ingrese el año (Ej: 2025)', 'min' => 1900, 'max' => date('Y') + 1, 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('brand_id', 'Marca *') !!}
-            {!! Form::select('brand_id', $brands, null, ['class' => 'form-control', 'id' => 'brand_id', 'placeholder' => 'Seleccione una marca', 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('load_capacity', 'Capacidad de Carga (Tn) *') !!}
-            {!! Form::number('load_capacity', null, ['class' => 'form-control', 'placeholder' => 'Ingrese la capacidad de carga (Ej: 9528)', 'min' => 0, 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('compact_capacity', 'Capacidad de Compactación (Tn) *') !!}
-            {!! Form::number('compact_capacity', null, ['class' => 'form-control', 'placeholder' => 'Ingrese la capacidad de compactación (Ej: 180)', 'min' => 0, 'required']) !!}
-        </div>
-
-   
-    </div>
-
-    <div class="col-md-6">
-        <div class="form-group">
-            {!! Form::label('type_id', 'Tipo de Vehículo *') !!}
-            {!! Form::select('type_id', $types, null, ['class' => 'form-control', 'placeholder' => 'Seleccione un tipo', 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('plate', 'Placa *') !!}
-            {!! Form::text('plate', null, ['class' => 'form-control', 'placeholder' => 'Ingrese la placa (Ej: ABC-123)', 'maxlength' => 10, 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('color_id', 'Color *') !!}
-            {!! Form::select('color_id', $colors, null, ['class' => 'form-control', 'placeholder' => 'Seleccione un color', 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('model_id', 'Modelo *') !!}
-            {!! Form::select('model_id', $models, null, ['class' => 'form-control', 'id' => 'model_id', 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('fuel_capacity', 'Capacidad de Combustible (L) *') !!}
-            {!! Form::number('fuel_capacity', null, ['class' => 'form-control', 'placeholder' => 'Ingrese la capacidad de combustible (Ej: 60)', 'min' => 0, 'required']) !!}
-        </div>
-
-        <div class="form-group mt-2">
-            {!! Form::label('occupats_capacity', 'Capacidad de Personas *') !!}
-            {!! Form::number('occupats_capacity', null, ['class' => 'form-control', 'placeholder' => 'Ingrese la capacidad de personas (Ej: 3)', 'min' => 0, 'required']) !!}
-        </div>
-    </div>
-    <div class="form-group mt-2 w-10">
-        {!! Form::label('description', 'Descripción') !!}
-        {!! Form::textarea('description', null, ['class' => 'form-control', 'placeholder' => 'Ingrese la descripción', 'rows' => 3]) !!}
-    </div>
+<div class="vehicle-form-intro">
+    <h6 class="fw-semibold mb-1"><i class="bi bi-truck-front me-2" aria-hidden="true"></i>Datos del vehículo</h6>
+    <p class="small mb-0">Complete la identificación, capacidades y clasificación del vehículo.</p>
 </div>
 
-<script>
-$(document).off('change.vehicleModel', '#brand_id').on('change.vehicleModel', '#brand_id', function () {
-    const id_brand = $(this).val();
-    const model = $('#model_id');
-    model.empty().append($('<option>', { value: '', text: 'Seleccione un modelo' }));
-    if (!id_brand) return;
+<div class="row g-3">
+    <div class="col-12 col-md-6">
+        {!! Form::label('code', 'Código', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::text('code', null, [
+            'class' => 'form-control'.($errors->has('code') ? ' is-invalid' : ''),
+            'placeholder' => 'Ej. VEH-2XIP0',
+            'required',
+            'maxlength' => 100,
+        ]) !!}
+        @error('code')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
 
-    $.ajax({
-        url: "{{ route('vehicles.retonar_models', ':id_brand') }}"
-            .replace(':id_brand', id_brand),
-        type: 'GET',
-        dataType: 'json',
+    <div class="col-12 col-md-6">
+        {!! Form::label('name', 'Nombre del vehículo', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::text('name', null, [
+            'class' => 'form-control'.($errors->has('name') ? ' is-invalid' : ''),
+            'placeholder' => 'Nombre del vehículo',
+            'required',
+            'maxlength' => 100,
+        ]) !!}
+        @error('name')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
 
-        success: function (response) {
-            $.each(response, function (id, nombre) {
-                model.append(
-                    $('<option>', {
-                        value: id,
-                        text: nombre
-                    })
-                );
-            });
-            model.trigger('change.select2');
-        },
+    <div class="col-12 col-md-6 col-xl-3">
+        {!! Form::label('plate', 'Placa', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::text('plate', null, [
+            'class' => 'form-control'.($errors->has('plate') ? ' is-invalid' : ''),
+            'placeholder' => 'Ej. ABC-123',
+            'maxlength' => 10,
+            'required',
+        ]) !!}
+        @error('plate')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
 
-        error: function (xhr) {
-            console.error('Error al cargar categorías:', xhr.responseText);
-        }
-    });
-    
-});
+    <div class="col-12 col-md-6 col-xl-3">
+        {!! Form::label('year', 'Año', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::number('year', null, [
+            'class' => 'form-control'.($errors->has('year') ? ' is-invalid' : ''),
+            'placeholder' => 'Ej. '.date('Y'),
+            'min' => 1900,
+            'max' => date('Y') + 1,
+            'required',
+        ]) !!}
+        @error('year')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
 
-</script>
+    <div class="col-12 col-md-6 col-xl-3">
+        {!! Form::label('type_id', 'Tipo de vehículo', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::select('type_id', $types, null, [
+            'class' => 'form-select'.($errors->has('type_id') ? ' is-invalid' : ''),
+            'placeholder' => 'Seleccione un tipo',
+            'required',
+        ]) !!}
+        @error('type_id')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        {!! Form::label('color_id', 'Color', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::select('color_id', $colors, null, [
+            'class' => 'form-select'.($errors->has('color_id') ? ' is-invalid' : ''),
+            'placeholder' => 'Seleccione un color',
+            'required',
+        ]) !!}
+        @error('color_id')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12 col-md-6">
+        {!! Form::label('brand_id', 'Marca', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::select('brand_id', $brands, null, [
+            'class' => 'form-select'.($errors->has('brand_id') ? ' is-invalid' : ''),
+            'id' => 'brand_id',
+            'placeholder' => 'Seleccione una marca',
+            'required',
+        ]) !!}
+        @error('brand_id')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12 col-md-6">
+        {!! Form::label('model_id', 'Modelo', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::select('model_id', $models, null, [
+            'class' => 'form-select'.($errors->has('model_id') ? ' is-invalid' : ''),
+            'id' => 'model_id',
+            'placeholder' => 'Seleccione un modelo',
+            'required',
+        ]) !!}
+        @error('model_id')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        {!! Form::label('load_capacity', 'Carga (Tn)', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::number('load_capacity', null, [
+            'class' => 'form-control'.($errors->has('load_capacity') ? ' is-invalid' : ''),
+            'min' => 0,
+            'required',
+        ]) !!}
+        @error('load_capacity')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        {!! Form::label('compact_capacity', 'Compactación (Tn)', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::number('compact_capacity', null, [
+            'class' => 'form-control'.($errors->has('compact_capacity') ? ' is-invalid' : ''),
+            'min' => 0,
+            'required',
+        ]) !!}
+        @error('compact_capacity')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        {!! Form::label('fuel_capacity', 'Combustible (L)', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::number('fuel_capacity', null, [
+            'class' => 'form-control'.($errors->has('fuel_capacity') ? ' is-invalid' : ''),
+            'min' => 0,
+            'required',
+        ]) !!}
+        @error('fuel_capacity')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+        {!! Form::label('occupats_capacity', 'Personas', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::number('occupats_capacity', null, [
+            'class' => 'form-control'.($errors->has('occupats_capacity') ? ' is-invalid' : ''),
+            'min' => 0,
+            'required',
+        ]) !!}
+        @error('occupats_capacity')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12">
+        {!! Form::label('description', 'Descripción', ['class' => 'form-label fw-semibold']) !!}
+        {!! Form::textarea('description', null, [
+            'class' => 'form-control'.($errors->has('description') ? ' is-invalid' : ''),
+            'placeholder' => 'Información adicional del vehículo (opcional)',
+            'rows' => 4,
+        ]) !!}
+        @error('description')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
+    </div>
+</div>
