@@ -18,9 +18,21 @@ class ColorController extends Controller
                 ->addColumn('preview', function (Color $color) {
                     $code = $this->withHexPrefix((string) $color->code);
 
-                    return '<span class="color-swatch" title="'.e($code).'" style="background-color:'.e($code).'"></span>';
+                    return '<span class="color-swatch" title="'.e($code).'" style="background-color:'.e($code).'" aria-label="Vista previa de '.e($color->name).'"></span>';
                 })
-                ->addColumn('actions', fn (Color $color) => '<div class="color-actions"><button type="button" class="btn btn-sm btn-warning btnEditar" data-id="'.$color->id.'" aria-label="Editar '.e($color->name).'" title="Editar"><i class="bi bi-pencil-square"></i></button><button type="button" class="btn btn-sm btn-danger btnEliminar" data-id="'.$color->id.'" aria-label="Eliminar '.e($color->name).'" title="Eliminar"><i class="bi bi-trash"></i></button></div>')
+                ->addColumn('actions', function (Color $color) {
+                    return '<div class="color-actions">
+                                <button type="button" class="btn btn-info btn-sm color-action-btn btnVer" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.show', $color)).'" title="Ver" aria-label="Ver color">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-warning btn-sm color-action-btn btnEditar" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.edit', $color)).'" data-update-url="'.e(route('vehiclescolor.update', $color)).'" title="Editar" aria-label="Editar color">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm color-action-btn btnEliminar" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.destroy', $color)).'" title="Eliminar" aria-label="Eliminar color">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>';
+                })
                 ->rawColumns(['preview', 'actions'])
                 ->toJson();
         }
@@ -33,14 +45,24 @@ class ColorController extends Controller
         $data = $this->validateColorData($request);
         $color = Color::create($data);
 
-        return response()->json(['mensaje' => 'Color creado correctamente.', 'data' => $color], 201);
+        return response()->json([
+            'mensaje' => 'Color creado correctamente.',
+            'data' => $color,
+        ], 201);
+    }
+
+    public function show(string $id)
+    {
+        $color = Color::findOrFail($id);
+
+        return response()->json($this->colorResponse($color));
     }
 
     public function edit(string $id)
     {
         $color = Color::findOrFail($id);
 
-        return response()->json($color);
+        return response()->json($this->colorResponse($color));
     }
 
     public function update(Request $request, string $id)
@@ -49,7 +71,27 @@ class ColorController extends Controller
         $data = $this->validateColorData($request, $color);
         $color->update($data);
 
-        return response()->json(['mensaje' => 'Color actualizado correctamente.', 'data' => $color->fresh()]);
+        return response()->json([
+            'mensaje' => 'Color actualizado correctamente.',
+            'data' => $this->colorResponse($color->fresh()),
+        ]);
+    }
+
+    public function destroy(string $id)
+    {
+        $color = Color::findOrFail($id);
+
+        if ($color->vehicles()->exists()) {
+            return response()->json([
+                'mensaje' => 'No se puede eliminar el color porque tiene vehículos relacionados.',
+            ], 409);
+        }
+
+        $color->delete();
+
+        return response()->json([
+            'mensaje' => 'Color eliminado correctamente.',
+        ]);
     }
 
     private function withHexPrefix(string $code): string
@@ -100,11 +142,15 @@ class ColorController extends Controller
         ]);
     }
 
-    public function destroy(string $id)
+    private function colorResponse(Color $color): array
     {
-        $color = Color::findOrFail($id);
-        $color->delete();
-
-        return response()->json(['mensaje' => 'Color eliminado correctamente.']);
+        return [
+            'id' => $color->id,
+            'name' => $color->name,
+            'code' => $this->withHexPrefix((string) $color->code),
+            'description' => $color->description,
+            'created_at' => $color->created_at?->toISOString(),
+            'updated_at' => $color->updated_at?->toISOString(),
+        ];
     }
 }

@@ -1,74 +1,197 @@
-{{-- Modal crear color --}}
-<div class="modal fade color-modal" id="modalCrearColor" tabindex="-1" aria-labelledby="modalCrearColorLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade color-modal" id="modalCrearColor" data-bs-backdrop="static" data-bs-keyboard="false"
+    tabindex="-1" aria-labelledby="modalCrearColorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
         <form id="formCrearColor" class="modal-content" novalidate>
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalCrearColorLabel">Nuevo Color</h5>
+            @csrf
+            <div class="modal-header color-modal-header">
+                <div class="color-modal-heading">
+                    <span class="color-modal-icon" aria-hidden="true"><i class="bi bi-palette"></i></span>
+                    <div>
+                        <h5 class="modal-title mb-0" id="modalCrearColorLabel">Nuevo Color</h5>
+                        <small>Complete la información y seleccione una tonalidad</small>
+                    </div>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <div class="modal-body p-4">
-                <div class="mb-3">
-                    <label for="crearName" class="form-label">Nombre del Color</label>
-                    <input class="form-control" id="crearName" name="name" required maxlength="100" autocomplete="off" placeholder="Ej. Azul">
+            <div class="modal-body color-modal-body">
+                <div class="color-form-intro">
+                    <h6 class="fw-semibold mb-1"><i class="bi bi-droplet-half me-2" aria-hidden="true"></i>Datos del color</h6>
+                    <p class="small mb-0">Puede escribir el código hexadecimal o elegirlo desde la paleta.</p>
                 </div>
-                <div class="mb-3">
-                    <label for="crearCode" class="form-label">Código del Color (Hexadecimal)</label>
-                    <div class="input-group">
-                        <input class="form-control color-code-input" id="crearCode" name="code" required maxlength="7" autocomplete="off" placeholder="#104CAD" value="#000000">
-                        <input class="form-control form-control-color color-picker" id="crearPicker" type="color" value="#000000" title="Seleccionar color" aria-label="Seleccionar color">
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="crearName" class="form-label fw-semibold">Nombre del color</label>
+                        <input class="form-control" id="crearName" name="name" required maxlength="100"
+                            autocomplete="off" placeholder="Ej. Azul">
+                        <div class="invalid-feedback color-field-error" data-error-for="name"></div>
                     </div>
-                    <div class="form-text">Ingresa un código #RGB o #RRGGBB, o selecciónalo en la paleta.</div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="crearCode" class="form-label fw-semibold">Código hexadecimal</label>
+                        <div class="input-group">
+                            <input class="form-control color-code-input" id="crearCode" name="code" required
+                                maxlength="7" autocomplete="off" placeholder="#104CAD" value="#000000">
+                            <input class="form-control form-control-color color-picker" id="crearPicker" type="color"
+                                value="#000000" title="Seleccionar color" aria-label="Seleccionar color">
+                        </div>
+                        <div class="invalid-feedback color-field-error" data-error-for="code"></div>
+                        <div class="form-text">Formatos aceptados: #RGB y #RRGGBB. El prefijo # se agrega automáticamente.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="crearDescription" class="form-label fw-semibold">Descripción</label>
+                        <textarea class="form-control" id="crearDescription" name="description" rows="3" maxlength="100"
+                            placeholder="Agregue una descripción del color"></textarea>
+                        <div class="invalid-feedback color-field-error" data-error-for="description"></div>
+                        <div class="d-flex justify-content-end color-counter">
+                            <small><span data-counter-for="crearDescription">0</span>/100</small>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold mb-2">Vista previa del color</label>
+                        <div class="color-preview" id="crearPreview" role="img" aria-label="Vista previa #000000">#000000</div>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="crearDescription" class="form-label">Descripción</label>
-                    <textarea class="form-control" id="crearDescription" name="description" rows="3" maxlength="100" placeholder="Agrega una descripción del color"></textarea>
-                    <div class="d-flex justify-content-end"><small class="text-muted"><span data-counter-for="crearDescription">0</span>/100</small></div>
-                </div>
-                <label class="form-label mb-2">Vista Previa del Color</label>
-                <div class="color-preview" id="crearPreview">#000000</div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times-circle"></i> Cancelar</button>
-                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar</button>
+            <div class="modal-footer color-modal-footer">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-floppy me-1" aria-hidden="true"></i>Guardar
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancelar
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-{{-- Modal editar color --}}
-<div class="modal fade color-modal" id="modalEditarColor" tabindex="-1" aria-labelledby="modalEditarColorLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade color-modal" id="modalEditarColor" data-bs-backdrop="static" data-bs-keyboard="false"
+    tabindex="-1" aria-labelledby="modalEditarColorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
         <form id="formEditarColor" class="modal-content" novalidate>
-            <div class="modal-header">
-            <h5 class="modal-title" id="modalEditarColorLabel">Editar Color</h5>
+            @csrf
+            <div class="modal-header color-modal-header">
+                <div class="color-modal-heading">
+                    <span class="color-modal-icon" aria-hidden="true"><i class="bi bi-palette"></i></span>
+                    <div>
+                        <h5 class="modal-title mb-0" id="modalEditarColorLabel">Editar Color</h5>
+                        <small>Actualice la información y tonalidad del color</small>
+                    </div>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body color-modal-body">
                 <input type="hidden" name="id" id="editarId">
-                <div class="mb-3">
-                    <label for="editarName" class="form-label">Nombre del Color</label>
-                    <input class="form-control" id="editarName" name="name" required maxlength="100" autocomplete="off">
+                <div class="color-form-intro">
+                    <h6 class="fw-semibold mb-1"><i class="bi bi-droplet-half me-2" aria-hidden="true"></i>Datos del color</h6>
+                    <p class="small mb-0">Modifique solamente los datos que necesiten actualización.</p>
                 </div>
-                <div class="mb-3">
-                    <label for="editarCode" class="form-label">Código del Color (Hexadecimal)</label>
-                    <div class="input-group">
-                        <input class="form-control color-code-input" id="editarCode" name="code" required maxlength="7" autocomplete="off" placeholder="#104CAD">
-                        <input class="form-control form-control-color color-picker" id="editarPicker" type="color" value="#000000" title="Seleccionar color" aria-label="Seleccionar color">
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="editarName" class="form-label fw-semibold">Nombre del color</label>
+                        <input class="form-control" id="editarName" name="name" required maxlength="100" autocomplete="off">
+                        <div class="invalid-feedback color-field-error" data-error-for="name"></div>
                     </div>
-                    <div class="form-text">Si falta el # inicial, se agrega al guardar. Formatos aceptados: #RGB o #RRGGBB.</div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="editarCode" class="form-label fw-semibold">Código hexadecimal</label>
+                        <div class="input-group">
+                            <input class="form-control color-code-input" id="editarCode" name="code" required maxlength="7"
+                                autocomplete="off" placeholder="#104CAD">
+                            <input class="form-control form-control-color color-picker" id="editarPicker" type="color"
+                                value="#000000" title="Seleccionar color" aria-label="Seleccionar color">
+                        </div>
+                        <div class="invalid-feedback color-field-error" data-error-for="code"></div>
+                        <div class="form-text">Formatos aceptados: #RGB y #RRGGBB. El prefijo # se agrega automáticamente.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="editarDescription" class="form-label fw-semibold">Descripción</label>
+                        <textarea class="form-control" id="editarDescription" name="description" rows="3" maxlength="100"
+                            placeholder="Agregue una descripción del color"></textarea>
+                        <div class="invalid-feedback color-field-error" data-error-for="description"></div>
+                        <div class="d-flex justify-content-end color-counter">
+                            <small><span data-counter-for="editarDescription">0</span>/100</small>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold mb-2">Vista previa del color</label>
+                        <div class="color-preview" id="editarPreview" role="img" aria-label="Vista previa del color">#000000</div>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="editarDescription" class="form-label">Descripción</label>
-                    <textarea class="form-control" id="editarDescription" name="description" rows="3" maxlength="100" placeholder="Agrega una descripción del color"></textarea>
-                    <div class="d-flex justify-content-end"><small class="text-muted"><span data-counter-for="editarDescription">0</span>/100</small></div>
-                </div>
-                <label class="form-label mb-2">Vista Previa del Color</label>
-                <div class="color-preview" id="editarPreview">#000000</div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times-circle"></i> Cancelar</button>
-                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar Cambios</button>
+            <div class="modal-footer color-modal-footer">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-floppy me-1" aria-hidden="true"></i>Guardar cambios
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancelar
+                </button>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="modal fade color-modal" id="modalVerColor" tabindex="-1" aria-labelledby="modalVerColorLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header color-modal-header">
+                <div class="color-modal-heading">
+                    <span class="color-modal-icon" aria-hidden="true"><i class="bi bi-eye"></i></span>
+                    <div>
+                        <h5 class="modal-title mb-0" id="modalVerColorLabel">Detalle de color</h5>
+                        <small>Información de solo lectura</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body color-modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <div class="color-detail-card">
+                            <small class="color-detail-label">Nombre</small>
+                            <span class="color-detail-value text-break" id="verColorName"></span>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="color-detail-card">
+                            <small class="color-detail-label">Código hexadecimal</small>
+                            <span class="color-detail-value" id="verColorCode"></span>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="color-detail-card">
+                            <small class="color-detail-label">Descripción</small>
+                            <div class="color-detail-description text-break" id="verColorDescription"></div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="color-detail-card">
+                            <small class="color-detail-label">Vista previa</small>
+                            <div class="color-detail-preview" id="verColorPreview" role="img" aria-label="Vista previa del color"></div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="color-detail-card">
+                            <small class="color-detail-label">Creación</small>
+                            <span class="color-detail-value" id="verColorCreatedAt"></span>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <div class="color-detail-card">
+                            <small class="color-detail-label">Última actualización</small>
+                            <span class="color-detail-value" id="verColorUpdatedAt"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer color-modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
     </div>
 </div>
