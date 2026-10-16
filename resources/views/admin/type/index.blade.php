@@ -4,13 +4,13 @@
 
 @section('content')
     <div class="vehicle-types-module">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+            <h4 class="mb-0">Listado de Tipos de Vehículo</h4>
+            <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
+                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Tipo
+            </button>
+        </div>
         <div class="card">
-            <div class="card-header d-flex align-items-center gap-3 flex-wrap">
-                <h4 class="mb-0">Listado de Tipos de Vehículo</h4>
-                <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
-                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Tipo
-                </button>
-            </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle w-100" id="DataTable">
@@ -38,7 +38,6 @@
                             <span class="vehicle-type-modal-icon" aria-hidden="true"><i class="bi bi-truck"></i></span>
                             <div>
                                 <h5 class="modal-title mb-0" id="formModalLabel">Tipo de Vehículo</h5>
-                                <small>Complete la información del tipo de vehículo</small>
                             </div>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -57,7 +56,6 @@
                             <span class="vehicle-type-modal-icon" aria-hidden="true"><i class="bi bi-eye"></i></span>
                             <div>
                                 <h5 class="modal-title mb-0" id="vehicleTypeShowModalLabel">Detalle de tipo de vehículo</h5>
-                                <small>Información de solo lectura</small>
                             </div>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -100,191 +98,7 @@
 @stop
 
 @section('css')
-<style>
-    .vehicle-types-module #DataTable th,
-    .vehicle-types-module #DataTable td {
-        vertical-align: middle;
-    }
-
-    .vehicle-types-module .vehicle-type-modal .modal-content {
-        overflow: hidden;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .75rem;
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .18);
-    }
-
-    .vehicle-types-module .vehicle-type-modal-header {
-        min-height: 76px;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .vehicle-types-module .vehicle-type-modal-heading {
-        display: flex;
-        align-items: center;
-        gap: .85rem;
-        min-width: 0;
-    }
-
-    .vehicle-types-module .vehicle-type-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
-    .vehicle-types-module .vehicle-type-modal-icon {
-        display: inline-grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-        place-items: center;
-        color: var(--bs-info-text-emphasis);
-        background-color: var(--bs-info-bg-subtle);
-        border: 1px solid var(--bs-info-border-subtle);
-        border-radius: .65rem;
-        font-size: 1.15rem;
-    }
-
-    .vehicle-types-module .vehicle-type-modal-body {
-        padding: 1.5rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-    }
-
-    .vehicle-types-module .vehicle-type-form-intro {
-        margin-bottom: 1.25rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .vehicle-types-module .vehicle-type-form-intro h6,
-    .vehicle-types-module .vehicle-type-modal .form-label {
-        color: var(--bs-body-color);
-    }
-
-    .vehicle-types-module .vehicle-type-form-intro p,
-    .vehicle-types-module .vehicle-type-modal .form-text {
-        color: var(--bs-secondary-color);
-    }
-
-    .vehicle-types-module .vehicle-type-modal .form-label {
-        margin-bottom: .45rem;
-    }
-
-    .vehicle-types-module .vehicle-type-modal .form-control {
-        min-height: 42px;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    .vehicle-types-module .vehicle-type-modal textarea.form-control {
-        min-height: 112px;
-    }
-
-    .vehicle-types-module .vehicle-type-modal .form-control::placeholder {
-        color: var(--bs-secondary-color);
-        opacity: .8;
-    }
-
-    .vehicle-types-module .vehicle-type-modal .form-control:focus {
-        border-color: rgba(var(--bs-info-rgb), .8);
-        box-shadow: 0 0 0 .2rem rgba(var(--bs-info-rgb), .16);
-    }
-
-    .vehicle-types-module .vehicle-type-modal-footer {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: .65rem;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-top: 1px solid var(--bs-border-color);
-    }
-
-    .vehicle-types-module #formModal .vehicle-type-modal-footer {
-        margin: 1.5rem -1.5rem -1.5rem;
-    }
-
-    .vehicle-types-module .vehicle-type-detail-card {
-        height: 100%;
-        padding: 1rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .6rem;
-    }
-
-    .vehicle-types-module .vehicle-type-detail-label {
-        display: block;
-        margin-bottom: .35rem;
-        color: var(--bs-secondary-color);
-        font-size: .78rem;
-        font-weight: 600;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    .vehicle-types-module .vehicle-type-detail-value {
-        color: var(--bs-body-color);
-        font-weight: 600;
-    }
-
-    .vehicle-types-module .vehicle-type-detail-description {
-        color: var(--bs-body-color);
-        white-space: pre-wrap;
-    }
-
-    .vehicle-types-module .vehicle-type-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        white-space: nowrap;
-    }
-
-    .vehicle-types-module .vehicle-type-actions .vehicle-type-action-btn {
-        display: inline-flex;
-        width: 36px;
-        min-width: 36px;
-        height: 31px;
-        flex: 0 0 36px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-width: 1px;
-        border-style: solid;
-        border-radius: .25rem;
-    }
-
-    .vehicle-types-module .vehicle-type-actions .vehicle-type-action-btn i {
-        line-height: 1;
-    }
-
-    html.dark .vehicle-types-module .vehicle-type-modal .modal-content,
-    html[data-bs-theme="dark"] .vehicle-types-module .vehicle-type-modal .modal-content {
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .5);
-    }
-
-    @media (max-width: 575.98px) {
-        .vehicle-types-module .vehicle-type-modal-body {
-            padding: 1rem;
-        }
-
-        .vehicle-types-module #formModal .vehicle-type-modal-footer {
-            margin: 1rem -1rem -1rem;
-        }
-
-        .vehicle-types-module .vehicle-type-modal-footer {
-            flex-wrap: wrap;
-        }
-    }
-</style>
+@vite('resources/css/admin-indexes.css')
 @stop
 
 @section('js')
@@ -367,7 +181,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: @json(route('vehiclestype.index')),
+        ajax: "{{ route('vehiclestype.index') }}",
         columns: [
             { data: 'name', name: 'name' },
             { data: 'description', name: 'description', defaultContent: '' },
@@ -393,7 +207,7 @@ $(function () {
     }
 
     $('#btnNuevo').on('click', function () {
-        abrirFormulario(@json(route('vehiclestype.create')), 'Nuevo Tipo de Vehículo');
+        abrirFormulario("{{ route('vehiclestype.create') }}", 'Nuevo Tipo de Vehículo');
     });
 
     $('#DataTable').on('click', '.btnVer', function () {
@@ -456,7 +270,7 @@ $(function () {
             showCancelButton: true,
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#dc3545'
+            confirmButtonColor: '#b54747'
         }).then(function (result) {
             if (!result.isConfirmed) return;
 
@@ -464,7 +278,7 @@ $(function () {
                 url: url,
                 type: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': @json(csrf_token()),
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
                     Accept: 'application/json'
                 },
                 success: function (response) {

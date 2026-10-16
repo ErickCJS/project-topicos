@@ -4,14 +4,13 @@
 
 @section('content')
     <div class="employee-types-module">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+            <h4 class="mb-0">Listado de Tipos de Personal</h4>
+            <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
+                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Tipo
+            </button>
+        </div>
         <div class="card">
-            <div class="card-header d-flex align-items-center gap-3 flex-wrap">
-                <h4 class="mb-0">Listado de Tipos de Personal</h4>
-                <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
-                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Tipo
-                </button>
-            </div>
-
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle w-100" id="DataTable">
@@ -39,7 +38,6 @@
                             <span class="employee-type-modal-icon" aria-hidden="true"><i class="bi bi-person-badge"></i></span>
                             <div>
                                 <h5 class="modal-title mb-0" id="formModalLabel">Tipo de personal</h5>
-                                <small>Complete la información del tipo de personal</small>
                             </div>
                         </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -59,197 +57,7 @@
 @stop
 
 @section('css')
-<style>
-    .employee-types-module #DataTable th,
-    .employee-types-module #DataTable td {
-        vertical-align: middle;
-    }
-
-    .employee-types-module #formModal .modal-content,
-    .employee-types-module #employeeTypeShowModal .modal-content {
-        overflow: hidden;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .75rem;
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .18);
-    }
-
-    .employee-types-module #formModal .employee-type-modal-header,
-    .employee-types-module #employeeTypeShowModal .employee-type-modal-header {
-        min-height: 76px;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .employee-types-module .employee-type-modal-heading {
-        display: flex;
-        align-items: center;
-        gap: .85rem;
-        min-width: 0;
-    }
-
-    .employee-types-module .employee-type-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
-    .employee-types-module .employee-type-modal-icon {
-        display: inline-grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-        place-items: center;
-        color: var(--bs-info-text-emphasis);
-        background-color: var(--bs-info-bg-subtle);
-        border: 1px solid var(--bs-info-border-subtle);
-        border-radius: .65rem;
-        font-size: 1.15rem;
-    }
-
-    .employee-types-module #formModal .employee-type-modal-body,
-    .employee-types-module #employeeTypeShowModal .employee-type-modal-body {
-        padding: 1.5rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-    }
-
-    .employee-types-module .employee-type-form-intro {
-        margin-bottom: 1.25rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .employee-types-module .employee-type-form-intro h6,
-    .employee-types-module .form-label {
-        color: var(--bs-body-color);
-    }
-
-    .employee-types-module .employee-type-form-intro p,
-    .employee-types-module .form-text {
-        color: var(--bs-secondary-color);
-    }
-
-    .employee-types-module .form-label {
-        margin-bottom: .45rem;
-    }
-
-    .employee-types-module .form-control {
-        min-height: 42px;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    .employee-types-module textarea.form-control {
-        min-height: 112px;
-    }
-
-    .employee-types-module .form-control::placeholder {
-        color: var(--bs-secondary-color);
-        opacity: .8;
-    }
-
-    .employee-types-module .form-control:focus {
-        border-color: rgba(var(--bs-info-rgb), .8);
-        box-shadow: 0 0 0 .2rem rgba(var(--bs-info-rgb), .16);
-    }
-
-    .employee-types-module .employee-type-modal-footer {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: .65rem;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-top: 1px solid var(--bs-border-color);
-    }
-
-    .employee-types-module #formModal .employee-type-modal-footer {
-        margin: 1.5rem -1.5rem -1.5rem;
-    }
-
-    .employee-types-module .employee-type-detail-card {
-        height: 100%;
-        padding: 1rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .6rem;
-    }
-
-    .employee-types-module .employee-type-detail-label {
-        display: block;
-        margin-bottom: .35rem;
-        color: var(--bs-secondary-color);
-        font-size: .78rem;
-        font-weight: 600;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    .employee-types-module .employee-type-detail-value {
-        color: var(--bs-body-color);
-        font-weight: 600;
-    }
-
-    .employee-types-module .employee-type-detail-description {
-        color: var(--bs-body-color);
-        white-space: pre-wrap;
-    }
-
-    .employee-types-module .employee-type-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        white-space: nowrap;
-    }
-
-    .employee-types-module .employee-type-action-btn {
-        display: inline-flex;
-        width: 36px;
-        min-width: 36px;
-        height: 31px;
-        flex: 0 0 36px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-width: 1px;
-        border-style: solid;
-        border-radius: .25rem;
-    }
-
-    .employee-types-module .employee-type-action-btn i {
-        line-height: 1;
-    }
-
-    html.dark .employee-types-module #formModal .modal-content,
-    html.dark .employee-types-module #employeeTypeShowModal .modal-content,
-    html[data-bs-theme="dark"] .employee-types-module #formModal .modal-content,
-    html[data-bs-theme="dark"] .employee-types-module #employeeTypeShowModal .modal-content {
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .5);
-    }
-
-    @media (max-width: 575.98px) {
-        .employee-types-module #formModal .employee-type-modal-body,
-        .employee-types-module #employeeTypeShowModal .employee-type-modal-body {
-            padding: 1rem;
-        }
-
-        .employee-types-module #formModal .employee-type-modal-footer {
-            margin: 1rem -1rem -1rem;
-        }
-
-        .employee-types-module .employee-type-modal-footer {
-            flex-wrap: wrap;
-        }
-    }
-</style>
+@vite('resources/css/admin-indexes.css')
 @stop
 
 @section('js')
@@ -310,7 +118,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: @json(route('employee-types.index')),
+        ajax: "{{ route('employee-types.index') }}",
         columns: [
             { data: 'name', name: 'name' },
             { data: 'description', name: 'description', defaultContent: '' },
@@ -336,7 +144,7 @@ $(function () {
     }
 
     $('#btnNuevo').on('click', function () {
-        abrirModal(@json(route('employee-types.create')), 'Nuevo Tipo de Personal');
+        abrirModal("{{ route('employee-types.create') }}", 'Nuevo Tipo de Personal');
     });
 
     $(document).on('click', '.btnVer', function () {
@@ -404,7 +212,7 @@ $(function () {
             showCancelButton: true,
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#dc3545'
+            confirmButtonColor: '#b54747'
         }).then(function (result) {
             if (!result.isConfirmed) return;
 
@@ -412,7 +220,7 @@ $(function () {
                 url: url,
                 type: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': @json(csrf_token()),
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
                     Accept: 'application/json'
                 },
                 success: function (response) {

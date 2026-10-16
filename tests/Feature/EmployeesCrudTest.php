@@ -58,11 +58,14 @@ class EmployeesCrudTest extends TestCase
             ->assertSee('Nuevo empleado')
             ->assertSee('class="btn btn-success ms-auto"', false)
             ->assertSee('class="table-responsive"', false)
-            ->assertSee('width: 36px;', false)
-            ->assertSee('height: 31px;', false)
-            ->assertSee('var(--bs-body-bg)', false)
             ->assertSee('error.status === 422', false)
             ->assertSee('URL.revokeObjectURL', false);
+
+        $adminIndexStyles = file_get_contents(resource_path('css/admin-indexes.css'));
+        $this->assertIsString($adminIndexStyles);
+        $this->assertStringContainsString('width: 36px;', $adminIndexStyles);
+        $this->assertStringContainsString('height: 31px;', $adminIndexStyles);
+        $this->assertStringContainsString('var(--bs-body-bg)', $adminIndexStyles);
 
         $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('personal.employees.index', [

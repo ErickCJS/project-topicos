@@ -1,8 +1,3 @@
-<div class="attendance-form-intro">
-    <h6 class="fw-semibold mb-1"><i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Datos de la asistencia</h6>
-    <p class="small mb-0">Seleccione el empleado y registre la información correspondiente a su marcación.</p>
-</div>
-
 <div class="row g-3">
     <div class="col-12 col-md-6">
         {!! Form::label('employee_id', 'Empleado', ['class' => 'form-label fw-semibold']) !!}

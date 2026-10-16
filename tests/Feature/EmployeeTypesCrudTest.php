@@ -40,9 +40,11 @@ class EmployeeTypesCrudTest extends TestCase
             ->assertSee('class="btn btn-success ms-auto"', false)
             ->assertSee('class="table-responsive"', false)
             ->assertSee('id="employeeTypeShowModal"', false)
-            ->assertSee('width: 36px;', false)
-            ->assertSee('height: 31px;', false)
             ->assertSee('error.status === 422', false);
+
+        $adminIndexStyles = file_get_contents(resource_path('css/admin-indexes.css'));
+        $this->assertIsString($adminIndexStyles);
+        $this->assertStringContainsString('height: 31px;', $adminIndexStyles);
 
         $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('employee-types.index', [

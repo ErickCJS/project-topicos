@@ -1,8 +1,3 @@
-<div class="model-form-intro">
-    <h6 class="fw-semibold mb-1"><i class="bi bi-box me-2" aria-hidden="true"></i>Datos del modelo</h6>
-    <p class="small mb-0">Seleccione la marca e ingrese la información que identifica al modelo.</p>
-</div>
-
 <div class="row g-3">
     <div class="col-12 col-md-6">
         {!! Form::label('brand_id', 'Marca', ['class' => 'form-label fw-semibold']) !!}

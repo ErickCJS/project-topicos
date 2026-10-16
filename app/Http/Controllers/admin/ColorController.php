@@ -22,13 +22,13 @@ class ColorController extends Controller
                 })
                 ->addColumn('actions', function (Color $color) {
                     return '<div class="color-actions">
-                                <button type="button" class="btn btn-info btn-sm color-action-btn btnVer" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.show', $color)).'" title="Ver" aria-label="Ver color">
+                                <button type="button" class="btn btn-outline-primary btn-sm color-action-btn btnVer" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.show', $color)).'" title="Ver" aria-label="Ver color">
                                     <i class="bi bi-eye" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-warning btn-sm color-action-btn btnEditar" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.edit', $color)).'" data-update-url="'.e(route('vehiclescolor.update', $color)).'" title="Editar" aria-label="Editar color">
+                                <button type="button" class="btn btn-outline-warning btn-sm color-action-btn btnEditar" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.edit', $color)).'" data-update-url="'.e(route('vehiclescolor.update', $color)).'" title="Editar" aria-label="Editar color">
                                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm color-action-btn btnEliminar" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.destroy', $color)).'" title="Eliminar" aria-label="Eliminar color">
+                                <button type="button" class="btn btn-outline-danger btn-sm color-action-btn btnEliminar" data-id="'.$color->id.'" data-url="'.e(route('vehiclescolor.destroy', $color)).'" title="Eliminar" aria-label="Eliminar color">
                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </div>';

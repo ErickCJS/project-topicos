@@ -42,9 +42,9 @@ class AttendancesController extends Controller
                 })
                 ->addColumn('actions', function ($attendance) {
                     return '<div class="attendance-actions">'
-                        .'<button type="button" class="btn btn-info btn-sm attendance-action-btn btnVer" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.show', $attendance->id)).'" title="Ver" aria-label="Ver asistencia"><i class="bi bi-eye" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-warning btn-sm attendance-action-btn btnEditar" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.edit', $attendance->id)).'" title="Editar" aria-label="Editar asistencia"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-danger btn-sm attendance-action-btn btnEliminar" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.destroy', $attendance->id)).'" title="Eliminar" aria-label="Eliminar asistencia"><i class="bi bi-trash" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-primary btn-sm attendance-action-btn btnVer" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.show', $attendance->id)).'" title="Ver" aria-label="Ver asistencia"><i class="bi bi-eye" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-warning btn-sm attendance-action-btn btnEditar" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.edit', $attendance->id)).'" title="Editar" aria-label="Editar asistencia"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-danger btn-sm attendance-action-btn btnEliminar" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.destroy', $attendance->id)).'" title="Eliminar" aria-label="Eliminar asistencia"><i class="bi bi-trash" aria-hidden="true"></i></button>'
                         .'</div>';
                 })
                 ->rawColumns(['actions'])

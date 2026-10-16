@@ -3,16 +3,17 @@
 @section('title', 'Modelos | RSUProject')
 
 @section('content')
-    <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+    <div class="models-module">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
             <h4 class="mb-0">Listado de Modelos</h4>
             <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
                 <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo modelo
             </button>
         </div>
+        <div class="card">
 
         <div class="card-body">
-            <div class="table-responsive">
+            <div class="models-table-wrap">
                 <table class="table table-striped table-hover align-middle w-100" id="DataTable">
                     <thead>
                         <tr>
@@ -40,7 +41,6 @@
                         <span class="model-modal-icon" aria-hidden="true"><i class="bi bi-boxes"></i></span>
                         <div>
                             <h5 class="modal-title mb-0" id="formModalLabel">Modelo</h5>
-                            <small>Complete la información del modelo</small>
                         </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -55,207 +55,11 @@
             <div class="modal-content" id="modelShowContent"></div>
         </div>
     </div>
+    </div>
 @stop
 
 @section('css')
-<style>
-    #DataTable th,
-    #DataTable td {
-        vertical-align: middle;
-    }
-
-    #formModal .modal-content,
-    #modelShowModal .modal-content {
-        overflow: hidden;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .75rem;
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .18);
-    }
-
-    #formModal .model-modal-header,
-    #modelShowModal .model-modal-header {
-        min-height: 76px;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    #formModal .model-modal-heading,
-    #modelShowModal .model-modal-heading {
-        display: flex;
-        align-items: center;
-        gap: .85rem;
-        min-width: 0;
-    }
-
-    #formModal .model-modal-heading small,
-    #modelShowModal .model-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
-    #formModal .model-modal-icon,
-    #modelShowModal .model-modal-icon {
-        display: inline-grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-        place-items: center;
-        color: var(--bs-info-text-emphasis);
-        background-color: var(--bs-info-bg-subtle);
-        border: 1px solid var(--bs-info-border-subtle);
-        border-radius: .65rem;
-        font-size: 1.15rem;
-    }
-
-    #formModal .model-modal-body,
-    #modelShowModal .model-modal-body {
-        padding: 1.5rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-    }
-
-    #formModal .model-form-intro {
-        margin-bottom: 1.25rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    #formModal .model-form-intro h6,
-    #formModal .form-label {
-        color: var(--bs-body-color);
-    }
-
-    #formModal .model-form-intro p,
-    #formModal .form-text {
-        color: var(--bs-secondary-color);
-    }
-
-    #formModal .form-label {
-        margin-bottom: .45rem;
-    }
-
-    #formModal .form-control,
-    #formModal .form-select {
-        min-height: 42px;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    #formModal textarea.form-control {
-        min-height: 112px;
-    }
-
-    #formModal .form-control::placeholder {
-        color: var(--bs-secondary-color);
-        opacity: .8;
-    }
-
-    #formModal .form-control:focus,
-    #formModal .form-select:focus {
-        border-color: rgba(var(--bs-info-rgb), .8);
-        box-shadow: 0 0 0 .2rem rgba(var(--bs-info-rgb), .16);
-    }
-
-    #formModal .model-modal-footer,
-    #modelShowModal .model-modal-footer {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: .65rem;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-top: 1px solid var(--bs-border-color);
-    }
-
-    #formModal .model-modal-footer {
-        margin: 1.5rem -1.5rem -1.5rem;
-    }
-
-    #modelShowModal .model-detail-card {
-        height: 100%;
-        padding: 1rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .6rem;
-    }
-
-    #modelShowModal .model-detail-label {
-        display: block;
-        margin-bottom: .35rem;
-        color: var(--bs-secondary-color);
-        font-size: .78rem;
-        font-weight: 600;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    #modelShowModal .model-detail-value {
-        color: var(--bs-body-color);
-        font-weight: 600;
-    }
-
-    #modelShowModal .model-detail-description {
-        color: var(--bs-body-color);
-        white-space: pre-wrap;
-    }
-
-    html.dark #formModal .modal-content,
-    html.dark #modelShowModal .modal-content,
-    html[data-bs-theme="dark"] #formModal .modal-content,
-    html[data-bs-theme="dark"] #modelShowModal .modal-content {
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .5);
-    }
-
-    .model-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        white-space: nowrap;
-    }
-
-    .model-actions .model-action-btn {
-        display: inline-flex;
-        width: 36px;
-        min-width: 36px;
-        height: 31px;
-        flex: 0 0 36px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-width: 1px;
-        border-style: solid;
-        border-radius: .25rem;
-    }
-
-    .model-actions .model-action-btn i {
-        line-height: 1;
-    }
-
-    @media (max-width: 575.98px) {
-        #formModal .model-modal-body,
-        #modelShowModal .model-modal-body {
-            padding: 1rem;
-        }
-
-        #formModal .model-modal-footer {
-            margin: 1rem -1rem -1rem;
-        }
-
-        #formModal .model-modal-footer,
-        #modelShowModal .model-modal-footer {
-            flex-wrap: wrap;
-        }
-    }
-</style>
+@vite('resources/css/admin-indexes.css')
 @stop
 
 @section('js')
@@ -316,7 +120,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: @json(route('brandsmodel.index')),
+        ajax: "{{ route('brandsmodel.index') }}",
         columns: [
             { data: 'name', name: 'name' },
             { data: 'brand_name', orderable: false, searchable: false },
@@ -324,7 +128,7 @@ $(function () {
             { data: 'description', name: 'description', defaultContent: '' },
             { data: 'created_at', name: 'created_at' },
             { data: 'updated_at', name: 'updated_at' },
-            { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
+            { data: 'actions', orderable: false, searchable: false, className: 'text-center model-actions-cell', width: '112px' }
         ],
         language: {
             search: 'Buscar:',
@@ -344,7 +148,7 @@ $(function () {
     }
 
     $('#btnNuevo').on('click', function () {
-        abrirModal(@json(route('brandsmodel.create')), 'Nuevo modelo');
+        abrirModal("{{ route('brandsmodel.create') }}", 'Nuevo modelo');
     });
 
     $(document).on('click', '.btnVer', function () {
@@ -412,7 +216,7 @@ $(function () {
             showCancelButton: true,
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#dc3545'
+            confirmButtonColor: '#b54747'
         }).then(function (result) {
             if (!result.isConfirmed) return;
 
@@ -420,7 +224,7 @@ $(function () {
                 url: url,
                 type: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': @json(csrf_token()),
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
                     Accept: 'application/json'
                 },
                 success: function (response) {

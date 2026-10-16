@@ -27,13 +27,13 @@ class BrandModelController extends Controller
                 })
                 ->addColumn('actions', function (Brandmodel $model) {
                     return '<div class="model-actions">
-                                <button type="button" class="btn btn-info btn-sm model-action-btn btnVer" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.show', $model)).'" title="Ver" aria-label="Ver modelo">
+                                <button type="button" class="btn btn-outline-primary btn-sm model-action-btn btnVer" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.show', $model)).'" title="Ver" aria-label="Ver modelo">
                                     <i class="bi bi-eye" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-warning btn-sm model-action-btn btnEditar" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.edit', $model)).'" title="Editar" aria-label="Editar modelo">
+                                <button type="button" class="btn btn-outline-warning btn-sm model-action-btn btnEditar" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.edit', $model)).'" title="Editar" aria-label="Editar modelo">
                                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm model-action-btn btnEliminar" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.destroy', $model)).'" title="Eliminar" aria-label="Eliminar modelo">
+                                <button type="button" class="btn btn-outline-danger btn-sm model-action-btn btnEliminar" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.destroy', $model)).'" title="Eliminar" aria-label="Eliminar modelo">
                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </div>';

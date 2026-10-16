@@ -67,6 +67,25 @@ class VehiclesCrudTest extends TestCase
         ]);
     }
 
+    public function test_vehicle_form_selects_first_brand_and_model_and_shows_color_code(): void
+    {
+        $createResponse = $this->get(route('vehicles.create'))->assertOk();
+
+        $createResponse->assertSee('value="'.$this->brandId.'" selected="selected"', false)
+            ->assertSee('value="'.$this->modelId.'" selected="selected"', false)
+            ->assertSee('data-color="#123456"', false)
+            ->assertDontSee('Seleccione una marca');
+
+        $this->post(route('vehicles.store'), $this->vehicleData())->assertCreated();
+        $vehicleId = DB::table('vehicles')->where('code', 'TEST-001')->value('id');
+
+        $editResponse = $this->get(route('vehicles.edit', $vehicleId))->assertOk();
+        $editResponse->assertSee('value="'.$this->brandId.'" selected="selected"', false)
+            ->assertSee('value="'.$this->modelId.'" selected="selected"', false)
+            ->assertSee('data-color="#123456"', false)
+            ->assertSee('selected>', false);
+    }
+
     public function test_vehicle_can_be_created_updated_and_deleted_with_all_images(): void
     {
         $this->post(route('vehicles.store'), $this->vehicleData())

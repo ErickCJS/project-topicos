@@ -5,7 +5,7 @@
             icon: 'error',
             title: '¡Ocurrió un error!',
             text: 'Verifique los datos ingresados e intente nuevamente.',
-            confirmButtonColor: '#2563EB',
+            confirmButtonColor: '#176542',
             confirmButtonText: 'Entendido'
         });
     </script>

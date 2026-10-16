@@ -1,6 +1,5 @@
 <div class="vehicle-images-manager" id="vehicleImagesManager" data-vehicle-id="{{ $vehicle_id }}">
     <div class="vehicle-form-intro">
-        <h6 class="fw-semibold mb-1"><i class="bi bi-images me-2" aria-hidden="true"></i>Fotografías del vehículo</h6>
         <p class="small mb-0">Suba varias fotografías y seleccione cuál se mostrará como principal.</p>
     </div>
 

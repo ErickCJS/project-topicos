@@ -1,8 +1,3 @@
-<div class="vehicle-form-intro">
-    <h6 class="fw-semibold mb-1"><i class="bi bi-truck-front me-2" aria-hidden="true"></i>Datos del vehículo</h6>
-    <p class="small mb-0">Complete la identificación, capacidades y clasificación del vehículo.</p>
-</div>
-
 <div class="row g-3">
     <div class="col-12 col-md-6">
         {!! Form::label('code', 'Código', ['class' => 'form-label fw-semibold']) !!}
@@ -61,20 +56,23 @@
 
     <div class="col-12 col-md-6 col-xl-3">
         {!! Form::label('color_id', 'Color', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('color_id', $colors, null, [
-            'class' => 'form-select'.($errors->has('color_id') ? ' is-invalid' : ''),
-            'placeholder' => 'Seleccione un color',
-            'required',
-        ]) !!}
+        <select class="form-select{{ $errors->has('color_id') ? ' is-invalid' : '' }}" id="color_id" name="color_id" required>
+            <option value="">Seleccione un color</option>
+            @foreach($colors as $color)
+                <option value="{{ $color->id }}" data-color="{{ $color->code }}"
+                    @selected(old('color_id', isset($vehicle) ? $vehicle->color_id : '') == $color->id)>
+                    {{ $color->name }}
+                </option>
+            @endforeach
+        </select>
         @error('color_id')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
     </div>
 
     <div class="col-12 col-md-6">
         {!! Form::label('brand_id', 'Marca', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('brand_id', $brands, null, [
+        {!! Form::select('brand_id', $brands, old('brand_id', isset($vehicle) ? $vehicle->brand_id : $brands->keys()->first()), [
             'class' => 'form-select'.($errors->has('brand_id') ? ' is-invalid' : ''),
             'id' => 'brand_id',
-            'placeholder' => 'Seleccione una marca',
             'required',
         ]) !!}
         @error('brand_id')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror
@@ -82,10 +80,9 @@
 
     <div class="col-12 col-md-6">
         {!! Form::label('model_id', 'Modelo', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('model_id', $models, null, [
+        {!! Form::select('model_id', $models, old('model_id', isset($vehicle) ? $vehicle->model_id : $models->keys()->first()), [
             'class' => 'form-select'.($errors->has('model_id') ? ' is-invalid' : ''),
             'id' => 'model_id',
-            'placeholder' => 'Seleccione un modelo',
             'required',
         ]) !!}
         @error('model_id')<div class="invalid-feedback vehicle-field-error">{{ $message }}</div>@enderror

@@ -8,7 +8,6 @@
         <span class="contract-modal-icon" aria-hidden="true"><i class="bi bi-pencil-square"></i></span>
         <div>
             <h5 class="modal-title mb-0" id="contractFormModalLabel">Editar Contrato</h5>
-            <small>Actualice las condiciones permitidas</small>
         </div>
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>

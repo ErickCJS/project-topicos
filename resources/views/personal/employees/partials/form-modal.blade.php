@@ -13,19 +13,13 @@
                 <h5 class="modal-title mb-0" id="employeeFormModalLabel">
                     {{ $editing ? 'Editar empleado' : 'Registrar empleado' }}
                 </h5>
-                <small>Complete la información laboral y de contacto</small>
             </div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
     </div>
 
     <div class="modal-body employee-modal-body">
-        <div class="employee-form-intro">
-            <h6 class="fw-semibold mb-1">
-                <i class="bi bi-person-lines-fill me-2" aria-hidden="true"></i>Datos del empleado
-            </h6>
-            <p class="small mb-0">Los campos marcados con asterisco son obligatorios.</p>
-        </div>
+        <p class="form-text mb-3">Los campos marcados con * son obligatorios.</p>
 
         <div class="row g-4">
             <div class="col-12 col-lg-8">

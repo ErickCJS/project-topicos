@@ -4,7 +4,6 @@
         <span class="contract-modal-icon" aria-hidden="true"><i class="bi bi-file-earmark-plus"></i></span>
         <div>
             <h5 class="modal-title mb-0" id="contractFormModalLabel">Nuevo Contrato</h5>
-            <small>Registre las condiciones del contrato</small>
         </div>
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>

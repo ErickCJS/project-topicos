@@ -8,14 +8,12 @@
                     <span class="color-modal-icon" aria-hidden="true"><i class="bi bi-palette"></i></span>
                     <div>
                         <h5 class="modal-title mb-0" id="modalCrearColorLabel">Nuevo Color</h5>
-                        <small>Complete la información y seleccione una tonalidad</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body color-modal-body">
                 <div class="color-form-intro">
-                    <h6 class="fw-semibold mb-1"><i class="bi bi-droplet-half me-2" aria-hidden="true"></i>Datos del color</h6>
                     <p class="small mb-0">Puede escribir el código hexadecimal o elegirlo desde la paleta.</p>
                 </div>
 
@@ -77,18 +75,12 @@
                     <span class="color-modal-icon" aria-hidden="true"><i class="bi bi-palette"></i></span>
                     <div>
                         <h5 class="modal-title mb-0" id="modalEditarColorLabel">Editar Color</h5>
-                        <small>Actualice la información y tonalidad del color</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body color-modal-body">
                 <input type="hidden" name="id" id="editarId">
-                <div class="color-form-intro">
-                    <h6 class="fw-semibold mb-1"><i class="bi bi-droplet-half me-2" aria-hidden="true"></i>Datos del color</h6>
-                    <p class="small mb-0">Modifique solamente los datos que necesiten actualización.</p>
-                </div>
-
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <label for="editarName" class="form-label fw-semibold">Nombre del color</label>
@@ -144,7 +136,6 @@
                     <span class="color-modal-icon" aria-hidden="true"><i class="bi bi-eye"></i></span>
                     <div>
                         <h5 class="modal-title mb-0" id="modalVerColorLabel">Detalle de color</h5>
-                        <small>Información de solo lectura</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>

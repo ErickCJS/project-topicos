@@ -5,241 +5,18 @@
 @section('css')
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
-<style>
-    .contracts-module #DataTable th,
-    .contracts-module #DataTable td {
-        vertical-align: middle;
-        white-space: nowrap;
-    }
-
-    .contracts-module #formModal .modal-content,
-    .contracts-module #contractShowModal .modal-content {
-        overflow: hidden;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .75rem;
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .18);
-    }
-
-    .contracts-module #formModal .contract-form {
-        display: flex;
-        min-height: 0;
-        max-height: calc(100vh - 3.5rem);
-        flex: 1 1 auto;
-        flex-direction: column;
-    }
-
-    .contracts-module .contract-modal-header {
-        min-height: 76px;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .contracts-module .contract-modal-heading {
-        display: flex;
-        align-items: center;
-        gap: .85rem;
-        min-width: 0;
-    }
-
-    .contracts-module .contract-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
-    .contracts-module .contract-modal-icon {
-        display: inline-grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-        place-items: center;
-        color: var(--bs-info-text-emphasis);
-        background-color: var(--bs-info-bg-subtle);
-        border: 1px solid var(--bs-info-border-subtle);
-        border-radius: .65rem;
-        font-size: 1.15rem;
-    }
-
-    .contracts-module .contract-modal-body {
-        padding: 1.5rem;
-        overflow-y: auto;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-    }
-
-    .contracts-module .contract-modal-footer {
-        display: flex;
-        flex: 0 0 auto;
-        align-items: center;
-        justify-content: flex-end;
-        gap: .65rem;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-top: 1px solid var(--bs-border-color);
-    }
-
-    .contracts-module .contract-form-intro {
-        margin-bottom: 1.25rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .contracts-module .contract-form-intro h6,
-    .contracts-module .form-label {
-        color: var(--bs-body-color);
-    }
-
-    .contracts-module .contract-form-intro p,
-    .contracts-module .form-text {
-        color: var(--bs-secondary-color);
-    }
-
-    .contracts-module .form-control,
-    .contracts-module .form-select {
-        min-height: 42px;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    .contracts-module .form-control::placeholder {
-        color: var(--bs-secondary-color);
-        opacity: .8;
-    }
-
-    .contracts-module .form-control:focus,
-    .contracts-module .form-select:focus {
-        border-color: rgba(var(--bs-info-rgb), .8);
-        box-shadow: 0 0 0 .2rem rgba(var(--bs-info-rgb), .16);
-    }
-
-    .contracts-module .select2-container--bootstrap-5 .select2-selection,
-    .contracts-module .select2-container--bootstrap-5.select2-container--disabled .select2-selection {
-        min-height: 42px;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    .contracts-module .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered,
-    .contracts-module .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
-        color: var(--bs-body-color);
-    }
-
-    .contracts-module .select2-container--bootstrap-5 .select2-dropdown {
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    .contracts-module .select2-container--bootstrap-5 .select2-search__field {
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    .contracts-module .select2-container--bootstrap-5 .select2-results__option[aria-selected="true"] {
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-    }
-
-    .contracts-module .select2-container--bootstrap-5 .select2-results__option--highlighted {
-        color: var(--bs-primary-text-emphasis);
-        background-color: var(--bs-primary-bg-subtle);
-    }
-
-    .contracts-module .select2-selection.is-invalid {
-        border-color: var(--bs-form-invalid-border-color);
-    }
-
-    .contracts-module .contract-field-error {
-        display: block;
-    }
-
-    .contracts-module .contract-detail-card {
-        height: 100%;
-        padding: 1rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .6rem;
-    }
-
-    .contracts-module .contract-detail-label {
-        display: block;
-        margin-bottom: .35rem;
-        color: var(--bs-secondary-color);
-        font-size: .78rem;
-        font-weight: 600;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    .contracts-module .contract-detail-value {
-        color: var(--bs-body-color);
-        font-weight: 600;
-    }
-
-    .contracts-module .contract-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        white-space: nowrap;
-    }
-
-    .contracts-module .contract-action-btn {
-        display: inline-flex;
-        width: 36px;
-        min-width: 36px;
-        height: 31px;
-        flex: 0 0 36px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-width: 1px;
-        border-style: solid;
-        border-radius: .25rem;
-    }
-
-    .contracts-module .contract-action-btn i {
-        line-height: 1;
-    }
-
-    html.dark .contracts-module #formModal .modal-content,
-    html.dark .contracts-module #contractShowModal .modal-content,
-    html[data-bs-theme="dark"] .contracts-module #formModal .modal-content,
-    html[data-bs-theme="dark"] .contracts-module #contractShowModal .modal-content {
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .5);
-    }
-
-    @media (max-width: 575.98px) {
-        .contracts-module .contract-modal-body {
-            padding: 1rem;
-        }
-
-        .contracts-module .contract-modal-footer {
-            flex-wrap: wrap;
-        }
-    }
-</style>
+@vite('resources/css/admin-indexes.css')
 @stop
 
 @section('content')
     <div class="contracts-module">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+            <h4 class="mb-0">Listado de Contratos</h4>
+            <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
+                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Contrato
+            </button>
+        </div>
         <div class="card">
-            <div class="card-header d-flex align-items-center gap-3 flex-wrap">
-                <h4 class="mb-0">Listado de Contratos</h4>
-                <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
-                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Contrato
-                </button>
-            </div>
-
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle w-100" id="DataTable">
@@ -429,7 +206,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: @json(route('contracts.index')),
+        ajax: "{{ route('contracts.index') }}",
         columns: [
             { data: 'dni', name: 'employees.dni' },
             { data: 'employee', name: 'employees.last_name' },
@@ -465,7 +242,7 @@ $(function () {
     });
 
     $('#btnNuevo').on('click', function () {
-        abrirFormulario(@json(route('contracts.create')));
+        abrirFormulario("{{ route('contracts.create') }}");
     });
 
     $('#DataTable').on('click', '.btnVer', function () {
@@ -489,7 +266,7 @@ $(function () {
             text: 'Se cerrará con la fecha de hoy. Se conservará el historial y no podrá editarse ni reactivarse.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#dc3545',
+            confirmButtonColor: '#b54747',
             confirmButtonText: 'Sí, anular',
             cancelButtonText: 'Cancelar'
         }).then(function (result) {
@@ -502,7 +279,7 @@ $(function () {
                 type: 'PATCH',
                 headers: {
                     Accept: 'application/json',
-                    'X-CSRF-TOKEN': @json(csrf_token())
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
                 },
                 success: function (response) {
                     table.ajax.reload(null, false);

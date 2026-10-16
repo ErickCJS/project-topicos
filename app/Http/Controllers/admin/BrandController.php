@@ -27,13 +27,13 @@ class BrandController extends Controller
                 ->editColumn('updated_at', fn (Brand $brand) => $brand->updated_at?->format('d/m/Y H:i:s'))
                 ->addColumn('actions', function (Brand $brand) {
                     return '<div class="brand-actions">
-                                <button type="button" class="btn btn-info btn-sm brand-action-btn btnVer" data-id="'.$brand->id.'" data-url="'.e(route('brands.show', $brand)).'" title="Ver" aria-label="Ver marca">
+                                <button type="button" class="btn btn-outline-primary btn-sm brand-action-btn btnVer" data-id="'.$brand->id.'" data-url="'.e(route('brands.show', $brand)).'" title="Ver" aria-label="Ver marca">
                                     <i class="bi bi-eye" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-warning btn-sm brand-action-btn btnEditar" data-id="'.$brand->id.'" data-url="'.e(route('brands.edit', $brand)).'" title="Editar" aria-label="Editar marca">
+                                <button type="button" class="btn btn-outline-warning btn-sm brand-action-btn btnEditar" data-id="'.$brand->id.'" data-url="'.e(route('brands.edit', $brand)).'" title="Editar" aria-label="Editar marca">
                                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm brand-action-btn btnEliminar" data-id="'.$brand->id.'" data-url="'.e(route('brands.destroy', $brand)).'" title="Eliminar" aria-label="Eliminar marca">
+                                <button type="button" class="btn btn-outline-danger btn-sm brand-action-btn btnEliminar" data-id="'.$brand->id.'" data-url="'.e(route('brands.destroy', $brand)).'" title="Eliminar" aria-label="Eliminar marca">
                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </div>';

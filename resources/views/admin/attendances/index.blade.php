@@ -3,13 +3,14 @@
 @section('title', 'Asistencias | RSUProject')
 
 @section('content')
-    <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+    <div class="attendances-module">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
             <h4 class="mb-0">Listado de Asistencias</h4>
-            <button type="button" class="btn btn-success" id="btnNuevo">
+            <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
                 <i class="bi bi-plus-circle me-1"></i>Agregar nueva asistencia
             </button>
         </div>
+        <div class="card">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped table-hover align-middle w-100" id="DataTable">
@@ -42,7 +43,6 @@
                         </span>
                         <div>
                             <h5 class="modal-title mb-0" id="formModalLabel">Asistencia</h5>
-                            <small>Complete la información de la asistencia</small>
                         </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
@@ -57,208 +57,11 @@
             <div class="modal-content" id="attendanceShowContent"></div>
         </div>
     </div>
+    </div>
 @stop
 
 @section('css')
-<style>
-    #DataTable th,
-    #DataTable td {
-        vertical-align: middle;
-    }
-
-    #formModal .modal-content,
-    #attendanceShowModal .modal-content {
-        overflow: hidden;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .75rem;
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .18);
-    }
-
-    #formModal .attendance-modal-header,
-    #attendanceShowModal .attendance-modal-header {
-        min-height: 76px;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    #formModal .attendance-modal-heading,
-    #attendanceShowModal .attendance-modal-heading {
-        display: flex;
-        align-items: center;
-        gap: .85rem;
-        min-width: 0;
-    }
-
-    #formModal .attendance-modal-heading small,
-    #attendanceShowModal .attendance-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
-    #formModal .attendance-modal-icon,
-    #attendanceShowModal .attendance-modal-icon {
-        display: inline-grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-        place-items: center;
-        color: var(--bs-info-text-emphasis);
-        background-color: var(--bs-info-bg-subtle);
-        border: 1px solid var(--bs-info-border-subtle);
-        border-radius: .65rem;
-        font-size: 1.15rem;
-    }
-
-    #formModal .attendance-modal-body,
-    #attendanceShowModal .attendance-modal-body {
-        padding: 1.5rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-    }
-
-    #formModal .attendance-form-intro {
-        margin-bottom: 1.25rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    #formModal .attendance-form-intro h6 {
-        color: var(--bs-body-color);
-    }
-
-    #formModal .attendance-form-intro p,
-    #formModal .form-text {
-        color: var(--bs-secondary-color);
-    }
-
-    #formModal .form-label {
-        margin-bottom: .45rem;
-        color: var(--bs-body-color);
-    }
-
-    #formModal .form-control,
-    #formModal .form-select {
-        min-height: 42px;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    #formModal textarea.form-control {
-        min-height: 96px;
-    }
-
-    #formModal .form-control::placeholder {
-        color: var(--bs-secondary-color);
-        opacity: .8;
-    }
-
-    #formModal .form-control:focus,
-    #formModal .form-select:focus {
-        border-color: rgba(var(--bs-info-rgb), .8);
-        box-shadow: 0 0 0 .2rem rgba(var(--bs-info-rgb), .16);
-    }
-
-    #formModal .attendance-modal-footer,
-    #attendanceShowModal .attendance-modal-footer {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: .65rem;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-top: 1px solid var(--bs-border-color);
-    }
-
-    #formModal .attendance-modal-footer {
-        margin: 1.5rem -1.5rem -1.5rem;
-    }
-
-    #attendanceShowModal .attendance-detail-card {
-        height: 100%;
-        padding: 1rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .6rem;
-    }
-
-    #attendanceShowModal .attendance-detail-label {
-        display: block;
-        margin-bottom: .35rem;
-        color: var(--bs-secondary-color);
-        font-size: .78rem;
-        font-weight: 600;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    #attendanceShowModal .attendance-detail-value {
-        color: var(--bs-body-color);
-        font-weight: 600;
-    }
-
-    #attendanceShowModal .attendance-detail-secondary {
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-        font-size: .875rem;
-    }
-
-    html.dark #formModal .modal-content,
-    html.dark #attendanceShowModal .modal-content,
-    html[data-bs-theme="dark"] #formModal .modal-content,
-    html[data-bs-theme="dark"] #attendanceShowModal .modal-content {
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .5);
-    }
-
-    .attendance-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        white-space: nowrap;
-    }
-
-    .attendance-actions .attendance-action-btn {
-        display: inline-flex;
-        width: 36px;
-        min-width: 36px;
-        height: 31px;
-        flex: 0 0 36px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-width: 1px;
-        border-style: solid;
-        border-radius: .25rem;
-    }
-
-    .attendance-actions .attendance-action-btn i {
-        line-height: 1;
-    }
-
-    @media (max-width: 575.98px) {
-        #formModal .attendance-modal-body,
-        #attendanceShowModal .attendance-modal-body {
-            padding: 1rem;
-        }
-
-        #formModal .attendance-modal-footer {
-            margin: 1rem -1rem -1rem;
-        }
-
-        #formModal .attendance-modal-footer,
-        #attendanceShowModal .attendance-modal-footer {
-            flex-wrap: wrap;
-        }
-    }
-</style>
+    @vite('resources/css/admin-indexes.css')
 @stop
 
 @section('js')
@@ -298,7 +101,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: @json(route('attendances.index')),
+        ajax: "{{ route('attendances.index') }}",
         order: [[2, 'desc']],
         columns: [
             { data: 'dni', name: 'employees.dni' },
@@ -328,7 +131,7 @@ $(function () {
     }
 
     $('#btnNuevo').on('click', function () {
-        $.get(@json(route('attendances.create')), function (response) {
+        $.get("{{ route('attendances.create') }}", function (response) {
             mostrar_modal('Nueva Asistencia', response);
         }).fail(function (error) {
             mostrar_error(error, 'No se pudo cargar el formulario de asistencia.');
@@ -390,7 +193,7 @@ $(function () {
             showCancelButton: true,
             confirmButtonText: 'Sí, eliminar',
             cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#dc3545'
+            confirmButtonColor: '#b54747'
         }).then(function (result) {
             if (!result.isConfirmed) return;
 
@@ -398,7 +201,7 @@ $(function () {
                 url: url,
                 type: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': @json(csrf_token()),
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
                     Accept: 'application/json'
                 },
                 success: function (response) {

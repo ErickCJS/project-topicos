@@ -3,79 +3,52 @@
         <span class="vehicle-modal-icon" aria-hidden="true"><i class="bi bi-eye"></i></span>
         <div>
             <h5 class="modal-title mb-0">Detalle de vehículo</h5>
-            <small>Información de solo lectura</small>
         </div>
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
 </div>
 
 <div class="modal-body vehicle-modal-body">
-    <div class="row g-3">
+    @php
+        $imageUrl = $profileImage
+            ? asset('storage/'.$profileImage->imagen)
+            : asset('storage/images/no_logo.png');
+    @endphp
+
+    <div class="row g-4 align-items-start vehicle-show-layout">
+        <div class="col-12 col-lg-8">
+            <div class="vehicle-detail-card p-0 overflow-hidden">
+                <table class="table table-sm align-middle mb-0 vehicle-detail-table">
+                    <tbody>
+                        <tr><th scope="row">Código</th><td class="text-break">{{ $vehicle->code }}</td></tr>
+                        <tr><th scope="row">Nombre</th><td class="text-break">{{ $vehicle->name }}</td></tr>
+                        <tr><th scope="row">Placa</th><td class="text-break">{{ $vehicle->plate }}</td></tr>
+                        <tr><th scope="row">Año</th><td>{{ $vehicle->year }}</td></tr>
+                        <tr><th scope="row">Marca</th><td class="text-break">{{ $vehicle->brand?->name ?: 'Sin marca' }}</td></tr>
+                        <tr><th scope="row">Modelo</th><td class="text-break">{{ $vehicle->model?->name ?: 'Sin modelo' }}</td></tr>
+                        <tr><th scope="row">Tipo</th><td class="text-break">{{ $vehicle->type?->name ?: 'Sin tipo' }}</td></tr>
+                        <tr><th scope="row">Color</th><td class="text-break">{{ $vehicle->color?->name ?: 'Sin color' }}</td></tr>
+                        <tr><th scope="row">Capacidad de carga</th><td>{{ $vehicle->load_capacity }} Tn</td></tr>
+                        <tr><th scope="row">Compactación</th><td>{{ $vehicle->compact_capacity }} Tn</td></tr>
+                        <tr><th scope="row">Combustible</th><td>{{ $vehicle->fuel_capacity }} L</td></tr>
+                        <tr><th scope="row">Personas</th><td>{{ $vehicle->occupats_capacity }}</td></tr>
+                        <tr><th scope="row">Descripción</th><td class="text-break">{{ $vehicle->description ?: 'Sin descripción' }}</td></tr>
+                        <tr><th scope="row">Creación</th><td>{{ $vehicle->created_at?->format('d/m/Y H:i:s') ?: 'Sin fecha' }}</td></tr>
+                        <tr><th scope="row">Última actualización</th><td>{{ $vehicle->updated_at?->format('d/m/Y H:i:s') ?: 'Sin fecha' }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="col-12 col-lg-4">
-            <div class="vehicle-detail-card h-100">
+            <div class="vehicle-detail-card vehicle-show-photo-card">
                 <small class="vehicle-detail-label">Fotografía principal</small>
-                @php
-                    $imageUrl = $profileImage
-                        ? asset('storage/'.$profileImage->imagen)
-                        : asset('storage/images/no_logo.png');
-                @endphp
                 <button type="button" class="vehicle-show-image-preview" data-image="{{ $imageUrl }}"
                     data-vehicle="{{ $vehicle->name }}" title="Ampliar fotografía"
                     aria-label="Ampliar fotografía del vehículo">
                     <img src="{{ $imageUrl }}" alt="Fotografía principal de {{ $vehicle->name }}">
                 </button>
             </div>
-        </div>
-
-        <div class="col-12 col-lg-8">
-            <div class="row g-3">
-                <div class="col-12 col-md-6">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Código</small><span class="vehicle-detail-value text-break">{{ $vehicle->code }}</span></div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Nombre</small><span class="vehicle-detail-value text-break">{{ $vehicle->name }}</span></div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Placa</small><span class="vehicle-detail-value">{{ $vehicle->plate }}</span></div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Año</small><span class="vehicle-detail-value">{{ $vehicle->year }}</span></div>
-                </div>
-                <div class="col-12 col-md-3">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Tipo</small><span class="vehicle-detail-value text-break">{{ $vehicle->type?->name ?: 'Sin tipo' }}</span></div>
-                </div>
-                <div class="col-12 col-md-3">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Color</small><span class="vehicle-detail-value text-break">{{ $vehicle->color?->name ?: 'Sin color' }}</span></div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Marca</small><span class="vehicle-detail-value text-break">{{ $vehicle->brand?->name ?: 'Sin marca' }}</span></div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="vehicle-detail-card"><small class="vehicle-detail-label">Modelo</small><span class="vehicle-detail-value text-break">{{ $vehicle->model?->name ?: 'Sin modelo' }}</span></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-6 col-lg-3">
-            <div class="vehicle-detail-card"><small class="vehicle-detail-label">Carga</small><span class="vehicle-detail-value">{{ $vehicle->load_capacity }} Tn</span></div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="vehicle-detail-card"><small class="vehicle-detail-label">Compactación</small><span class="vehicle-detail-value">{{ $vehicle->compact_capacity }} Tn</span></div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="vehicle-detail-card"><small class="vehicle-detail-label">Combustible</small><span class="vehicle-detail-value">{{ $vehicle->fuel_capacity }} L</span></div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="vehicle-detail-card"><small class="vehicle-detail-label">Personas</small><span class="vehicle-detail-value">{{ $vehicle->occupats_capacity }}</span></div>
-        </div>
-        <div class="col-12">
-            <div class="vehicle-detail-card"><small class="vehicle-detail-label">Descripción</small><div class="vehicle-detail-description text-break">{{ $vehicle->description ?: 'Sin descripción' }}</div></div>
-        </div>
-        <div class="col-12 col-md-6">
-            <div class="vehicle-detail-card"><small class="vehicle-detail-label">Creación</small><span class="vehicle-detail-value">{{ $vehicle->created_at?->format('d/m/Y H:i:s') ?: 'Sin fecha' }}</span></div>
-        </div>
-        <div class="col-12 col-md-6">
-            <div class="vehicle-detail-card"><small class="vehicle-detail-label">Última actualización</small><span class="vehicle-detail-value">{{ $vehicle->updated_at?->format('d/m/Y H:i:s') ?: 'Sin fecha' }}</span></div>
         </div>
     </div>
 </div>

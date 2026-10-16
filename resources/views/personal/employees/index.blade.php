@@ -4,14 +4,13 @@
 
 @section('content')
     <div class="employees-module">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
+            <h4 class="mb-0"><i class="bi bi-people me-2" aria-hidden="true"></i>Personal</h4>
+            <button type="button" class="btn btn-success ms-auto" id="btnNuevoEmpleado">
+                <i class="bi bi-person-plus me-1" aria-hidden="true"></i>Nuevo empleado
+            </button>
+        </div>
         <div class="card">
-            <div class="card-header d-flex align-items-center gap-3 flex-wrap">
-                <h4 class="mb-0"><i class="bi bi-people me-2" aria-hidden="true"></i>Personal</h4>
-                <button type="button" class="btn btn-success ms-auto" id="btnNuevoEmpleado">
-                    <i class="bi bi-person-plus me-1" aria-hidden="true"></i>Nuevo empleado
-                </button>
-            </div>
-
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped table-hover align-middle w-100" id="tablaEmpleados">
@@ -53,268 +52,7 @@
 @stop
 
 @section('css')
-<style>
-    .employees-module #tablaEmpleados {
-        width: 100% !important;
-    }
-
-    .employees-module #tablaEmpleados th,
-    .employees-module #tablaEmpleados td {
-        vertical-align: middle;
-        white-space: nowrap;
-    }
-
-    .employees-module #tablaEmpleados td:first-child {
-        width: 72px;
-    }
-
-    .employees-module #employeeFormModal .modal-content,
-    .employees-module #employeeShowModal .modal-content {
-        overflow: hidden;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .75rem;
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .18);
-    }
-
-    .employees-module #employeeFormContent > form {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        max-height: calc(100dvh - 3.5rem);
-    }
-
-    .employees-module #employeeFormContent > form > .modal-body {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-    }
-
-    .employees-module .employee-modal-header {
-        min-height: 76px;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .employees-module .employee-modal-heading {
-        display: flex;
-        align-items: center;
-        gap: .85rem;
-        min-width: 0;
-    }
-
-    .employees-module .employee-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
-    .employees-module .employee-modal-icon {
-        display: inline-grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
-        place-items: center;
-        color: var(--bs-info-text-emphasis);
-        background-color: var(--bs-info-bg-subtle);
-        border: 1px solid var(--bs-info-border-subtle);
-        border-radius: .65rem;
-        font-size: 1.15rem;
-    }
-
-    .employees-module .employee-modal-body {
-        padding: 1.5rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-    }
-
-    .employees-module .employee-form-intro {
-        margin-bottom: 1.25rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .employees-module .employee-form-intro h6,
-    .employees-module .form-label {
-        color: var(--bs-body-color);
-    }
-
-    .employees-module .employee-form-intro p,
-    .employees-module .form-text {
-        color: var(--bs-secondary-color);
-    }
-
-    .employees-module .form-control,
-    .employees-module .form-select {
-        min-height: 42px;
-        color: var(--bs-body-color);
-        background-color: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-    }
-
-    .employees-module .form-control::placeholder {
-        color: var(--bs-secondary-color);
-        opacity: .8;
-    }
-
-    .employees-module .form-control:focus,
-    .employees-module .form-select:focus {
-        border-color: rgba(var(--bs-info-rgb), .8);
-        box-shadow: 0 0 0 .2rem rgba(var(--bs-info-rgb), .16);
-    }
-
-    .employees-module .employee-photo-panel {
-        height: 100%;
-        padding: 1rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .65rem;
-    }
-
-    .employees-module .employee-photo-picker {
-        display: flex;
-        width: 100%;
-        height: 306px;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        color: var(--bs-secondary-color);
-        background-color: var(--bs-body-bg);
-        border: 1px dashed var(--bs-border-color);
-        border-radius: .6rem;
-        cursor: pointer;
-    }
-
-    .employees-module .employee-photo-picker:focus-within,
-    .employees-module .employee-photo-picker:hover {
-        border-color: rgba(var(--bs-info-rgb), .8);
-    }
-
-    .employees-module .employee-photo-placeholder {
-        font-size: 7rem;
-        line-height: 1;
-    }
-
-    .employees-module .employee-photo-preview {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .employees-module .employee-modal-footer {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: .65rem;
-        padding: 1rem 1.25rem;
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border-top: 1px solid var(--bs-border-color);
-    }
-
-    .employees-module .employee-show-profile,
-    .employees-module .employee-detail-card {
-        color: var(--bs-body-color);
-        background-color: var(--bs-tertiary-bg);
-        border: 1px solid var(--bs-border-color);
-        border-radius: .65rem;
-    }
-
-    .employees-module .employee-detail-card {
-        height: 100%;
-        padding: 1rem;
-    }
-
-    .employees-module .employee-detail-label {
-        display: block;
-        margin-bottom: .35rem;
-        color: var(--bs-secondary-color);
-        font-size: .78rem;
-        font-weight: 600;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    .employees-module .employee-detail-value {
-        color: var(--bs-body-color);
-        font-weight: 600;
-    }
-
-    .employees-module .employee-show-photo {
-        width: 132px;
-        height: 132px;
-        flex: 0 0 auto;
-        object-fit: cover;
-        cursor: zoom-in;
-        transition: transform .2s ease;
-    }
-
-    .employees-module .employee-show-photo.is-zoomed {
-        position: relative;
-        z-index: 1056;
-        cursor: zoom-out;
-        transform: scale(1.5);
-    }
-
-    .employees-module .employee-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        white-space: nowrap;
-    }
-
-    .employees-module .employee-action-btn {
-        display: inline-flex;
-        width: 36px;
-        min-width: 36px;
-        height: 31px;
-        flex: 0 0 36px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-width: 1px;
-        border-style: solid;
-        border-radius: .25rem;
-    }
-
-    .employees-module .employee-action-btn i {
-        line-height: 1;
-    }
-
-    .employees-module .employee-field-error {
-        display: block;
-    }
-
-    html.dark .employees-module #employeeFormModal .modal-content,
-    html.dark .employees-module #employeeShowModal .modal-content,
-    html[data-bs-theme="dark"] .employees-module #employeeFormModal .modal-content,
-    html[data-bs-theme="dark"] .employees-module #employeeShowModal .modal-content {
-        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .5);
-    }
-
-    @media (max-width: 575.98px) {
-        .employees-module #tablaEmpleados {
-            min-width: 900px;
-        }
-
-        .employees-module #employeeFormModal .modal-dialog {
-            margin: .5rem;
-        }
-
-        .employees-module .employee-modal-body {
-            padding: 1rem;
-        }
-
-        .employees-module .employee-modal-footer {
-            flex-wrap: wrap;
-        }
-    }
-</style>
+@vite('resources/css/admin-indexes.css')
 @stop
 
 @section('js')
@@ -394,7 +132,7 @@ $(function () {
     const table = $('#tablaEmpleados').DataTable({
         serverSide: true,
         searchDelay: 350,
-        ajax: @json(route('personal.employees.index')),
+        ajax: "{{ route('personal.employees.index') }}",
         order: [[7, 'desc']],
         columns: [
             { data: 'photo', name: 'employees.profile_photo_path', orderable: false, searchable: false },
@@ -539,7 +277,7 @@ $(function () {
             showCancelButton: true,
             confirmButtonText: 'Eliminar',
             cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#dc3545'
+            confirmButtonColor: '#b54747'
         }).then(function (result) {
             if (!result.isConfirmed) return;
 
@@ -547,7 +285,7 @@ $(function () {
                 url: url,
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': @json(csrf_token()),
+                    'X-CSRF-TOKEN': "{{ csrf_token() }}",
                     Accept: 'application/json'
                 },
                 success: function (response) {

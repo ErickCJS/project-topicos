@@ -270,11 +270,13 @@ class ContractsCrudTest extends TestCase
             ->assertSee('class="btn btn-success ms-auto"', false)
             ->assertSee('bi bi-plus-circle', false)
             ->assertSee('class="table-responsive"', false)
-            ->assertSee('width: 36px;', false)
-            ->assertSee('height: 31px;', false)
-            ->assertSee('var(--bs-body-bg)', false)
             ->assertSee('modal-dialog-scrollable', false)
             ->assertSee('error.status === 422', false);
+
+        $adminIndexStyles = file_get_contents(resource_path('css/admin-indexes.css'));
+        $this->assertIsString($adminIndexStyles);
+        $this->assertStringContainsString('height: 31px;', $adminIndexStyles);
+        $this->assertStringContainsString('var(--bs-body-bg)', $adminIndexStyles);
 
         $this->get(route('contracts.create'))
             ->assertOk()

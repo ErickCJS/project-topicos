@@ -18,13 +18,13 @@ class VehicletypeController extends Controller
                 ->editColumn('updated_at', fn (Vehicletype $type) => $type->updated_at?->format('d/m/Y H:i:s'))
                 ->addColumn('actions', function (Vehicletype $type) {
                     return '<div class="vehicle-type-actions">
-                                <button type="button" class="btn btn-info btn-sm vehicle-type-action-btn btnVer" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.show', $type)).'" title="Ver" aria-label="Ver tipo de vehículo">
+                                <button type="button" class="btn btn-outline-primary btn-sm vehicle-type-action-btn btnVer" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.show', $type)).'" title="Ver" aria-label="Ver tipo de vehículo">
                                     <i class="bi bi-eye" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-warning btn-sm vehicle-type-action-btn btnEditar" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.edit', $type)).'" title="Editar" aria-label="Editar tipo de vehículo">
+                                <button type="button" class="btn btn-outline-warning btn-sm vehicle-type-action-btn btnEditar" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.edit', $type)).'" title="Editar" aria-label="Editar tipo de vehículo">
                                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm vehicle-type-action-btn btnEliminar" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.destroy', $type)).'" title="Eliminar" aria-label="Eliminar tipo de vehículo">
+                                <button type="button" class="btn btn-outline-danger btn-sm vehicle-type-action-btn btnEliminar" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.destroy', $type)).'" title="Eliminar" aria-label="Eliminar tipo de vehículo">
                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </div>';

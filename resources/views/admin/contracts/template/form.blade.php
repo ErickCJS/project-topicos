@@ -1,7 +1,4 @@
 <div class="contract-form-intro">
-    <h6 class="fw-semibold mb-1">
-        <i class="bi bi-file-earmark-text me-2" aria-hidden="true"></i>Datos del contrato
-    </h6>
     <p class="small mb-0">Los campos marcados con asterisco son obligatorios.</p>
 </div>
 

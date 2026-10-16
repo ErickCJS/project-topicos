@@ -1,8 +1,3 @@
-<div class="vehicle-type-form-intro">
-    <h6 class="fw-semibold mb-1"><i class="bi bi-truck-front me-2" aria-hidden="true"></i>Datos del tipo de vehículo</h6>
-    <p class="small mb-0">Ingrese el nombre y una descripción opcional para identificar este tipo.</p>
-</div>
-
 <div class="row g-3">
     <div class="col-12">
         {!! Form::label('name', 'Nombre', ['class' => 'form-label fw-semibold']) !!}

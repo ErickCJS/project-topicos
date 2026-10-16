@@ -62,16 +62,16 @@ class VehiclesController extends Controller
                 })
                 ->addColumn('actions', function ($vehicle) {
                     return '<div class="vehicle-actions">
-                                <button type="button" class="btn btn-info btn-sm vehicle-action-btn btnVer" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.show', $vehicle->id)).'" title="Ver" aria-label="Ver vehículo">
+                                <button type="button" class="btn btn-outline-primary btn-sm vehicle-action-btn btnVer" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.show', $vehicle->id)).'" title="Ver" aria-label="Ver vehículo">
                                     <i class="bi bi-eye" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-warning btn-sm vehicle-action-btn btnEditar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.edit', $vehicle->id)).'" title="Editar" aria-label="Editar vehículo">
-                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-sm vehicle-action-btn btnImagen" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.photo.retornar_vista_imagenes', $vehicle->id)).'" title="Imágenes" aria-label="Imágenes del vehículo">
+                                <button type="button" class="btn btn-outline-secondary btn-sm vehicle-action-btn btnImagen" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.photo.retornar_vista_imagenes', $vehicle->id)).'" title="Imágenes" aria-label="Imágenes del vehículo">
                                     <i class="bi bi-images" aria-hidden="true"></i>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm vehicle-action-btn btnEliminar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.destroy', $vehicle->id)).'" title="Eliminar" aria-label="Eliminar vehículo">
+                                <button type="button" class="btn btn-outline-warning btn-sm vehicle-action-btn btnEditar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.edit', $vehicle->id)).'" title="Editar" aria-label="Editar vehículo">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm vehicle-action-btn btnEliminar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.destroy', $vehicle->id)).'" title="Eliminar" aria-label="Eliminar vehículo">
                                     <i class="bi bi-trash" aria-hidden="true"></i>
                                 </button>
                             </div>';
@@ -85,11 +85,11 @@ class VehiclesController extends Controller
 
     public function create()
     {
-        $brands = Brand::has('models')->pluck('name', 'id');
+        $brands = Brand::has('models')->orderBy('name')->pluck('name', 'id');
         $brandFirst = $brands->keys()->first();
         $models = Brandmodel::where('brand_id', $brandFirst)->pluck('name', 'id');
         $types = Vehicletype::orderBy('name')->pluck('name', 'id');
-        $colors = Color::orderBy('name')->pluck('name', 'id');
+        $colors = Color::orderBy('name')->get(['id', 'name', 'code']);
 
         return view('admin.vehicles.create', compact('brands', 'models', 'types', 'colors'));
     }
@@ -114,10 +114,10 @@ class VehiclesController extends Controller
     public function edit(string $id)
     {
         $vehicle = Vehicle::findOrFail($id);
-        $brands = Brand::has('models')->pluck('name', 'id');
+        $brands = Brand::has('models')->orderBy('name')->pluck('name', 'id');
         $models = Brandmodel::where('brand_id', $vehicle->brand_id)->pluck('name', 'id');
         $types = Vehicletype::orderBy('name')->pluck('name', 'id');
-        $colors = Color::orderBy('name')->pluck('name', 'id');
+        $colors = Color::orderBy('name')->get(['id', 'name', 'code']);
 
         return view('admin.vehicles.edit', compact('vehicle', 'brands', 'models', 'types', 'colors'));
     }

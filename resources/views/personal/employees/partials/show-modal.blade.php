@@ -3,7 +3,6 @@
         <span class="employee-modal-icon" aria-hidden="true"><i class="bi bi-eye"></i></span>
         <div>
             <h5 class="modal-title mb-0" id="employeeShowModalLabel">Ficha del personal</h5>
-            <small>Información del empleado en modo de solo lectura</small>
         </div>
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>

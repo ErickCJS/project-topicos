@@ -124,6 +124,10 @@
         </div>
     </main>
 
+    @if (session('status'))
+        <span id="loginStatusMessage" data-message="{{ session('status') }}" hidden></span>
+    @endif
+
     {{-- SweetAlert2 --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -136,7 +140,7 @@
                     title: 'No se pudo iniciar sesión',
                     text: 'El correo electrónico o la contraseña son incorrectos. Verifique sus datos e inténtelo nuevamente.',
                     confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#1769aa',
+                    confirmButtonColor: '#176542',
                     allowOutsideClick: false,
                     customClass: {
                         popup: 'login-swal-popup',
@@ -147,9 +151,9 @@
                 Swal.fire({
                     icon: 'success',
                     title: '¡Operación exitosa!',
-                    text: @json(session('status')),
+                    text: document.getElementById('loginStatusMessage').dataset.message,
                     confirmButtonText: 'Continuar',
-                    confirmButtonColor: '#1769aa',
+                    confirmButtonColor: '#176542',
                     customClass: {
                         popup: 'login-swal-popup',
                         confirmButton: 'login-swal-button'
@@ -562,14 +566,14 @@
         /* SweetAlert2 */
         .login-swal-popup {
             width: min(420px, calc(100% - 32px)) !important;
-            border-radius: 12px !important;
-            padding: 28px !important;
+            border-radius: 8px !important;
+            padding: 24px !important;
         }
 
         .login-swal-button {
-            min-width: 120px;
-            padding: 11px 22px !important;
-            border-radius: 7px !important;
+            min-width: 0;
+            padding: 8px 14px !important;
+            border-radius: 6px !important;
             font-weight: 600 !important;
         }
 

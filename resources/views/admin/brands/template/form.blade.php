@@ -2,11 +2,6 @@
     $existingLogo = isset($brand) && $brand->logo ? asset($brand->logo) : '';
 @endphp
 
-<div class="brand-form-intro">
-    <h6 class="fw-semibold mb-1"><i class="bi bi-tag me-2" aria-hidden="true"></i>Datos de la marca</h6>
-    <p class="small mb-0">Registre la identidad de la marca y, opcionalmente, agregue su descripción y logo.</p>
-</div>
-
 <div class="row g-4">
     <div class="col-12 col-lg-7">
         <div class="row g-3">
