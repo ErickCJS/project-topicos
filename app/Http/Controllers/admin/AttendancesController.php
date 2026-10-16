@@ -5,13 +5,10 @@ namespace App\Http\Controllers\admin;
 use App\Http\Controllers\Controller;
 use App\Models\admin\Attendance;
 use App\Models\admin\Employee;
-use App\Models\admin\Shifts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
-use Illuminate\Support\Facades\Hash;
-use Throwable;
 
 class AttendancesController extends Controller
 {
@@ -74,58 +71,17 @@ class AttendancesController extends Controller
         $data = $request->validate([
             'dni' => ['required', 'digits:8'],
             'password' => ['required', 'string', 'min:8'],
-        ], [
-            'dni.required' => 'El DNI es obligatorio.',
-            'dni.digits' => 'El DNI debe contener exactamente 8 dígitos.',
-
-            'password.required' => 'La contraseña es obligatoria.',
-            'password.string' => 'La contraseña debe ser una cadena de texto.',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
         ]);
 
-        try {
-            $empleado = Employee::where('dni', $data['dni'])->first();
+        $person =  Employee::where('dni', $data['dni'])->get();
+        $attendance = Attendance::create();
 
-            if (!$empleado || !Hash::check($data['password'], $empleado->password)) {
-                return response()->json([
-                    'mensaje' => 'El DNI o la contraseña son incorrectos.',
-                ], 422);
-            }
-
-            $contrato = $empleado->contracts()
-                ->where('is_active', true)
-                ->first();
-
-            if (!$contrato) {
-                return response()->json([
-                    'mensaje' => 'El empleado no tiene un contrato vigente.',
-                ], 422);
-            }
-
-            //si tiene un contrato vigente y ademas sus credenciales son correctas 
-            $hoy = now()->toDateString();
-            $horarios = Shifts::all();
-            // tenemos que saber en que rango nos encontramos pero ahora veremos si es entrada o salida
-            //1 x cada horario y por cada dia
-            // me encuentro en mañana, tarde o noche?
-
-            $asistencias = Attendance::with('employee')->where('dni', $data['dni']);
-            //validamos si tienes registo en mañana 
-            
-            //verificamos que turno podría ser
-            
-
-
-
-            return response()->json([
-                'mensaje' => 'Empleado validado correctamente.'
-            ], 200);
-        } catch (Throwable $exception) {
-            return response()->json([
-                'mensaje' => 'No fue posible validar al empleado, ' .$exception->getMessage() ,
-            ], 500);
-        }
+        return response()->json([
+            'mensaje' => 'Asistencia registrada correctamente.',
+            'data' => ['id' => $attendance->id],
+        ], 201);
     }
+
     /**
      * Display the specified resource.
      */
