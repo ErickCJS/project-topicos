@@ -9,17 +9,16 @@ use App\Models\admin\Color;
 use App\Models\admin\Vehicle;
 use App\Models\admin\VehicleImage;
 use App\Models\admin\Vehicletype;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class VehiclesController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
         if ($request->ajax()) {
@@ -47,99 +46,71 @@ class VehiclesController extends Controller
                     'color.code as color',
                     'vehicletypes.name as type',
                 ]);
+
             return DataTables::of($vehicles)
                 ->addColumn('logo', function ($vehicle) {
                     $logo = empty($vehicle->logo)
                         ? asset('storage/images/no_logo.png')
-                        : asset('storage/' . $vehicle->logo);
+                        : asset('storage/'.$vehicle->logo);
 
-                    return '<button type="button" class="vehicle-logo-preview" data-image="' . e($logo) . '" data-vehicle="' . e($vehicle->name) . '" title="Ver imagen de ' . e($vehicle->name) . '" aria-label="Ver imagen de ' . e($vehicle->name) . '">
-                                <img src="' . e($logo) . '" alt="Imagen de ' . e($vehicle->name) . '">
+                    return '<button type="button" class="vehicle-logo-preview" data-image="'.e($logo).'" data-vehicle="'.e($vehicle->name).'" title="Ver imagen de '.e($vehicle->name).'" aria-label="Ver imagen de '.e($vehicle->name).'">
+                                <img src="'.e($logo).'" alt="Imagen de '.e($vehicle->name).'" loading="lazy" decoding="async">
                             </button>';
-                    })
-                ->addColumn('color', function ($vehicle) {
-                    return '<div style="
-                        width: 30px;
-                        height: 30px;
-                        background-color: ' . e($vehicle->color) . ';
-                        border: 1px solid #ccc;
-                        border-radius: 4px;
-                        display: inline-block;
-                    "></div>';
+                })
+                ->editColumn('color', function ($vehicle) {
+                    return '<span class="vehicle-color-swatch" style="background-color:'.e($vehicle->color).'" title="'.e($vehicle->color).'" aria-label="Color '.e($vehicle->color).'"></span>';
                 })
                 ->addColumn('actions', function ($vehicle) {
-                    return '<div class="d-flex justify-content-center gap-2">
-                        <button type="button" class="btn btn-secondary btn-sm btnImagen" data-id="' . $vehicle->id . '" title="Imágenes" aria-label="Imágenes del vehículo">
-                            <i class="fas fa-image"></i>
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm btnEditar" data-id="' . $vehicle->id . '" title="Editar" aria-label="Editar vehículo">
-                            <i class="fas fa-pencil-alt"></i>
-                        </button>
-                        <button type="button" class="btn btn-danger btn-sm btnEliminar" data-id="' . $vehicle->id . '" title="Eliminar" aria-label="Eliminar vehículo">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>';
+                    return '<div class="vehicle-actions">
+                                <button type="button" class="btn btn-info btn-sm vehicle-action-btn btnVer" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.show', $vehicle->id)).'" title="Ver" aria-label="Ver vehículo">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-warning btn-sm vehicle-action-btn btnEditar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.edit', $vehicle->id)).'" title="Editar" aria-label="Editar vehículo">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm vehicle-action-btn btnImagen" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.photo.retornar_vista_imagenes', $vehicle->id)).'" title="Imágenes" aria-label="Imágenes del vehículo">
+                                    <i class="bi bi-images" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm vehicle-action-btn btnEliminar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.destroy', $vehicle->id)).'" title="Eliminar" aria-label="Eliminar vehículo">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>';
                 })
                 ->rawColumns(['logo', 'color', 'actions'])
-                ->make(true);
+                ->toJson();
         }
 
         return view('admin.vehicles.index');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         $brands = Brand::has('models')->pluck('name', 'id');
-        $brand_first = $brands->keys()->first();
-        $models = Brandmodel::where('brand_id', $brand_first)->pluck('name', 'id');
+        $brandFirst = $brands->keys()->first();
+        $models = Brandmodel::where('brand_id', $brandFirst)->pluck('name', 'id');
         $types = Vehicletype::orderBy('name')->pluck('name', 'id');
         $colors = Color::orderBy('name')->pluck('name', 'id');
+
         return view('admin.vehicles.create', compact('brands', 'models', 'types', 'colors'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'code' => ['required', 'string', 'max:100', 'unique:vehicles,code'],
-            'name' => ['required', 'string', 'max:100'],
-            'plate' => ['required', 'string', 'max:10', 'unique:vehicles,plate'],
-            'year' => ['required', 'integer', 'min:1900', 'max:' . (now()->year + 1)],
-            'load_capacity' => ['required', 'integer', 'min:0'],
-            'occupats_capacity' => ['required', 'integer', 'min:0'],
-            'fuel_capacity' => ['required', 'integer', 'min:0'],
-            'compact_capacity' => ['required', 'integer', 'min:0'],
-            'type_id' => ['required', 'exists:vehicletypes,id'],
-            'brand_id' => ['required', 'exists:brands,id'],
-            'model_id' => [
-                'required',
-                Rule::exists('brandmodels', 'id')->where('brand_id', $request->input('brand_id')),
-            ],
-            'color_id' => ['required', 'exists:color,id'],
-            'description' => ['nullable', 'string'],
-        ], $this->validationMessages());
-
+        $validated = $this->validatedData($request);
         Vehicle::create($validated);
 
         return response()->json(['mensaje' => 'Vehículo registrado correctamente'], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
-        //
+        $vehicle = Vehicle::with(['brand', 'model', 'color', 'type', 'images'])
+            ->findOrFail($id);
+        $profileImage = $vehicle->images->firstWhere('profile', 1) ?? $vehicle->images->first();
+
+        return view('admin.vehicles.show', compact('vehicle', 'profileImage'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id)
     {
         $vehicle = Vehicle::findOrFail($id);
@@ -147,47 +118,22 @@ class VehiclesController extends Controller
         $models = Brandmodel::where('brand_id', $vehicle->brand_id)->pluck('name', 'id');
         $types = Vehicletype::orderBy('name')->pluck('name', 'id');
         $colors = Color::orderBy('name')->pluck('name', 'id');
-        return view('admin.vehicles.edit', compact('vehicle','brands', 'models', 'types', 'colors'));
+
+        return view('admin.vehicles.edit', compact('vehicle', 'brands', 'models', 'types', 'colors'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
         $vehicle = Vehicle::findOrFail($id);
-
-        $validated = $request->validate([
-            'code' => ['required', 'string', 'max:100', Rule::unique('vehicles', 'code')->ignore($vehicle->id)],
-            'name' => ['required', 'string', 'max:100'],
-            'plate' => ['required', 'string', 'max:10', Rule::unique('vehicles', 'plate')->ignore($vehicle->id)],
-            'year' => ['required', 'integer', 'min:1900', 'max:' . (now()->year + 1)],
-            'load_capacity' => ['required', 'integer', 'min:0'],
-            'occupats_capacity' => ['required', 'integer', 'min:0'],
-            'fuel_capacity' => ['required', 'integer', 'min:0'],
-            'compact_capacity' => ['required', 'integer', 'min:0'],
-            'type_id' => ['required', 'exists:vehicletypes,id'],
-            'brand_id' => ['required', 'exists:brands,id'],
-            'model_id' => [
-                'required',
-                Rule::exists('brandmodels', 'id')->where('brand_id', $request->input('brand_id')),
-            ],
-            'color_id' => ['required', 'exists:color,id'],
-            'description' => ['nullable', 'string'],
-        ], $this->validationMessages());
-
-        $vehicle->update($validated);
+        $vehicle->update($this->validatedData($request, $vehicle));
 
         return response()->json(['mensaje' => 'Vehículo actualizado correctamente']);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
         $imagePaths = DB::transaction(function () use ($id) {
-            $vehicle = Vehicle::findOrFail($id);
+            $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($id);
             $imagePaths = $vehicle->images()
                 ->pluck('imagen')
                 ->filter(fn ($path) => filled($path))
@@ -204,6 +150,164 @@ class VehiclesController extends Controller
         }
 
         return response()->json(['mensaje' => 'Vehículo y todas sus imágenes eliminados correctamente']);
+    }
+
+    public function retonar_models(int $brand_id)
+    {
+        $models = Brandmodel::where('brand_id', $brand_id)->pluck('name', 'id');
+
+        return response()->json($models);
+    }
+
+    public function retonar_rutas_fotos(int $vehicle_id)
+    {
+        return VehicleImage::where('vehicle_id', $vehicle_id)->orderBy('id')->get();
+    }
+
+    public function retornar_vista_imagenes(int $vehicle_id)
+    {
+        Vehicle::findOrFail($vehicle_id);
+        $photos = $this->retonar_rutas_fotos($vehicle_id);
+
+        return view('admin.vehicles.template.imagenes', compact('vehicle_id', 'photos'));
+    }
+
+    public function subirimagenes(Request $request, int $vehicle_id)
+    {
+        $request->validate([
+            'photos' => ['required', 'array'],
+            'photos.*' => ['required', 'image', 'mimes:jpeg,png,jpg,webp'],
+        ]);
+
+        $storedPaths = [];
+
+        try {
+            DB::transaction(function () use ($request, $vehicle_id, &$storedPaths) {
+                $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($vehicle_id);
+                $hasProfile = $vehicle->images()->where('profile', 1)->exists();
+
+                foreach ($request->file('photos', []) as $photo) {
+                    $path = $photo->store('vehiclesphotos', 'public');
+                    $storedPaths[] = $path;
+
+                    $vehicle->images()->create([
+                        'imagen' => $path,
+                        'profile' => $hasProfile ? 0 : 1,
+                    ]);
+                    $hasProfile = true;
+                }
+            });
+
+            return response()->json([
+                'codigo' => 1,
+                'mensaje' => 'Imágenes subidas correctamente',
+            ]);
+        } catch (ModelNotFoundException $exception) {
+            Storage::disk('public')->delete($storedPaths);
+            throw $exception;
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($storedPaths);
+            report($exception);
+
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'No fue posible subir las imágenes.',
+            ], 500);
+        }
+    }
+
+    public function eliminar_imagen(int $photo_id)
+    {
+        try {
+            $imagePath = DB::transaction(function () use ($photo_id) {
+                $currentPhoto = VehicleImage::findOrFail($photo_id);
+                Vehicle::query()->lockForUpdate()->findOrFail($currentPhoto->vehicle_id);
+                $photo = VehicleImage::query()->lockForUpdate()->findOrFail($photo_id);
+                $vehicleId = $photo->vehicle_id;
+                $wasProfile = (bool) $photo->profile;
+                $path = $photo->imagen;
+
+                $photo->delete();
+
+                if ($wasProfile) {
+                    VehicleImage::where('vehicle_id', $vehicleId)->update(['profile' => 0]);
+                    $nextPhoto = VehicleImage::where('vehicle_id', $vehicleId)
+                        ->orderBy('id')
+                        ->first();
+                    $nextPhoto?->update(['profile' => 1]);
+                }
+
+                return $path;
+            });
+
+            if (filled($imagePath)) {
+                Storage::disk('public')->delete($imagePath);
+            }
+
+            return response()->json([
+                'mensaje' => 'Imagen eliminada correctamente',
+                'titulo' => 'Éxito',
+            ]);
+        } catch (ModelNotFoundException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'mensaje' => 'No fue posible eliminar la imagen.',
+                'titulo' => 'Error',
+            ], 500);
+        }
+    }
+
+    public function seleccionar_foto_principal(int $id_foto)
+    {
+        try {
+            DB::transaction(function () use ($id_foto) {
+                $currentPhoto = VehicleImage::findOrFail($id_foto);
+                Vehicle::query()->lockForUpdate()->findOrFail($currentPhoto->vehicle_id);
+                $photo = VehicleImage::query()->lockForUpdate()->findOrFail($id_foto);
+
+                VehicleImage::where('vehicle_id', $photo->vehicle_id)->update(['profile' => 0]);
+                VehicleImage::whereKey($photo->id)->update(['profile' => 1]);
+            });
+
+            return response()->json([
+                'codigo' => 1,
+                'mensaje' => 'Imagen principal actualizada correctamente',
+            ]);
+        } catch (ModelNotFoundException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json([
+                'codigo' => 0,
+                'mensaje' => 'No fue posible seleccionar la imagen principal.',
+            ], 500);
+        }
+    }
+
+    private function validatedData(Request $request, ?Vehicle $vehicle = null): array
+    {
+        return $request->validate([
+            'code' => ['required', 'string', 'max:100', Rule::unique('vehicles', 'code')->ignore($vehicle)],
+            'name' => ['required', 'string', 'max:100'],
+            'plate' => ['required', 'string', 'max:10', Rule::unique('vehicles', 'plate')->ignore($vehicle)],
+            'year' => ['required', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
+            'load_capacity' => ['required', 'integer', 'min:0'],
+            'occupats_capacity' => ['required', 'integer', 'min:0'],
+            'fuel_capacity' => ['required', 'integer', 'min:0'],
+            'compact_capacity' => ['required', 'integer', 'min:0'],
+            'type_id' => ['required', 'exists:vehicletypes,id'],
+            'brand_id' => ['required', 'exists:brands,id'],
+            'model_id' => [
+                'required',
+                Rule::exists('brandmodels', 'id')->where('brand_id', $request->input('brand_id')),
+            ],
+            'color_id' => ['required', 'exists:color,id'],
+            'description' => ['nullable', 'string'],
+        ], $this->validationMessages());
     }
 
     private function validationMessages(): array
@@ -229,134 +333,5 @@ class VehiclesController extends Controller
             'color_id.required' => 'Selecciona el color del vehículo.',
             'color_id.exists' => 'El color seleccionado no existe.',
         ];
-    }
-
-    public function retonar_models(int $brand_id)
-    {
-        $models = Brandmodel::where('brand_id', $brand_id)->pluck('name', 'id');
-        return response()->json($models);
-    }
-
-    public function retonar_rutas_fotos(int $vehicle_id)
-    {
-        return VehicleImage::where('vehicle_id', $vehicle_id)->get();
-    }
-
-    public function retornar_vista_imagenes(int $vehicle_id)
-    {
-        $photos = $this->retonar_rutas_fotos($vehicle_id);
-
-        return view('admin.vehicles.template.imagenes', compact('vehicle_id', 'photos'));
-    }
-
-
-
-    public function subirimagenes(Request $request, int $vehicle_id)
-    {
-        try {
-            //validamos que todas las fotos que suban sea un arraya
-            //validamos que cada archivo cumpa con un tipo de imagen
-            $request->validate([
-                'photos' => 'required|array',
-                'photos.*' => 'image|mimes:jpeg,png,jpg,webp'
-            ]);
-
-            $vehicle = Vehicle::findOrFail($vehicle_id);
-            $profile = $vehicle->images()->where('profile', 1)->exists();
-
-            foreach ($request->file('photos') as $photo) {
-                $ruta = $photo->store('vehiclesphotos', 'public');
-
-                $vehicle->images()->create([
-                    'imagen' => $ruta,
-                    'profile' => !$profile
-                ]);
-                $profile = true;
-            }
-
-            return response()->json([
-                'codigo' => 1,
-                'mensaje' => 'Imágenes subidas correctamente'
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'codigo' => 0,
-                'mensaje' => 'Error al subir las imágenes' . $e,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-
-
-
-    public function eliminar_imagen(int $photo_id)
-    {
-        try {
-            $foto = VehicleImage::find($photo_id);
-
-            if (!$foto) {
-                return response()->json([
-                    'mensaje' => 'La imagen no existe',
-                    'titulo' => 'Error'
-                ], 404);
-            }
-
-            $id_vehiculo = $foto->vehicle_id;
-            $era_perfil = $foto->profile == 1;
-            $ruta_imagen = $foto->url_photo
-                ? public_path($foto->url_photo)
-                : null;
-
-            if ($ruta_imagen && file_exists($ruta_imagen)) {
-                unlink($ruta_imagen);
-            }
-
-            $foto->delete();
-
-            if ($era_perfil) {
-                $nueva_imagen = VehicleImage::where('vehicle_id', $id_vehiculo)
-                    ->orderBy('id')
-                    ->first();
-
-                if ($nueva_imagen) {
-                    $nueva_imagen->update([
-                        'profile' => 1
-                    ]);
-                }
-            }
-
-            return response()->json([
-                'mensaje' => 'Imagen eliminada correctamente',
-                'titulo' => 'Éxito'
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'mensaje' => 'Error al eliminar la imagen: ' . $e->getMessage(),
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function seleccionar_foto_principal(int $id_foto)
-    {
-        try {
-            $foto = VehicleImage::findOrFail($id_foto);
-            //de todas las fotos de ese producto actualizamos a 0
-            VehicleImage::where('vehicle_id', $foto->vehicle_id)->update(['profile' => 0]);
-            // le asignamos el estado de perfil
-            $foto->update(['profile' => 1]);
-
-            return response()->json([
-                'codigo' => 1,
-                'mensaje' => 'Imagen principal actualizada correctamente'
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'codigo' => 0,
-                'mensaje' => 'Error al seleccionar la imagen principal',
-                'error' => $e->getMessage()
-            ], 500);
-        }
     }
 }

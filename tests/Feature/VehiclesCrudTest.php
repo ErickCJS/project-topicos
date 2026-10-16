@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Tests\TestCase;
 
 class VehiclesCrudTest extends TestCase
@@ -20,10 +22,21 @@ class VehiclesCrudTest extends TestCase
 
     private int $colorId;
 
+    protected function beforeRefreshingDatabase(): void
+    {
+        $connection = config('database.default');
+        $database = config("database.connections.{$connection}.database");
+
+        if ($connection !== 'sqlite' || $database !== ':memory:') {
+            throw new RuntimeException('VehiclesCrudTest solo puede ejecutarse con SQLite en memoria.');
+        }
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
 
+        Storage::fake('public');
         $this->actingAs(User::factory()->create());
 
         $this->brandId = DB::table('brands')->insertGetId([
@@ -56,8 +69,6 @@ class VehiclesCrudTest extends TestCase
 
     public function test_vehicle_can_be_created_updated_and_deleted_with_all_images(): void
     {
-        Storage::fake('public');
-
         $this->post(route('vehicles.store'), $this->vehicleData())
             ->assertCreated()
             ->assertJson(['mensaje' => 'Vehículo registrado correctamente']);
@@ -135,6 +146,127 @@ class VehiclesCrudTest extends TestCase
             ->assertJsonValidationErrors('model_id');
 
         $this->assertDatabaseMissing('vehicles', ['code' => 'TEST-001']);
+    }
+
+    public function test_image_upload_validation_returns_422_without_exposing_internal_errors(): void
+    {
+        $vehicleId = $this->createVehicle();
+
+        $response = $this->postJson(route('vehicles.photo.subirimagenes', $vehicleId), [
+            'photos' => [UploadedFile::fake()->create('documento.txt', 2, 'text/plain')],
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors('photos.0')
+            ->assertJsonMissingPath('error');
+
+        $this->assertDatabaseCount('vehicle_images', 0);
+    }
+
+    public function test_multiple_image_upload_assigns_exactly_one_principal_photo(): void
+    {
+        $vehicleId = $this->createVehicle();
+
+        $this->post(route('vehicles.photo.subirimagenes', $vehicleId), [
+            'photos' => [
+                UploadedFile::fake()->image('front.jpg'),
+                UploadedFile::fake()->image('side.png'),
+            ],
+        ])->assertOk()
+            ->assertJson(['codigo' => 1]);
+
+        $photos = DB::table('vehicle_images')->where('vehicle_id', $vehicleId)->orderBy('id')->get();
+        $this->assertCount(2, $photos);
+        $this->assertSame(1, $photos->where('profile', 1)->count());
+        $this->assertSame(1, (int) $photos->first()->profile);
+
+        foreach ($photos as $photo) {
+            Storage::disk('public')->assertExists($photo->imagen);
+        }
+    }
+
+    public function test_individual_image_deletion_uses_imagen_path_and_preserves_principal_photo(): void
+    {
+        $vehicleId = $this->createVehicle();
+        [$principalId, $secondaryId] = $this->createVehiclePhotos($vehicleId);
+
+        $this->deleteJson(route('vehicles.photo.eliminar_imagen', $secondaryId))
+            ->assertOk()
+            ->assertJson(['mensaje' => 'Imagen eliminada correctamente']);
+
+        $this->assertDatabaseHas('vehicle_images', [
+            'id' => $principalId,
+            'profile' => 1,
+        ]);
+        $this->assertDatabaseMissing('vehicle_images', ['id' => $secondaryId]);
+        Storage::disk('public')->assertExists('vehiclesphotos/principal.jpg');
+        Storage::disk('public')->assertMissing('vehiclesphotos/secondary.jpg');
+    }
+
+    public function test_deleting_principal_photo_promotes_the_next_photo(): void
+    {
+        $vehicleId = $this->createVehicle();
+        [$principalId, $secondaryId] = $this->createVehiclePhotos($vehicleId);
+
+        $this->deleteJson(route('vehicles.photo.eliminar_imagen', $principalId))
+            ->assertOk();
+
+        $this->assertDatabaseMissing('vehicle_images', ['id' => $principalId]);
+        $this->assertDatabaseHas('vehicle_images', [
+            'id' => $secondaryId,
+            'vehicle_id' => $vehicleId,
+            'profile' => 1,
+        ]);
+        $this->assertSame(1, DB::table('vehicle_images')->where('vehicle_id', $vehicleId)->where('profile', 1)->count());
+        Storage::disk('public')->assertMissing('vehiclesphotos/principal.jpg');
+        Storage::disk('public')->assertExists('vehiclesphotos/secondary.jpg');
+    }
+
+    public function test_selecting_principal_photo_leaves_exactly_one_profile(): void
+    {
+        $vehicleId = $this->createVehicle();
+        [$firstId, $secondId] = $this->createVehiclePhotos($vehicleId);
+
+        DB::table('vehicle_images')->where('id', $secondId)->update(['profile' => 1]);
+
+        $this->patchJson(route('vehicles.photo.seleccionar', $secondId))
+            ->assertOk()
+            ->assertJson(['codigo' => 1]);
+
+        $this->assertDatabaseHas('vehicle_images', ['id' => $firstId, 'profile' => 0]);
+        $this->assertDatabaseHas('vehicle_images', ['id' => $secondId, 'profile' => 1]);
+        $this->assertSame(1, DB::table('vehicle_images')->where('vehicle_id', $vehicleId)->where('profile', 1)->count());
+    }
+
+    private function createVehicle(): int
+    {
+        return DB::table('vehicles')->insertGetId(array_merge($this->vehicleData(), [
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]));
+    }
+
+    private function createVehiclePhotos(int $vehicleId): array
+    {
+        Storage::disk('public')->put('vehiclesphotos/principal.jpg', 'principal');
+        Storage::disk('public')->put('vehiclesphotos/secondary.jpg', 'secondary');
+
+        $principalId = DB::table('vehicle_images')->insertGetId([
+            'imagen' => 'vehiclesphotos/principal.jpg',
+            'profile' => 1,
+            'vehicle_id' => $vehicleId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $secondaryId = DB::table('vehicle_images')->insertGetId([
+            'imagen' => 'vehiclesphotos/secondary.jpg',
+            'profile' => 0,
+            'vehicle_id' => $vehicleId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return [$principalId, $secondaryId];
     }
 
     private function vehicleData(): array
