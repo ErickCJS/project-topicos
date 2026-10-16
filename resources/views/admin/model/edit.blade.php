@@ -1,17 +1,14 @@
-﻿{!! Form::model($model, [
-    'route' => ['brandsmodel.update', $model->id],
-    'method' => 'put'
+{!! Form::model($model, [
+    'route' => ['brandsmodel.update', $model],
+    'method' => 'put',
 ]) !!}
-
 @include('admin.model.template.form')
-
-<br>
-<button type="submit" class="btn btn-success">
-    <i class="fas fa-save"></i> Actualizar
-</button>
-
-<button type="button" class="btn btn-danger" data-bs-dismiss="modal">
-    <i class="fas fa-times-circle"></i> Cancelar
-</button>
-
+<div class="model-modal-footer">
+    <button type="submit" class="btn btn-success">
+        <i class="bi bi-floppy me-1" aria-hidden="true"></i>Actualizar
+    </button>
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancelar
+    </button>
+</div>
 {!! Form::close() !!}
