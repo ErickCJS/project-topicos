@@ -116,7 +116,12 @@
                         </button>
                     </form>
 
-     
+                    @if (Route::has('register'))
+                        <p class="mt-6 border-t border-gray-200 pt-5 text-center text-sm text-gray-600">
+                            ¿Aún no tienes una cuenta?
+                            <a href="{{ route('register') }}" class="ml-1 font-semibold text-blue-700 transition hover:text-blue-900 hover:underline">Regístrate aquí</a>
+                        </p>
+                    @endif
 
                 </div>
             </section>
@@ -129,25 +134,11 @@
     @endif
 
     {{-- SweetAlert2 --}}
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     {{-- Alertas de autenticación --}}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            @if ($errors->any())
-                Swal.fire({
-                    icon: 'error',
-                    title: 'No se pudo iniciar sesión',
-                    text: 'El correo electrónico o la contraseña son incorrectos. Verifique sus datos e inténtelo nuevamente.',
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#176542',
-                    allowOutsideClick: false,
-                    customClass: {
-                        popup: 'login-swal-popup',
-                        confirmButton: 'login-swal-button'
-                    }
-                });
-            @elseif (session('status'))
+            @if (session('status'))
                 Swal.fire({
                     icon: 'success',
                     title: '¡Operación exitosa!',

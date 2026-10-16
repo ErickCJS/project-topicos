@@ -6,7 +6,6 @@
     <div class="mb-3">
         <label for="photos" class="form-label fw-semibold">Seleccionar imágenes</label>
         <input type="file" id="photos" accept="image/jpeg,image/png,image/webp" multiple class="form-control">
-        <div class="invalid-feedback d-block d-none" id="photos-errors"></div>
         <button type="button" class="btn_subir btn btn-success mt-2">
             <i class="bi bi-cloud-arrow-up me-1" aria-hidden="true"></i>Subir imágenes
         </button>

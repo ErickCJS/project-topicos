@@ -13,16 +13,13 @@
     });
 
     function mensaje(texto, error = false) {
-        if (window.Swal) {
-            Swal.fire({
-                icon: error ? 'error' : 'success',
-                title: error ? 'Ocurrió un error' : 'Proceso exitoso',
-                text: texto,
-                confirmButtonText: 'Entendido'
-            });
-        } else {
-            window.alert(texto);
-        }
+        if (error) return window.RSUValidation.error(texto);
+        return Swal.fire({
+            icon: 'success',
+            title: 'Proceso exitoso',
+            text: texto,
+            confirmButtonText: 'Entendido'
+        });
     }
 
     function mostrarModal(selector) {
@@ -164,39 +161,17 @@
 
     function errorMensaje(xhr) {
         const data = xhr.responseJSON || {};
-        const texto = data.message || data.mensaje || 'Ocurrió un error.';
+        const texto = data.mensaje || (xhr.status === 404
+            ? 'No se encontró el color solicitado.'
+            : (xhr.status === 419 ? 'La sesión ha expirado. Recargue la página.' : 'No se pudo completar la operación.'));
         mensaje(texto, true);
     }
 
-    function limpiarErrores($form) {
-        $form.find('.is-invalid').removeClass('is-invalid');
-        $form.find('.color-field-error').text('').removeClass('d-block');
-    }
-
-    function limpiarErrorCampo($form, nombre) {
-        $form.find('[name="' + nombre + '"]').removeClass('is-invalid');
-        $form.find('[data-error-for="' + nombre + '"]').text('').removeClass('d-block');
-    }
-
-    function mostrarErrores($form, errores) {
-        limpiarErrores($form);
-        let primerCampo = null;
-
-        Object.entries(errores).forEach(function ([campo, mensajes]) {
-            const $campo = $form.find('[name="' + campo + '"]').first();
-            const $error = $form.find('[data-error-for="' + campo + '"]').first();
-
-            if (!$campo.length) return;
-            $campo.addClass('is-invalid');
-            $error.text(mensajes.join(' ')).addClass('d-block');
-            if (!primerCampo) primerCampo = $campo;
-        });
-
-        if (primerCampo) primerCampo.trigger('focus');
+    function mostrarErrores(errores) {
+        window.RSUValidation.show(errores);
     }
 
     function validarFormulario($form) {
-        limpiarErrores($form);
         const $nombre = $form.find('[name="name"]');
         const $codigo = $form.find('[name="code"]');
         const $descripcion = $form.find('[name="description"]');
@@ -224,16 +199,16 @@
         else if (/[<>]/.test(descripcion)) errores.description = ['La descripción no puede contener etiquetas HTML.'];
 
         if (Object.keys(errores).length) {
-            mostrarErrores($form, errores);
+            mostrarErrores(errores);
             return false;
         }
 
         return true;
     }
 
-    function manejarErrorFormulario(xhr, $form) {
+    function manejarErrorFormulario(xhr) {
         if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-            mostrarErrores($form, xhr.responseJSON.errors);
+            mostrarErrores(xhr.responseJSON.errors);
             return;
         }
         errorMensaje(xhr);
@@ -312,8 +287,7 @@
         $('#btnNuevoColor').on('click', function () {
             const $form = $('#formCrearColor');
             $form[0].reset();
-            limpiarErrores($form);
-            sugerenciasCrear.nombre = '';
+                sugerenciasCrear.nombre = '';
             sugerenciasCrear.descripcion = '';
             $('#crearCode, #crearPicker').val('#000000');
             actualizarContador(document.getElementById('crearDescription'));
@@ -348,8 +322,6 @@
         });
 
         $('#formCrearColor, #formEditarColor').on('input change', 'input, textarea', function () {
-            const $form = $(this).closest('form');
-            if (this.name) limpiarErrorCampo($form, this.name);
             if (this.tagName === 'TEXTAREA') actualizarContador(this);
         });
 
@@ -370,7 +342,7 @@
                     mensaje(response.mensaje || 'Color creado correctamente.');
                 })
                 .fail(function (xhr) {
-                    manejarErrorFormulario(xhr, $form);
+                    manejarErrorFormulario(xhr);
                 })
                 .always(function () {
                     $submit.prop('disabled', false);
@@ -391,8 +363,7 @@
             $.ajax({ url: $button.data('url'), method: 'GET' })
                 .done(function (color) {
                     const $form = $('#formEditarColor');
-                    limpiarErrores($form);
-                    const tipoActual = identificarColor(color.code);
+                                const tipoActual = identificarColor(color.code);
                     sugerenciasEditar.nombre = tipoActual && color.name === tipoActual.name ? tipoActual.name : '';
                     sugerenciasEditar.descripcion = tipoActual && color.description === tipoActual.description ? tipoActual.description : '';
                     $form.data('update-url', $button.attr('data-update-url'));
@@ -420,7 +391,7 @@
                     mensaje(response.mensaje || 'Color actualizado correctamente.');
                 })
                 .fail(function (xhr) {
-                    manejarErrorFormulario(xhr, $form);
+                    manejarErrorFormulario(xhr);
                 })
                 .always(function () {
                     $submit.prop('disabled', false);
@@ -438,21 +409,17 @@
                     .fail(errorMensaje);
             };
 
-            if (window.Swal) {
-                Swal.fire({
-                    title: '¿Eliminar este color?',
-                    text: 'Esta acción no se puede revertir.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Sí, eliminar',
-                    cancelButtonText: 'Cancelar',
-                    confirmButtonColor: '#dc3545'
-                }).then(function (result) {
-                    if (result.isConfirmed) eliminar();
-                });
-            } else if (window.confirm('¿Eliminar este color?')) {
-                eliminar();
-            }
+            Swal.fire({
+                title: '¿Eliminar este color?',
+                text: 'Esta acción no se puede revertir.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#dc3545'
+            }).then(function (result) {
+                if (result.isConfirmed) eliminar();
+            });
         });
     });
 })(jQuery);

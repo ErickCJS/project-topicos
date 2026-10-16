@@ -7,7 +7,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 class ValidarLicenciaA3c implements ValidationRule
 {
-    private const PATTERN = '/^[A-Za-z]\d{8}$/';
+    private const PATTERN = '/^Q\d{8}$/';
 
     public function __construct(private readonly mixed $documento = null)
     {
@@ -16,7 +16,7 @@ class ValidarLicenciaA3c implements ValidationRule
     public function __invoke(string $attribute, mixed $value, Closure $fail): void
     {
         if (!is_string($value) || preg_match(self::PATTERN, $value) !== 1) {
-            $fail('La licencia debe tener una letra inicial seguida de exactamente 8 dígitos.');
+            $fail('El número ingresado no es válido para una licencia de categoría A-IIIc.');
             return;
         }
 

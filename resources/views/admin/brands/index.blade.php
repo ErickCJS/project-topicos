@@ -106,10 +106,11 @@ $(function () {
 
     function mostrar_alerta(tipo, mensaje) {
         const esError = tipo === 0;
+        if (esError) return window.RSUValidation.error(mensaje);
 
         return Swal.fire({
-            title: esError ? 'Ocurrió un error!' : 'Proceso exitoso!',
-            icon: esError ? 'error' : 'success',
+            title: 'Proceso exitoso!',
+            icon: 'success',
             text: mensaje,
             confirmButtonText: 'Entendido',
             draggable: true
@@ -207,13 +208,18 @@ $(function () {
             data: new FormData(this),
             processData: false,
             contentType: false,
+            headers: { Accept: 'application/json' },
             success: function (response) {
                 cerrar_modal();
                 refresTable();
                 mostrar_alerta(1, response.mensaje);
             },
             error: function (error) {
-                cerrar_modal();
+                if (error.status === 422 && error.responseJSON && error.responseJSON.errors) {
+                    window.RSUValidation.show(error.responseJSON.errors);
+                    return;
+                }
+
                 mostrar_alerta(0, mensajeError(error, 'No se pudo guardar la marca.'));
             }
         });
@@ -292,7 +298,6 @@ $(function () {
     });
 
     formModalElement.addEventListener('hidden.bs.modal', function () {
-        liberarVistaPrevia();
         liberarVistaPrevia();
     });
 

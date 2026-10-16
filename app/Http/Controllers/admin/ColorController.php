@@ -130,13 +130,16 @@ class ColorController extends Controller
             'description' => ['nullable', 'string', 'max:100', 'regex:/^[^<>]*$/u'],
         ], [
             'name.required' => 'Escribe el nombre del color.',
+            'name.string' => 'El nombre del color debe ser texto.',
             'name.max' => 'El nombre no puede superar los 100 caracteres.',
             'name.regex' => 'Usa letras, espacios, puntos, apóstrofos o guiones en el nombre.',
             'name.unique' => 'Ya existe un color con ese nombre.',
             'code.required' => 'Ingresa un código hexadecimal.',
+            'code.string' => 'El código hexadecimal debe ser texto.',
             'code.max' => 'El código debe tener 3 o 6 dígitos hexadecimales, además del #.',
             'code.regex' => 'Usa el formato #RGB o #RRGGBB; por ejemplo, #735D56.',
             'code.unique' => 'Ya existe un color con ese código hexadecimal.',
+            'description.string' => 'La descripción debe ser texto.',
             'description.max' => 'La descripción no puede superar los 100 caracteres.',
             'description.regex' => 'La descripción no puede contener etiquetas HTML.',
         ]);

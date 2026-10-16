@@ -216,6 +216,7 @@ class EmployeeController extends Controller
             'email.unique' => 'Ya existe un empleado con ese correo electrónico.',
             'estado.required' => 'Seleccione el estado del empleado.',
             'estado.in' => 'El estado seleccionado no es válido.',
+            'password.string' => 'La contraseña debe ser texto válido.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'direccion.required' => 'Ingrese la dirección.',
             'direccion.string' => 'La dirección debe ser texto válido.',

@@ -71,9 +71,10 @@ $(function () {
     const showModal = bootstrap.Modal.getOrCreateInstance(showModalElement);
 
     function mostrarAlerta(esExito, mensaje) {
+        if (!esExito) return window.RSUValidation.error(mensaje);
         return Swal.fire({
-            title: esExito ? 'Proceso exitoso' : 'Ocurrió un error',
-            icon: esExito ? 'success' : 'error',
+            title: 'Proceso exitoso',
+            icon: 'success',
             text: mensaje,
             confirmButtonText: 'Entendido'
         });
@@ -85,25 +86,8 @@ $(function () {
         return response.message || mensajePredeterminado;
     }
 
-    function limpiarErrores(form) {
-        form.find('.is-invalid').removeClass('is-invalid');
-        form.find('.model-field-error').remove();
-    }
-
-    function mostrarErroresValidacion(form, errors) {
-        limpiarErrores(form);
-
-        Object.entries(errors).forEach(function ([field, messages]) {
-            const input = form.find('[name="' + field + '"]').first();
-
-            if (!input.length) return;
-
-            input.addClass('is-invalid');
-            $('<div>', {
-                class: 'invalid-feedback model-field-error',
-                text: messages.join(' ')
-            }).insertAfter(input);
-        });
+    function mostrarErroresValidacion(errors) {
+        window.RSUValidation.show(errors);
     }
 
     function abrirModal(url, titulo) {
@@ -164,18 +148,11 @@ $(function () {
         abrirModal($(this).data('url'), 'Editar modelo');
     });
 
-    $(document).on('input change', '#formModal [name]', function () {
-        const input = $(this);
-        input.removeClass('is-invalid');
-        input.next('.model-field-error').remove();
-    });
-
     $(document).on('submit', '#formModal form', function (event) {
         event.preventDefault();
 
         const form = $(this);
         const submitButton = form.find('[type="submit"]').prop('disabled', true);
-        limpiarErrores(form);
 
         $.ajax({
             url: form.attr('action'),
@@ -193,7 +170,7 @@ $(function () {
                 const response = error.responseJSON || {};
 
                 if (error.status === 422 && response.errors) {
-                    mostrarErroresValidacion(form, response.errors);
+                    mostrarErroresValidacion(response.errors);
                     return;
                 }
 

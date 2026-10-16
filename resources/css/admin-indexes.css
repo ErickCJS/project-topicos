@@ -1193,14 +1193,6 @@ html[data-bs-theme="dark"] .attendances-module #attendanceShowModal .modal-conte
         min-width: 0;
     }
 
-    .brands-module #formModal .brand-modal-heading small,
-.brands-module #brandShowModal .brand-modal-heading small,
-.brands-module #brandLogoModal .brand-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
     .brands-module #formModal .brand-modal-icon,
 .brands-module #brandShowModal .brand-modal-icon,
 .brands-module #brandLogoModal .brand-modal-icon {
@@ -1461,12 +1453,6 @@ html[data-bs-theme="dark"] .brands-module #brandLogoModal .modal-content {
         min-width: 0;
     }
 
-    .colors-module .color-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
     .colors-module .color-modal-icon {
         display: inline-grid;
         width: 42px;
@@ -1698,12 +1684,6 @@ html[data-bs-theme="dark"] .colors-module .color-modal .modal-content {
         min-width: 0;
     }
 
-    .contracts-module .contract-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
     .contracts-module .contract-modal-icon {
         display: inline-grid;
         width: 42px;
@@ -1806,14 +1786,6 @@ html[data-bs-theme="dark"] .colors-module .color-modal .modal-content {
         background-color: var(--bs-primary-bg-subtle);
     }
 
-    .contracts-module .select2-selection.is-invalid {
-        border-color: var(--bs-form-invalid-border-color);
-    }
-
-    .contracts-module .contract-field-error {
-        display: block;
-    }
-
     .contracts-module .contract-detail-card {
         height: 100%;
         padding: 1rem;
@@ -1911,12 +1883,6 @@ html[data-bs-theme="dark"] .contracts-module #contractShowModal .modal-content {
         align-items: center;
         gap: .85rem;
         min-width: 0;
-    }
-
-    .employee-types-module .employee-type-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
     }
 
     .employee-types-module .employee-type-modal-icon {
@@ -2143,13 +2109,6 @@ html[data-bs-theme="dark"] .employee-types-module #employeeTypeShowModal .modal-
         min-width: 0;
     }
 
-    .models-module #formModal .model-modal-heading small,
-.models-module #modelShowModal .model-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
     .models-module #formModal .model-modal-icon,
 .models-module #modelShowModal .model-modal-icon {
         display: inline-grid;
@@ -2336,12 +2295,6 @@ html[data-bs-theme="dark"] .models-module #modelShowModal .modal-content {
         align-items: center;
         gap: .85rem;
         min-width: 0;
-    }
-
-    .vehicle-types-module .vehicle-type-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
     }
 
     .vehicle-types-module .vehicle-type-modal-icon {
@@ -2570,12 +2523,6 @@ html[data-bs-theme="dark"] .vehicle-types-module .vehicle-type-modal .modal-cont
         min-width: 0;
     }
 
-    .vehicles-module .vehicle-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
     .vehicles-module .vehicle-modal-icon {
         display: inline-grid;
         width: 42px;
@@ -2642,10 +2589,6 @@ html[data-bs-theme="dark"] .vehicle-types-module .vehicle-type-modal .modal-cont
 
     .vehicles-module .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
         color: var(--bs-body-color);
-    }
-
-    .vehicles-module .select2-container .select2-selection.is-invalid {
-        border-color: var(--bs-form-invalid-border-color);
     }
 
     .vehicles-module .vehicle-modal-footer {
@@ -2905,12 +2848,6 @@ html[data-bs-theme="dark"] .vehicles-module .vehicle-modal .modal-content {
         min-width: 0;
     }
 
-    .employees-module .employee-modal-heading small {
-        display: block;
-        margin-top: .2rem;
-        color: var(--bs-secondary-color);
-    }
-
     .employees-module .employee-modal-icon {
         display: inline-grid;
         width: 42px;
@@ -3083,10 +3020,6 @@ html[data-bs-theme="dark"] .vehicles-module .vehicle-modal .modal-content {
 
     .employees-module .employee-action-btn i {
         line-height: 1;
-    }
-
-    .employees-module .employee-field-error {
-        display: block;
     }
 
     html.dark .employees-module #employeeFormModal .modal-content,

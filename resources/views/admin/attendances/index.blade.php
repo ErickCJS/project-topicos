@@ -79,9 +79,10 @@ $(function () {
     }
 
     function mostrar_alerta(esExito, mensaje) {
+        if (!esExito) return window.RSUValidation.error(mensaje);
         return Swal.fire({
-            title: esExito ? 'Proceso exitoso' : 'Ocurrió un error',
-            icon: esExito ? 'success' : 'error',
+            title: 'Proceso exitoso',
+            icon: 'success',
             text: mensaje,
             confirmButtonText: 'Entendido'
         });
@@ -89,12 +90,11 @@ $(function () {
 
     function mostrar_error(xhr, mensajePredeterminado) {
         const response = xhr.responseJSON || {};
-        const errores = response.errors ? Object.values(response.errors).flat() : [];
-        const mensaje = errores.length
-            ? errores.join(' ')
-            : (response.mensaje || response.message || mensajePredeterminado);
-
-        mostrar_alerta(false, mensaje);
+        if (xhr.status === 422 && response.errors) {
+            window.RSUValidation.show(response.errors);
+            return;
+        }
+        mostrar_alerta(false, response.mensaje || response.message || mensajePredeterminado);
     }
 
     const table = $('#DataTable').DataTable({
