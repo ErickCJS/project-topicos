@@ -34,9 +34,16 @@ class ContractController extends Controller
                 ->addColumn('next_hiring_date', fn ($contract) => $contract->type === 'Temporal' && $contract->effectiveEndDate()
                     ? $contract->effectiveEndDate()->copy()->addMonthsNoOverflow(2)->format('d/m/Y') : 'No corresponde')
                 ->addColumn('status', fn ($contract) => $contract->statusLabel())
-                ->addColumn('edit', fn ($contract) => $contract->isClosed() ? '' :
-                    '<div class="d-flex gap-2"><button type="button" class="btn btn-primary btn-sm btnEditar" data-id="'.$contract->id.'" aria-label="Editar contrato"><i class="fas fa-pencil-alt"></i></button> '
-                    .'<button type="button" class="btn btn-danger btn-sm btnAnular" data-id="'.$contract->id.'" aria-label="Anular contrato" title="Anular contrato"><i class="fas fa-ban"></i></button></div>')
+                ->addColumn('edit', function (Contract $contract) {
+                    $actions = '<button type="button" class="btn btn-info btn-sm contract-action-btn btnVer" data-url="'.e(route('contracts.show', $contract)).'" title="Ver" aria-label="Ver contrato"><i class="bi bi-eye" aria-hidden="true"></i></button>';
+
+                    if (! $contract->isClosed()) {
+                        $actions .= '<button type="button" class="btn btn-warning btn-sm contract-action-btn btnEditar" data-url="'.e(route('contracts.edit', $contract)).'" title="Editar" aria-label="Editar contrato"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+                        $actions .= '<button type="button" class="btn btn-danger btn-sm contract-action-btn btnAnular" data-url="'.e(route('contracts.cancel', $contract)).'" title="Anular" aria-label="Anular contrato"><i class="bi bi-ban" aria-hidden="true"></i></button>';
+                    }
+
+                    return '<div class="contract-actions">'.$actions.'</div>';
+                })
                 ->rawColumns(['edit'])->toJson();
         }
 
@@ -46,6 +53,13 @@ class ContractController extends Controller
     public function create()
     {
         return view('admin.contracts.create', $this->formData());
+    }
+
+    public function show(Contract $contract)
+    {
+        $contract->load('employee');
+
+        return view('admin.contracts.show', compact('contract'));
     }
 
     public function edit(string $id)
@@ -125,7 +139,7 @@ class ContractController extends Controller
     private function validatedData(Request $request, ?Contract $contract = null): array
     {
         $startRules = ['required', 'date_format:Y-m-d'];
-        if (!$contract || $request->input('start_date') !== $contract->start_date->toDateString()) {
+        if (! $contract || $request->input('start_date') !== $contract->start_date->toDateString()) {
             $startRules[] = 'after_or_equal:today';
         }
         $data = $request->validate([
