@@ -1,62 +1,28 @@
-<div class="row g-3">
-    <div class="col-12 col-md-6">
-        {!! Form::label('employee_id', 'Empleado', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('employee_id', $employees, null, [
-            'class' => 'form-select',
-            'placeholder' => 'Seleccione un empleado',
-            'required',
-        ]) !!}
-    </div>
-
-    <div class="col-12 col-md-6">
-        {!! Form::label('shift_id', 'Turno', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('shift_id', $shifts, null, [
-            'class' => 'form-select',
-            'placeholder' => 'Seleccione un turno',
-            'required',
-        ]) !!}
-    </div>
-
-    <div class="col-12 col-md-6">
-        {!! Form::label('date', 'Fecha', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::date('date', old('date', isset($attendance) ? $attendance->date?->format('Y-m-d') : null), [
-            'class' => 'form-control',
-            'required',
-        ]) !!}
-    </div>
-
-    <div class="col-12 col-md-6">
-        {!! Form::label('time', 'Hora', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::input('time', 'time', old('time', isset($attendance) ? substr($attendance->time, 0, 5) : null), [
-            'class' => 'form-control',
-            'required',
-        ]) !!}
-    </div>
-
-    <div class="col-12 col-md-6">
-        {!! Form::label('type', 'Tipo', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('type', ['Entrada' => 'Entrada', 'Salida' => 'Salida'], null, [
-            'class' => 'form-select',
-            'placeholder' => 'Seleccione un tipo',
-            'required',
-        ]) !!}
-    </div>
-
-    <div class="col-12 col-md-6">
-        {!! Form::label('status', 'Estado', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('status', ['Presente' => 'Presente', 'Ausente' => 'Ausente'], null, [
-            'class' => 'form-select',
-            'placeholder' => 'Seleccione un estado',
-            'required',
-        ]) !!}
-    </div>
-
-    <div class="col-12">
-        {!! Form::label('notes', 'Notas', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::textarea('notes', null, [
-            'class' => 'form-control',
-            'rows' => 3,
-            'placeholder' => 'Información adicional (opcional)',
-        ]) !!}
-    </div>
-</div>
+<div class="row"> <div class="col-md-6"> 
+    <div class="form-group mb-3"> 
+        {!! Form::label('dni', 'DNI', ['class' => 'form-label mb-1']) !!} 
+        {!! Form::text('dni', null, [ 'class' => 'form-control', 'placeholder' => 'Ingrese su DNI', 'maxlength' => 8, 'inputmode' => 'numeric', 'pattern' => '[0-9]{8}', 'autocomplete' => 'username', 'required', ]) !!} 
+    </div> 
+</div> 
+<div class="col-md-6"> 
+    <div class="form-group mb-3"> 
+        {!! Form::label('password', 'Contraseña', ['class' => 'form-label mb-1']) !!} 
+        <div class="input-group"> 
+            {!! Form::password('password', [ 'class' => 'form-control', 'placeholder' => 'Ingrese su contraseña', 'id' => 'password', 'autocomplete' => 'current-password', 'required', ]) !!} 
+            <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="Mostrar contraseña"> 
+                <i class="bi bi-eye" id="passwordIcon"></i> 
+            </button> 
+        </div> 
+    </div> 
+</div> 
+</div> 
+<script> 
+document.getElementById('togglePassword').addEventListener('click', function () { 
+    const password = document.getElementById('password'); 
+    const icon = document.getElementById('passwordIcon'); 
+    const mostrar = password.type === 'password'; 
+    password.type = mostrar ? 'text' : 'password';
+    icon.classList.toggle('bi-eye', !mostrar); 
+    icon.classList.toggle('bi-eye-slash', mostrar); 
+    this.setAttribute( 'aria-label', mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña' ); }); 
+</script>

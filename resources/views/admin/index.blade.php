@@ -136,5 +136,5 @@
 @stop
 
 @section('css')
-@vite('resources/css/admin-indexes.css')
+<link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 @stop

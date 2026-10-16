@@ -4,6 +4,7 @@ namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\admin\Attendance;
+use App\Models\admin\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -59,9 +60,7 @@ class AttendancesController extends Controller
      */
     public function create()
     {
-        [$employees, $shifts] = $this->formOptions();
-
-        return view('admin.attendances.create', compact('employees', 'shifts'));
+        return view('admin.attendances.create');
     }
 
     /**
@@ -69,7 +68,13 @@ class AttendancesController extends Controller
      */
     public function store(Request $request)
     {
-        $attendance = Attendance::create($this->validatedData($request));
+        $data = $request->validate([
+            'dni' => ['required', 'digits:8'],
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+
+        $person =  Employee::where('dni', $data->dni)->get();
+        $attendance = Attendance::create();
 
         return response()->json([
             'mensaje' => 'Asistencia registrada correctamente.',
@@ -97,9 +102,7 @@ class AttendancesController extends Controller
      */
     public function edit(Attendance $attendance)
     {
-        [$employees, $shifts] = $this->formOptions();
-
-        return view('admin.attendances.edit', compact('attendance', 'employees', 'shifts'));
+        return view('admin.attendances.edit');
     }
 
     /**
@@ -148,25 +151,5 @@ class AttendancesController extends Controller
         ]);
     }
 
-    private function formOptions(): array
-    {
-        $employees = DB::table('employees')
-            ->orderBy('first_name')
-            ->orderBy('last_name')
-            ->get(['id', 'dni', 'first_name', 'last_name'])
-            ->mapWithKeys(fn ($employee) => [
-                $employee->id => $employee->dni.' - '.trim($employee->first_name.' '.$employee->last_name),
-            ])
-            ->all();
-
-        $shifts = DB::table('shifts')
-            ->orderBy('name')
-            ->get(['id', 'name', 'start_time', 'end_time'])
-            ->mapWithKeys(fn ($shift) => [
-                $shift->id => $shift->name.' ('.substr($shift->start_time, 0, 5).' - '.substr($shift->end_time, 0, 5).')',
-            ])
-            ->all();
-
-        return [$employees, $shifts];
-    }
+  
 }
