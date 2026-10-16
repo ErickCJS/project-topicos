@@ -1,73 +1,63 @@
-<div class="row">
-    <div class="col-6 ">
-        <div >
-            <div class="form-group">
-                {!! Form::label('name', 'Nombre') !!}
-                {!! Form::text('name', null, ['class' => 'form-control', 'placeholder' => 'Nombre de la marca', 'required']) !!}
-            </div>
-            <div class="form-group mt-2">
-                {!! Form::label('description', 'Descripción') !!}
-                {!! Form::textarea('description', null, [
-                    'class' => 'form-control',
-                    'placeholder' => 'Agregue una descripción',
-                    'rows' => 3,
-                ]) !!}
-            </div>
-            <div class="form-group mt-2">
-                {!! Form::file('logo', [
-                    'class' => 'form-control',
-                    'id' => 'logo',
-                    'accept' => 'image/*'
-                ]) !!}
-            </div>
-        </div>
-        
-    </div>
-    <div class="col-6 d-flex justify-content-center align-items-center ">
-        <div class="text-center">
-            <p class="mb-2">Vista previa</p>
-            <img
-                id="preview-logo"
-                src="{{ isset($brand) && $brand->logo ? asset($brand->logo) : '#' }}"
-                alt="Vista previa"
-                style="
-                    width: 250px;
-                    height: 250px;
-                    object-fit: contain;
-                    border: 1px solid #ddd;
-                    border-radius: 8px;
-                    padding: 10px;
-                    {{ isset($brand) && $brand->logo ? '' : 'display:none;' }}
-                "
-            >
-            <div
-                id="preview-placeholder"
-                style="{{ isset($brand) && $brand->logo ? 'display:none;' : '' }}"
-            >
-                <i class="bi bi-image" style="font-size: 80px;"></i>
-                <p class="text-muted">No se ha seleccionado una imagen</p>
-            </div>
+@php
+    $existingLogo = isset($brand) && $brand->logo ? asset($brand->logo) : '';
+@endphp
 
-        </div>
-
-    </div>
+<div class="brand-form-intro">
+    <h6 class="fw-semibold mb-1"><i class="bi bi-tag me-2" aria-hidden="true"></i>Datos de la marca</h6>
+    <p class="small mb-0">Registre la identidad de la marca y, opcionalmente, agregue su descripción y logo.</p>
 </div>
 
-<script>
-    
-    $('#logo').on('change', function (event) {
-        const file = event.target.files[0];
-        const preview = $('#preview-logo');
-        const placeholder = $('#preview-placeholder');
+<div class="row g-4">
+    <div class="col-12 col-lg-7">
+        <div class="row g-3">
+            <div class="col-12">
+                {!! Form::label('name', 'Nombre', ['class' => 'form-label fw-semibold']) !!}
+                {!! Form::text('name', null, [
+                    'class' => 'form-control',
+                    'placeholder' => 'Nombre de la marca',
+                    'maxlength' => 100,
+                    'required',
+                ]) !!}
+            </div>
 
-        if (file) {
-            preview.attr('src', URL.createObjectURL(file));
-            preview.show();
-            placeholder.hide();
-        } else {
-            preview.hide();
-            placeholder.show();
-        }
-    });
+            <div class="col-12">
+                {!! Form::label('description', 'Descripción', ['class' => 'form-label fw-semibold']) !!}
+                {!! Form::textarea('description', null, [
+                    'class' => 'form-control',
+                    'placeholder' => 'Agregue una descripción (opcional)',
+                    'rows' => 4,
+                ]) !!}
+            </div>
 
-</script>
+            <div class="col-12">
+                {!! Form::label('brandLogoInput', 'Logo de la marca', ['class' => 'form-label fw-semibold']) !!}
+                {!! Form::file('logo', [
+                    'class' => 'form-control',
+                    'id' => 'brandLogoInput',
+                    'accept' => 'image/*',
+                    'aria-describedby' => 'brandLogoHelp',
+                ]) !!}
+                <div class="form-text" id="brandLogoHelp">Seleccione una imagen para identificar la marca.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <div class="brand-preview-panel">
+            <h6 class="fw-semibold mb-3">Vista previa del logo</h6>
+            <div class="brand-preview-frame">
+                <img
+                    id="preview-logo"
+                    class="brand-preview-image {{ $existingLogo ? '' : 'd-none' }}"
+                    src="{{ $existingLogo }}"
+                    data-existing-src="{{ $existingLogo }}"
+                    alt="Vista previa del logo de la marca"
+                >
+                <div id="preview-placeholder" class="brand-preview-placeholder {{ $existingLogo ? 'd-none' : '' }}">
+                    <i class="bi bi-image" aria-hidden="true"></i>
+                    <p class="mb-0">No se ha seleccionado una imagen</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
