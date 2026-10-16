@@ -24,7 +24,7 @@ Route::resource('employee-types', EmployeeTypeController::class)->names('employe
 Route::resource('personal/employees', EmployeeController::class)->except(['create'])->names('personal.employees');
 Route::resource('vehiclestype', VehicletypeController::class)->names('vehiclestype');
 Route::resource('vehiclescolor', ColorController::class)
-    ->only(['index', 'store', 'edit', 'update', 'destroy'])
+    ->only(['index', 'store', 'show', 'edit', 'update', 'destroy'])
     ->names('vehiclescolor');
 
 Route::resource('attendances', AttendancesController::class)->names('attendances');

@@ -5,15 +5,19 @@
     const endpoint = config.endpoint.replace(/\/$/, '');
     let tabla;
 
-    $.ajaxSetup({ headers: { 'X-CSRF-TOKEN': config.token } });
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': config.token,
+            Accept: 'application/json'
+        }
+    });
 
     function mensaje(texto, error = false) {
         if (window.Swal) {
             Swal.fire({
                 icon: error ? 'error' : 'success',
-                title: error ? 'Revisa los datos del color' : 'Listo',
+                title: error ? 'Ocurrió un error' : 'Proceso exitoso',
                 text: texto,
-                confirmButtonColor: '#2563EB',
                 confirmButtonText: 'Entendido'
             });
         } else {
@@ -22,31 +26,73 @@
     }
 
     function mostrarModal(selector) {
-        const elemento = document.querySelector(selector);
-        bootstrap.Modal.getOrCreateInstance(elemento).show();
+        bootstrap.Modal.getOrCreateInstance(document.querySelector(selector)).show();
     }
 
     function ocultarModal(selector) {
-        const elemento = document.querySelector(selector);
-        bootstrap.Modal.getOrCreateInstance(elemento).hide();
+        bootstrap.Modal.getOrCreateInstance(document.querySelector(selector)).hide();
     }
 
     function normalizarHexadecimal(valor) {
-        valor = String(valor || '').trim().toUpperCase();
-        return valor && valor.charAt(0) !== '#' ? '#' + valor : valor;
+        const codigo = String(valor || '').trim().toUpperCase();
+
+        return codigo && codigo.charAt(0) !== '#' ? '#' + codigo : codigo;
+    }
+
+    function hexadecimalParaSelector(valor) {
+        const codigo = normalizarHexadecimal(valor);
+
+        if (/^#[A-F0-9]{6}$/.test(codigo)) return codigo;
+        if (/^#[A-F0-9]{3}$/.test(codigo)) {
+            return '#' + codigo.slice(1).split('').map(function (digito) {
+                return digito + digito;
+            }).join('');
+        }
+
+        return null;
+    }
+
+    function aplicarContraste(elemento, codigo) {
+        const completo = hexadecimalParaSelector(codigo);
+        if (!completo) return;
+
+        const rojo = parseInt(completo.slice(1, 3), 16);
+        const verde = parseInt(completo.slice(3, 5), 16);
+        const azul = parseInt(completo.slice(5, 7), 16);
+        const luminosidad = (rojo * 299 + verde * 587 + azul * 114) / 1000;
+        const textoOscuro = luminosidad >= 160;
+
+        $(elemento).css({
+            color: textoOscuro ? '#212529' : '#FFFFFF',
+            textShadow: textoOscuro ? 'none' : '0 1px 2px rgba(0, 0, 0, .65)'
+        });
     }
 
     function actualizarVistaPrevia(input, picker, preview, agregarPrefijo = false) {
-        let codigo = $(input).val().trim();
-        if (agregarPrefijo) {
-            codigo = normalizarHexadecimal(codigo);
-            $(input).val(codigo);
+        let codigo = String($(input).val() || '').trim().toUpperCase();
+
+        if (agregarPrefijo) codigo = normalizarHexadecimal(codigo);
+        $(input).val(codigo);
+
+        const codigoNormalizado = normalizarHexadecimal(codigo);
+        const codigoSelector = hexadecimalParaSelector(codigoNormalizado);
+        const $preview = $(preview);
+
+        if (!codigoSelector) {
+            $preview
+                .addClass('is-incomplete')
+                .text(codigoNormalizado || 'Código incompleto')
+                .attr('aria-label', 'Código hexadecimal incompleto');
+            return;
         }
-        const codigoCss = normalizarHexadecimal(codigo);
-        $(preview).text(codigoCss || '#000000').css('background-color', codigoCss || '#000000');
-        if (/^#[0-9a-f]{6}$/i.test(codigoCss)) {
-            $(picker).val(codigoCss);
-        }
+
+        $(picker).val(codigoSelector);
+        $preview
+            .removeClass('is-incomplete')
+            .text(codigoNormalizado)
+            .css('background-color', codigoSelector)
+            .attr('aria-label', 'Vista previa ' + codigoNormalizado);
+        aplicarContraste($preview, codigoSelector);
     }
 
     function identificarColor(valor) {
@@ -54,11 +100,15 @@
         let completo = hex;
 
         if (/^[0-9A-F]{3}$/.test(hex)) {
-            completo = hex.split('').map(function (digito) { return digito + digito; }).join('');
+            completo = hex.split('').map(function (digito) {
+                return digito + digito;
+            }).join('');
         }
         if (!/^[0-9A-F]{6}$/.test(completo)) return null;
 
-        const rgb = completo.match(/.{2}/g).map(function (canal) { return parseInt(canal, 16) / 255; });
+        const rgb = completo.match(/.{2}/g).map(function (canal) {
+            return parseInt(canal, 16) / 255;
+        });
         const maximo = Math.max.apply(null, rgb);
         const minimo = Math.min.apply(null, rgb);
         const delta = maximo - minimo;
@@ -114,18 +164,35 @@
 
     function errorMensaje(xhr) {
         const data = xhr.responseJSON || {};
-        const texto = data.message || data.mensaje || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Ocurrió un error.');
+        const texto = data.message || data.mensaje || 'Ocurrió un error.';
         mensaje(texto, true);
     }
 
     function limpiarErrores($form) {
         $form.find('.is-invalid').removeClass('is-invalid');
+        $form.find('.color-field-error').text('').removeClass('d-block');
+    }
+
+    function limpiarErrorCampo($form, nombre) {
+        $form.find('[name="' + nombre + '"]').removeClass('is-invalid');
+        $form.find('[data-error-for="' + nombre + '"]').text('').removeClass('d-block');
     }
 
     function mostrarErrores($form, errores) {
         limpiarErrores($form);
-        const mensajes = Object.values(errores).flat();
-        mensaje(mensajes.length ? mensajes.join(' ') : 'Verifica la información ingresada.', true);
+        let primerCampo = null;
+
+        Object.entries(errores).forEach(function ([campo, mensajes]) {
+            const $campo = $form.find('[name="' + campo + '"]').first();
+            const $error = $form.find('[data-error-for="' + campo + '"]').first();
+
+            if (!$campo.length) return;
+            $campo.addClass('is-invalid');
+            $error.text(mensajes.join(' ')).addClass('d-block');
+            if (!primerCampo) primerCampo = $campo;
+        });
+
+        if (primerCampo) primerCampo.trigger('focus');
     }
 
     function validarFormulario($form) {
@@ -134,7 +201,7 @@
         const $codigo = $form.find('[name="code"]');
         const $descripcion = $form.find('[name="description"]');
         const nombre = String($nombre.val() || '').trim();
-        const codigo = normalizarHexadecimal($codigo.val()).toUpperCase();
+        const codigo = normalizarHexadecimal($codigo.val());
         const descripcion = String($descripcion.val() || '').trim();
         const errores = {};
 
@@ -160,6 +227,7 @@
             mostrarErrores($form, errores);
             return false;
         }
+
         return true;
     }
 
@@ -172,18 +240,36 @@
     }
 
     function actualizarContador(textarea) {
-        const id = textarea.id;
-        $('[data-counter-for="' + id + '"]').text(String(textarea.value.length));
+        $('[data-counter-for="' + textarea.id + '"]').text(String(textarea.value.length));
     }
 
     function fechaLatinoamericana(valor) {
-        if (!valor) return '';
+        if (!valor) return 'Sin fecha';
         const fecha = new Date(String(valor).replace(' ', 'T'));
         if (Number.isNaN(fecha.getTime())) return valor;
+
         return new Intl.DateTimeFormat('es-419', {
             dateStyle: 'short',
-            timeStyle: 'short'
+            timeStyle: 'medium'
         }).format(fecha);
+    }
+
+    function completarDetalle(color) {
+        const codigo = normalizarHexadecimal(color.code);
+        const selector = hexadecimalParaSelector(codigo);
+        $('#verColorName').text(color.name);
+        $('#verColorCode').text(codigo);
+        $('#verColorDescription').text(color.description || 'Sin descripción');
+        $('#verColorCreatedAt').text(fechaLatinoamericana(color.created_at));
+        $('#verColorUpdatedAt').text(fechaLatinoamericana(color.updated_at));
+
+        const $preview = $('#verColorPreview')
+            .text(codigo)
+            .attr('aria-label', 'Vista previa ' + codigo);
+        if (selector) {
+            $preview.css('background-color', selector);
+            aplicarContraste($preview, selector);
+        }
     }
 
     $(function () {
@@ -193,6 +279,7 @@
         tabla = $('#tablaColores').DataTable({
             processing: true,
             serverSide: true,
+            searchDelay: 350,
             ajax: endpoint,
             columns: [
                 { data: 'preview', name: 'code', orderable: false, searchable: false },
@@ -201,7 +288,7 @@
                 { data: 'description', name: 'description', defaultContent: '' },
                 { data: 'created_at', name: 'created_at', defaultContent: '', render: fechaLatinoamericana },
                 { data: 'updated_at', name: 'updated_at', defaultContent: '', render: fechaLatinoamericana },
-                { data: 'actions', orderable: false, searchable: false }
+                { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
             ],
             language: {
                 processing: 'Cargando información...',
@@ -223,12 +310,12 @@
         });
 
         $('#btnNuevoColor').on('click', function () {
-            $('#formCrearColor')[0].reset();
-            limpiarErrores($('#formCrearColor'));
+            const $form = $('#formCrearColor');
+            $form[0].reset();
+            limpiarErrores($form);
             sugerenciasCrear.nombre = '';
             sugerenciasCrear.descripcion = '';
-            $('#crearCode').val('#000000');
-            $('#crearPicker').val('#000000');
+            $('#crearCode, #crearPicker').val('#000000');
             actualizarContador(document.getElementById('crearDescription'));
             actualizarVistaPrevia('#crearCode', '#crearPicker', '#crearPreview');
             mostrarModal('#modalCrearColor');
@@ -237,22 +324,23 @@
         $('#crearCode').on('input', function () {
             actualizarVistaPrevia('#crearCode', '#crearPicker', '#crearPreview');
             sugerirNombreYDescripcion('#crearCode', '#crearName', '#crearDescription', sugerenciasCrear);
-        });
-        $('#crearCode').on('blur', function () {
+        }).on('blur', function () {
             actualizarVistaPrevia('#crearCode', '#crearPicker', '#crearPreview', true);
         });
+
         $('#crearPicker').on('input change', function () {
             $('#crearCode').val(this.value.toUpperCase());
             actualizarVistaPrevia('#crearCode', '#crearPicker', '#crearPreview');
             sugerirNombreYDescripcion('#crearCode', '#crearName', '#crearDescription', sugerenciasCrear);
         });
+
         $('#editarCode').on('input', function () {
             actualizarVistaPrevia('#editarCode', '#editarPicker', '#editarPreview');
             sugerirNombreYDescripcion('#editarCode', '#editarName', '#editarDescription', sugerenciasEditar);
-        });
-        $('#editarCode').on('blur', function () {
+        }).on('blur', function () {
             actualizarVistaPrevia('#editarCode', '#editarPicker', '#editarPreview', true);
         });
+
         $('#editarPicker').on('input change', function () {
             $('#editarCode').val(this.value.toUpperCase());
             actualizarVistaPrevia('#editarCode', '#editarPicker', '#editarPreview');
@@ -261,69 +349,107 @@
 
         $('#formCrearColor, #formEditarColor').on('input change', 'input, textarea', function () {
             const $form = $(this).closest('form');
-            const name = this.name;
-            $form.find('[name="' + name + '"]').removeClass('is-invalid');
+            if (this.name) limpiarErrorCampo($form, this.name);
             if (this.tagName === 'TEXTAREA') actualizarContador(this);
         });
-        $('#crearDescription, #editarDescription').each(function () { actualizarContador(this); });
+
+        $('#crearDescription, #editarDescription').each(function () {
+            actualizarContador(this);
+        });
 
         $('#formCrearColor').on('submit', function (event) {
             event.preventDefault();
             const $form = $(this);
             if (!validarFormulario($form)) return;
-            $.ajax({ url: endpoint, method: 'POST', data: $(this).serialize() })
+            const $submit = $form.find('[type="submit"]').prop('disabled', true);
+
+            $.ajax({ url: endpoint, method: 'POST', data: $form.serialize() })
                 .done(function (response) {
                     ocultarModal('#modalCrearColor');
                     tabla.ajax.reload(null, false);
-                    mensaje(response.mensaje || 'Color creado.');
-                }).fail(function (xhr) { manejarErrorFormulario(xhr, $form); });
+                    mensaje(response.mensaje || 'Color creado correctamente.');
+                })
+                .fail(function (xhr) {
+                    manejarErrorFormulario(xhr, $form);
+                })
+                .always(function () {
+                    $submit.prop('disabled', false);
+                });
+        });
+
+        $('#tablaColores').on('click', '.btnVer', function () {
+            $.ajax({ url: $(this).data('url'), method: 'GET' })
+                .done(function (color) {
+                    completarDetalle(color);
+                    mostrarModal('#modalVerColor');
+                })
+                .fail(errorMensaje);
         });
 
         $('#tablaColores').on('click', '.btnEditar', function () {
-            const id = $(this).data('id');
-            $.ajax({ url: endpoint + '/' + id + '/edit', method: 'GET' })
+            const $button = $(this);
+            $.ajax({ url: $button.data('url'), method: 'GET' })
                 .done(function (color) {
-                    limpiarErrores($('#formEditarColor'));
+                    const $form = $('#formEditarColor');
+                    limpiarErrores($form);
                     const tipoActual = identificarColor(color.code);
                     sugerenciasEditar.nombre = tipoActual && color.name === tipoActual.name ? tipoActual.name : '';
                     sugerenciasEditar.descripcion = tipoActual && color.description === tipoActual.description ? tipoActual.description : '';
+                    $form.data('update-url', $button.attr('data-update-url'));
                     $('#editarId').val(color.id);
                     $('#editarName').val(color.name);
-                    $('#editarCode').val(normalizarHexadecimal(color.code).toUpperCase());
+                    $('#editarCode').val(normalizarHexadecimal(color.code));
                     $('#editarDescription').val(color.description || '');
                     actualizarContador(document.getElementById('editarDescription'));
                     actualizarVistaPrevia('#editarCode', '#editarPicker', '#editarPreview');
                     mostrarModal('#modalEditarColor');
-                }).fail(errorMensaje);
+                })
+                .fail(errorMensaje);
         });
 
         $('#formEditarColor').on('submit', function (event) {
             event.preventDefault();
             const $form = $(this);
             if (!validarFormulario($form)) return;
-            const id = $('#editarId').val();
-            $('#editarCode').val(normalizarHexadecimal($('#editarCode').val()).toUpperCase());
-            $.ajax({ url: endpoint + '/' + id, method: 'PUT', data: $(this).serialize() })
+            const $submit = $form.find('[type="submit"]').prop('disabled', true);
+
+            $.ajax({ url: $form.data('update-url'), method: 'PUT', data: $form.serialize() })
                 .done(function (response) {
                     ocultarModal('#modalEditarColor');
                     tabla.ajax.reload(null, false);
-                    mensaje(response.mensaje || 'Color actualizado.');
-                }).fail(function (xhr) { manejarErrorFormulario(xhr, $form); });
+                    mensaje(response.mensaje || 'Color actualizado correctamente.');
+                })
+                .fail(function (xhr) {
+                    manejarErrorFormulario(xhr, $form);
+                })
+                .always(function () {
+                    $submit.prop('disabled', false);
+                });
         });
 
         $('#tablaColores').on('click', '.btnEliminar', function () {
-            const id = $(this).data('id');
+            const url = $(this).data('url');
             const eliminar = function () {
-                $.ajax({ url: endpoint + '/' + id, method: 'DELETE' })
+                $.ajax({ url: url, method: 'DELETE' })
                     .done(function (response) {
                         tabla.ajax.reload(null, false);
-                        mensaje(response.mensaje || 'Color eliminado.');
-                    }).fail(errorMensaje);
+                        mensaje(response.mensaje || 'Color eliminado correctamente.');
+                    })
+                    .fail(errorMensaje);
             };
 
             if (window.Swal) {
-                Swal.fire({ title: '¿Eliminar este color?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar' })
-                    .then(function (result) { if (result.isConfirmed) eliminar(); });
+                Swal.fire({
+                    title: '¿Eliminar este color?',
+                    text: 'Esta acción no se puede revertir.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#dc3545'
+                }).then(function (result) {
+                    if (result.isConfirmed) eliminar();
+                });
             } else if (window.confirm('¿Eliminar este color?')) {
                 eliminar();
             }
