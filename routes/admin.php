@@ -21,7 +21,7 @@ Route::get('vehicles/retonar_models/{id_brand}', [VehiclesController::class, 're
 
 Route::resource('brandsmodel', BrandModelController::class)->names('brandsmodel');
 Route::resource('employee-types', EmployeeTypeController::class)->names('employee-types');
-Route::resource('personal/employees', EmployeeController::class)->names('personal.employees');
+Route::resource('personal/employees', EmployeeController::class)->except(['create'])->names('personal.employees');
 Route::resource('vehiclestype', VehicletypeController::class)->names('vehiclestype');
 Route::resource('vehiclescolor', ColorController::class)
     ->only(['index', 'store', 'edit', 'update', 'destroy'])

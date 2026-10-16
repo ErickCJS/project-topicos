@@ -3,6 +3,7 @@
 namespace App\Models\admin;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
@@ -14,7 +15,7 @@ class Employee extends Model
         'license', 'phone', 'address', 'email', 'password', 'status', 'profile_photo_path',
     ];
 
-    public function employeeType()
+    public function employeeType(): BelongsTo
     {
         return $this->belongsTo(EmployeeType::class, 'employee_type_id');
     }

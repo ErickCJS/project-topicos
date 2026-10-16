@@ -5,6 +5,7 @@ namespace App\Http\Controllers\admin;
 use App\Http\Controllers\Controller;
 use App\Models\admin\Employee;
 use App\Models\admin\EmployeeType;
+use App\Rules\ValidarLicenciaA3c;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -17,15 +18,29 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            return DataTables::eloquent(Employee::query()->with('employeeType'))
+            $employees = Employee::query()
+                ->join('employee_types', 'employees.employee_type_id', '=', 'employee_types.id')
+                ->select([
+                    'employees.id',
+                    'employees.employee_type_id',
+                    'employees.dni',
+                    'employees.first_name',
+                    'employees.last_name',
+                    'employees.email',
+                    'employees.status',
+                    'employees.created_at',
+                    'employees.profile_photo_path',
+                    'employee_types.name as type',
+                ]);
+
+            return DataTables::of($employees)
                 ->addColumn('photo', function (Employee $employee) {
                     $photo = $employee->profile_photo_path
                         ? asset('storage/'.$employee->profile_photo_path)
                         : asset('storage/images/no_logo.png');
 
-                    return '<img src="'.e($photo).'" onerror="this.onerror=null;this.src=\''.e(asset('storage/images/no_logo.png')).'\'" alt="Foto de '.e($employee->first_name).'" class="rounded-circle" width="48" height="48" style="object-fit:cover">';
+                    return '<img src="'.e($photo).'" loading="lazy" decoding="async" width="48" height="48" onerror="this.onerror=null;this.src=\''.e(asset('storage/images/no_logo.png')).'\'" alt="Foto de '.e($employee->first_name).'" style="width:48px;height:48px;max-width:none;object-fit:cover;border-radius:9999px">';
                 })
-                ->addColumn('type', fn (Employee $employee) => $employee->employeeType?->name ?? '')
                 ->editColumn('created_at', fn (Employee $employee) => $employee->created_at?->format('d/m/Y H:i'))
                 ->editColumn('status', function (Employee $employee) {
                     $class = $employee->status === 'Activo' ? 'bg-success' : 'bg-secondary';
@@ -43,14 +58,9 @@ class EmployeeController extends Controller
                 ->toJson();
         }
 
-        return view('personal.employees.index');
-    }
+        $tipos = EmployeeType::orderBy('name')->get(['id', 'name']);
 
-    public function create()
-    {
-        $tipos = EmployeeType::orderBy('name')->get();
-
-        return view('personal.employees.partials.create-modal', compact('tipos'));
+        return view('personal.employees.index', compact('tipos'));
     }
 
     public function store(Request $request)
@@ -62,21 +72,21 @@ class EmployeeController extends Controller
         );
 
         $data = $request->validate([
-            'dni' => ['required', 'string', 'size:8', 'unique:employees,dni'],
+            'dni' => ['required', 'string', 'regex:/^\\d{8}$/', 'unique:employees,dni'],
             'tipo_personal_id' => ['required', 'integer', 'exists:employee_types,id'],
             'nombres' => ['required', 'string', 'max:100'],
             'apellidos' => ['required', 'string', 'max:100'],
-            'fecha_nacimiento' => ['required', 'date'],
+            'fecha_nacimiento' => ['required', 'date', 'before_or_equal:'.now()->subYears(18)->toDateString()],
             'email' => ['required', 'email', 'max:150', 'unique:employees,email'],
             'password' => ['required', 'string', 'min:8'],
             'direccion' => ['required', 'string', 'max:255'],
             'foto' => ['required', 'image', 'max:5120'],
-            'telefono' => ['nullable', 'string', 'max:15'],
-            'licencia' => [$requiereLicencia ? 'required' : 'nullable', 'string', 'max:20'],
+            'telefono' => ['nullable', 'regex:/^[0-9]{9}$/'],
+            'licencia' => $requiereLicencia ? ['required', new ValidarLicenciaA3c($request->input('dni'))] : ['nullable'],
         ], [
             'dni.required' => 'El DNI es obligatorio.',
             'dni.string' => 'El DNI debe ser texto válido.',
-            'dni.size' => 'El DNI debe tener exactamente 8 dígitos.',
+            'dni.regex' => 'El DNI debe tener exactamente 8 dígitos numéricos.',
             'dni.unique' => 'Ya existe un empleado con ese DNI.',
             'tipo_personal_id.required' => 'Seleccione el tipo de personal.',
             'tipo_personal_id.integer' => 'El tipo de personal seleccionado no es válido.',
@@ -89,6 +99,7 @@ class EmployeeController extends Controller
             'apellidos.max' => 'Los apellidos no deben superar los 100 caracteres.',
             'fecha_nacimiento.required' => 'Ingrese la fecha de nacimiento.',
             'fecha_nacimiento.date' => 'La fecha de nacimiento no es válida.',
+            'fecha_nacimiento.before_or_equal' => 'El empleado debe tener al menos 18 años.',
             'email.required' => 'Ingrese el correo electrónico.',
             'email.string' => 'El correo electrónico debe ser texto válido.',
             'email.email' => 'Ingrese un correo electrónico válido.',
@@ -103,11 +114,8 @@ class EmployeeController extends Controller
             'foto.required' => 'Seleccione una foto de perfil.',
             'foto.image' => 'El archivo seleccionado debe ser una imagen.',
             'foto.max' => 'La foto no debe superar los 5 MB.',
-            'telefono.string' => 'El teléfono debe ser texto válido.',
-            'telefono.max' => 'El teléfono no debe superar los 15 caracteres.',
-            'licencia.string' => 'El número de licencia debe ser texto válido.',
+            'telefono.regex' => 'El teléfono debe tener exactamente 9 dígitos numéricos.',
             'licencia.required' => 'Ingrese el número de licencia para este tipo de personal.',
-            'licencia.max' => 'El número de licencia no debe superar los 20 caracteres.',
         ]);
 
         $foto = $request->file('foto')->store('employees', 'public');
@@ -139,9 +147,14 @@ class EmployeeController extends Controller
 
     public function edit(Employee $employee)
     {
-        $tipos = EmployeeType::orderBy('name')->get();
+        return $this->formModal($employee);
+    }
 
-        return view('personal.employees.partials.edit-modal', compact('employee', 'tipos'));
+    private function formModal(?Employee $employee = null)
+    {
+        $tipos = EmployeeType::orderBy('name')->get(['id', 'name']);
+
+        return view('personal.employees.partials.form-modal', compact('employee', 'tipos'));
     }
 
     public function update(Request $request, Employee $employee)
@@ -153,22 +166,22 @@ class EmployeeController extends Controller
         );
 
         $data = $request->validate([
-            'dni' => ['required', 'string', 'size:8', Rule::unique('employees', 'dni')->ignore($employee->id)],
+            'dni' => ['required', 'string', 'regex:/^\\d{8}$/', Rule::unique('employees', 'dni')->ignore($employee->id)],
             'tipo_personal_id' => ['required', 'integer', 'exists:employee_types,id'],
             'nombres' => ['required', 'string', 'max:100'],
             'apellidos' => ['required', 'string', 'max:100'],
-            'fecha_nacimiento' => ['required', 'date'],
+            'fecha_nacimiento' => ['required', 'date', 'before_or_equal:'.now()->subYears(18)->toDateString()],
             'email' => ['required', 'email', 'max:150', Rule::unique('employees', 'email')->ignore($employee->id)],
             'estado' => ['required', Rule::in(['Activo', 'Inactivo'])],
             'direccion' => ['required', 'string', 'max:255'],
             'foto' => ['nullable', 'image', 'max:5120'],
             'password' => ['nullable', 'string', 'min:8'],
-            'telefono' => ['nullable', 'string', 'max:15'],
-            'licencia' => [$requiereLicencia ? 'required' : 'nullable', 'string', 'max:20'],
+            'telefono' => ['nullable', 'regex:/^[0-9]{9}$/'],
+            'licencia' => $requiereLicencia ? ['required', new ValidarLicenciaA3c($request->input('dni'))] : ['nullable'],
         ], [
             'dni.required' => 'El DNI es obligatorio.',
             'dni.string' => 'El DNI debe ser texto válido.',
-            'dni.size' => 'El DNI debe tener exactamente 8 dígitos.',
+            'dni.regex' => 'El DNI debe tener exactamente 8 dígitos numéricos.',
             'dni.unique' => 'Ya existe un empleado con ese DNI.',
             'tipo_personal_id.required' => 'Seleccione el tipo de personal.',
             'tipo_personal_id.integer' => 'El tipo de personal seleccionado no es válido.',
@@ -181,6 +194,7 @@ class EmployeeController extends Controller
             'apellidos.max' => 'Los apellidos no deben superar los 100 caracteres.',
             'fecha_nacimiento.required' => 'Ingrese la fecha de nacimiento.',
             'fecha_nacimiento.date' => 'La fecha de nacimiento no es válida.',
+            'fecha_nacimiento.before_or_equal' => 'El empleado debe tener al menos 18 años.',
             'email.required' => 'Ingrese el correo electrónico.',
             'email.string' => 'El correo electrónico debe ser texto válido.',
             'email.email' => 'Ingrese un correo electrónico válido.',
@@ -194,11 +208,8 @@ class EmployeeController extends Controller
             'direccion.max' => 'La dirección no debe superar los 255 caracteres.',
             'foto.image' => 'El archivo seleccionado debe ser una imagen.',
             'foto.max' => 'La foto no debe superar los 5 MB.',
-            'telefono.string' => 'El teléfono debe ser texto válido.',
-            'telefono.max' => 'El teléfono no debe superar los 15 caracteres.',
-            'licencia.string' => 'El número de licencia debe ser texto válido.',
+            'telefono.regex' => 'El teléfono debe tener exactamente 9 dígitos numéricos.',
             'licencia.required' => 'Ingrese el número de licencia para este tipo de personal.',
-            'licencia.max' => 'El número de licencia no debe superar los 20 caracteres.',
         ]);
 
         if ($data['estado'] === 'Inactivo' && $employee->status !== 'Inactivo' && $employee->hasVigenteContract()) {
@@ -220,16 +231,21 @@ class EmployeeController extends Controller
             'license' => $data['licencia'] ?? null,
         ]);
 
-        if (!empty($data['password'])) {
+        if ($request->filled('password')) {
             $employee->password = Hash::make($data['password']);
         }
 
+        $fotoAnterior = null;
         if ($request->hasFile('foto')) {
-            Storage::disk('public')->delete($employee->profile_photo_path);
+            $fotoAnterior = $employee->profile_photo_path;
             $employee->profile_photo_path = $request->file('foto')->store('employees', 'public');
         }
 
         $employee->save();
+
+        if ($fotoAnterior) {
+            Storage::disk('public')->delete($fotoAnterior);
+        }
 
         return response()->json(['mensaje' => 'Personal actualizado correctamente.']);
     }
@@ -242,8 +258,12 @@ class EmployeeController extends Controller
             ], 409);
         }
 
-        Storage::disk('public')->delete($employee->profile_photo_path);
-        $employee->delete();
+        if ($employee->contracts()->exists()) {
+            $employee->update(['status' => 'Inactivo']);
+        } else {
+            Storage::disk('public')->delete($employee->profile_photo_path);
+            $employee->delete();
+        }
 
         return response()->json(['mensaje' => 'Personal eliminado correctamente.']);
     }
