@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class EmployeeController extends Controller
@@ -48,10 +49,10 @@ class EmployeeController extends Controller
                     return '<span class="badge '.$class.'">'.e($employee->status).'</span>';
                 })
                 ->addColumn('actions', function (Employee $employee) {
-                    return '<div class="d-flex justify-content-center gap-1">'
-                        .'<button type="button" class="btn btn-info btn-sm btnVerEmpleado" data-url="'.e(route('personal.employees.show', $employee)).'" title="Ver"><i class="bi bi-eye"></i></button>'
-                        .'<button type="button" class="btn btn-warning btn-sm btnEditarEmpleado" data-url="'.e(route('personal.employees.edit', $employee)).'" title="Editar"><i class="bi bi-pencil-square"></i></button>'
-                        .'<button type="button" class="btn btn-danger btn-sm btnEliminarEmpleado" data-url="'.e(route('personal.employees.destroy', $employee)).'" title="Eliminar"><i class="bi bi-trash"></i></button>'
+                    return '<div class="employee-actions">'
+                        .'<button type="button" class="btn btn-info btn-sm employee-action-btn btnVerEmpleado" data-url="'.e(route('personal.employees.show', $employee)).'" title="Ver" aria-label="Ver empleado"><i class="bi bi-eye" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-warning btn-sm employee-action-btn btnEditarEmpleado" data-url="'.e(route('personal.employees.edit', $employee)).'" title="Editar" aria-label="Editar empleado"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-danger btn-sm employee-action-btn btnEliminarEmpleado" data-url="'.e(route('personal.employees.destroy', $employee)).'" title="Eliminar" aria-label="Eliminar empleado"><i class="bi bi-trash" aria-hidden="true"></i></button>'
                         .'</div>';
                 })
                 ->rawColumns(['photo', 'status', 'actions'])
@@ -120,20 +121,26 @@ class EmployeeController extends Controller
 
         $foto = $request->file('foto')->store('employees', 'public');
 
-        Employee::create([
-            'employee_type_id' => $data['tipo_personal_id'],
-            'dni' => $data['dni'],
-            'first_name' => $data['nombres'],
-            'last_name' => $data['apellidos'],
-            'birthdate' => $data['fecha_nacimiento'],
-            'email' => $data['email'],
-            'status' => 'Activo',
-            'password' => Hash::make($data['password']),
-            'address' => $data['direccion'],
-            'profile_photo_path' => $foto,
-            'phone' => $data['telefono'] ?? null,
-            'license' => $data['licencia'] ?? null,
-        ]);
+        try {
+            Employee::create([
+                'employee_type_id' => $data['tipo_personal_id'],
+                'dni' => $data['dni'],
+                'first_name' => $data['nombres'],
+                'last_name' => $data['apellidos'],
+                'birthdate' => $data['fecha_nacimiento'],
+                'email' => $data['email'],
+                'status' => 'Activo',
+                'password' => Hash::make($data['password']),
+                'address' => $data['direccion'],
+                'profile_photo_path' => $foto,
+                'phone' => $data['telefono'] ?? null,
+                'license' => $data['licencia'] ?? null,
+            ]);
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($foto);
+
+            throw $exception;
+        }
 
         return response()->json(['mensaje' => 'Personal registrado correctamente.']);
     }
@@ -236,14 +243,24 @@ class EmployeeController extends Controller
         }
 
         $fotoAnterior = null;
+        $fotoNueva = null;
         if ($request->hasFile('foto')) {
             $fotoAnterior = $employee->profile_photo_path;
-            $employee->profile_photo_path = $request->file('foto')->store('employees', 'public');
+            $fotoNueva = $request->file('foto')->store('employees', 'public');
+            $employee->profile_photo_path = $fotoNueva;
         }
 
-        $employee->save();
+        try {
+            $employee->save();
+        } catch (Throwable $exception) {
+            if ($fotoNueva) {
+                Storage::disk('public')->delete($fotoNueva);
+            }
 
-        if ($fotoAnterior) {
+            throw $exception;
+        }
+
+        if ($fotoAnterior && $fotoAnterior !== $fotoNueva) {
             Storage::disk('public')->delete($fotoAnterior);
         }
 
@@ -260,11 +277,19 @@ class EmployeeController extends Controller
 
         if ($employee->contracts()->exists()) {
             $employee->update(['status' => 'Inactivo']);
-        } else {
-            Storage::disk('public')->delete($employee->profile_photo_path);
-            $employee->delete();
+
+            return response()->json([
+                'mensaje' => 'El empleado fue marcado como inactivo porque tiene contratos históricos.',
+            ]);
         }
 
-        return response()->json(['mensaje' => 'Personal eliminado correctamente.']);
+        $foto = $employee->profile_photo_path;
+        $employee->delete();
+
+        if ($foto) {
+            Storage::disk('public')->delete($foto);
+        }
+
+        return response()->json(['mensaje' => 'Empleado eliminado correctamente.']);
     }
 }
