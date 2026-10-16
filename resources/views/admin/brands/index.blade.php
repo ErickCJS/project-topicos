@@ -6,7 +6,7 @@
     <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
             <h4 class="mb-0">Listado de Marcas</h4>
-            <button type="button" class="btn btn-success" id="btnNuevo">
+            <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
                 <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nueva marca
             </button>
         </div>

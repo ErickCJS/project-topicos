@@ -13,32 +13,33 @@ class BrandModelController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            $models = Brandmodel::with('brand')->get();
+            $models = Brandmodel::query()->with('brand');
 
-            return DataTables::of($models)
-                ->addColumn('brand_name', function ($model) {
+            return DataTables::eloquent($models)
+                ->addColumn('brand_name', function (Brandmodel $model) {
                     return $model->brand?->name ?? '';
                 })
-                ->editColumn('created_at', function ($model) {
+                ->editColumn('created_at', function (Brandmodel $model) {
                     return $model->created_at?->format('d/m/Y H:i:s');
                 })
-                ->editColumn('updated_at', function ($model) {
+                ->editColumn('updated_at', function (Brandmodel $model) {
                     return $model->updated_at?->format('d/m/Y H:i:s');
                 })
-                ->addColumn('actions', function ($model) {
-                    return '<div class="d-flex justify-content-center gap-2">
-                        <button type="button" class="btn btn-primary btn-sm btnEditar"
-                            data-id="' . $model->id . '" title="Editar">
-                            <i class="fas fa-pencil-alt"></i>
-                        </button>
-                        <button type="button" class="btn btn-danger btn-sm btnEliminar"
-                            data-id="' . $model->id . '" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>';
+                ->addColumn('actions', function (Brandmodel $model) {
+                    return '<div class="model-actions">
+                                <button type="button" class="btn btn-info btn-sm model-action-btn btnVer" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.show', $model)).'" title="Ver" aria-label="Ver modelo">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-warning btn-sm model-action-btn btnEditar" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.edit', $model)).'" title="Editar" aria-label="Editar modelo">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm model-action-btn btnEliminar" data-id="'.$model->id.'" data-url="'.e(route('brandsmodel.destroy', $model)).'" title="Eliminar" aria-label="Eliminar modelo">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>';
                 })
                 ->rawColumns(['actions'])
-                ->make(true);
+                ->toJson();
         }
 
         return view('admin.model.index');
@@ -53,60 +54,63 @@ class BrandModelController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'brand_id' => 'required|exists:brands,id',
-            'name' => 'required|string|max:100',
-            'code' => 'nullable|string|max:50',
-            'description' => 'nullable|string',
-        ]);
+        $data = $this->validatedData($request);
 
         Brandmodel::create($data);
 
         return response()->json([
-            'message' => 'Modelo registrado correctamente'
+            'message' => 'Modelo registrado correctamente',
         ]);
     }
 
-    public function edit(string $id)
+    public function show(Brandmodel $brandsmodel)
     {
-        $model = Brandmodel::findOrFail($id);
+        $model = $brandsmodel->load('brand');
+
+        return view('admin.model.show', compact('model'));
+    }
+
+    public function edit(Brandmodel $brandsmodel)
+    {
+        $model = $brandsmodel;
         $brands = Brand::orderBy('name')->pluck('name', 'id');
 
         return view('admin.model.edit', compact('model', 'brands'));
     }
 
-    public function update(Request $request, string $id)
+    public function update(Request $request, Brandmodel $brandsmodel)
     {
-        $model = Brandmodel::findOrFail($id);
+        $data = $this->validatedData($request);
 
-        $data = $request->validate([
+        $brandsmodel->update($data);
+
+        return response()->json([
+            'message' => 'Modelo actualizado correctamente',
+        ]);
+    }
+
+    public function destroy(Brandmodel $brandsmodel)
+    {
+        if ($brandsmodel->vehicles()->exists()) {
+            return response()->json([
+                'message' => 'No se puede eliminar el modelo porque tiene vehículos relacionados',
+            ], 409);
+        }
+
+        $brandsmodel->delete();
+
+        return response()->json([
+            'message' => 'Modelo eliminado correctamente',
+        ]);
+    }
+
+    private function validatedData(Request $request): array
+    {
+        return $request->validate([
             'brand_id' => 'required|exists:brands,id',
             'name' => 'required|string|max:100',
             'code' => 'nullable|string|max:50',
             'description' => 'nullable|string',
-        ]);
-
-        $model->update($data);
-
-        return response()->json([
-            'message' => 'Modelo actualizado correctamente'
-        ]);
-    }
-
-    public function destroy(string $id)
-    {
-        $model = Brandmodel::findOrFail($id);
-
-        if ($model->vehicles()->exists()) {
-            return response()->json([
-                'message' => 'No se puede eliminar el modelo porque tiene vehículos relacionados'
-            ], 409);
-        }
-
-        $model->delete();
-
-        return response()->json([
-            'message' => 'Modelo eliminado correctamente'
         ]);
     }
 }
