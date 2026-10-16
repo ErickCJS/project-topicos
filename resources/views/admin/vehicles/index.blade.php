@@ -103,47 +103,29 @@ $(function () {
     var modalAReabrirAlCerrarImagen = null;
 
     function mostrarAlerta(esExito, mensaje) {
+        if (!esExito) return window.RSUValidation.error(mensaje);
         return Swal.fire({
-            title: esExito ? 'Proceso exitoso' : 'Ocurrió un error',
-            icon: esExito ? 'success' : 'error',
+            title: 'Proceso exitoso',
+            icon: 'success',
             text: mensaje,
             confirmButtonText: 'Entendido'
         });
     }
-    window.mostrar_alerta = function (tipo, mensaje) {
-        return mostrarAlerta(tipo !== 0, mensaje);
-    };
-
     function mensajeError(error, mensajePredeterminado) {
         var respuesta = error.responseJSON || {};
         if (error.status === 404) return 'El recurso solicitado ya no existe.';
         if (error.status === 419) return 'La sesión ha expirado. Recargue la página.';
-        return respuesta.mensaje || respuesta.message || mensajePredeterminado;
+        return respuesta.mensaje || mensajePredeterminado;
     }
 
-    function limpiarErrores(formulario) {
-        formulario.find('.is-invalid').removeClass('is-invalid');
-        formulario.find('.select2-selection.is-invalid').removeClass('is-invalid');
-        formulario.find('.vehicle-field-error').remove();
+    function mostrarErroresValidacion(errores) {
+        window.RSUValidation.show(errores);
     }
 
-    function mostrarErroresValidacion(formulario, errores) {
-        limpiarErrores(formulario);
-        $.each(errores, function (campo, mensajes) {
-            var entrada = formulario.find('[name="' + campo + '"]').first();
-            if (!entrada.length) return;
-            entrada.addClass('is-invalid');
-            var destino = entrada.hasClass('select2-hidden-accessible') ? entrada.next('.select2') : entrada;
-            if (entrada.hasClass('select2-hidden-accessible')) destino.find('.select2-selection').addClass('is-invalid');
-            $('<div>', { class: 'invalid-feedback d-block vehicle-field-error', text: mensajes.join(' ') }).insertAfter(destino);
-        });
-        formulario.find('.is-invalid').first().trigger('focus');
-    }
-
-    function mostrarErrorFormulario(error, formulario) {
+    function mostrarErrorFormulario(error) {
         var respuesta = error.responseJSON || {};
         if (error.status === 422 && respuesta.errors) {
-            mostrarErroresValidacion(formulario, respuesta.errors);
+            mostrarErroresValidacion(respuesta.errors);
             return;
         }
         mostrarAlerta(false, mensajeError(error, 'No se pudo guardar el vehículo.'));
@@ -241,26 +223,17 @@ $(function () {
         }).fail(function (error) { mostrarAlerta(false, mensajeError(error, 'No se pudieron cargar las imágenes.')); });
     });
 
-    $(document).on('input change', '#formModal form [name]', function () {
-        var entrada = $(this);
-        entrada.removeClass('is-invalid');
-        var destino = entrada.hasClass('select2-hidden-accessible') ? entrada.next('.select2') : entrada;
-        destino.find('.select2-selection').removeClass('is-invalid');
-        destino.next('.vehicle-field-error').remove();
-    });
-
     $(document).on('submit', '#formModal form', function (event) {
         event.preventDefault();
         var formulario = $(this);
         var botonEnviar = formulario.find('[type="submit"]').prop('disabled', true);
-        limpiarErrores(formulario);
         $.ajax({
             url: formulario.attr('action'), type: formulario.attr('method') || 'POST', data: new FormData(this),
             processData: false, contentType: false, headers: { Accept: 'application/json' },
             success: function (response) {
                 modalFormulario.hide(); window.refresTable(); mostrarAlerta(true, response.mensaje);
             },
-            error: function (error) { mostrarErrorFormulario(error, formulario); },
+            error: function (error) { mostrarErrorFormulario(error); },
             complete: function () { botonEnviar.prop('disabled', false); }
         });
     });
@@ -368,9 +341,8 @@ $(function () {
 
     $(document).on('click', '.btn_subir', function () {
         var entradaFotos = document.getElementById('photos');
-        var cajaError = $('#photos-errors').addClass('d-none').text('');
         if (!entradaFotos || !entradaFotos.files.length) {
-            cajaError.removeClass('d-none').text('Seleccione al menos una imagen para subir.');
+            window.RSUValidation.show({ photos: ['Seleccione al menos una imagen para subir.'] });
             return;
         }
         var datos = new FormData();
@@ -386,11 +358,7 @@ $(function () {
             error: function (error) {
                 var respuesta = error.responseJSON || {};
                 if (error.status === 422 && respuesta.errors) {
-                    var mensajes = [];
-                    $.each(respuesta.errors, function (campo, listaMensajes) {
-                        mensajes = mensajes.concat(listaMensajes);
-                    });
-                    cajaError.removeClass('d-none').text(mensajes.join(' '));
+                    window.RSUValidation.show(respuesta.errors);
                     return;
                 }
                 mostrarAlerta(false, mensajeError(error, 'No se pudieron subir las imágenes.'));
@@ -399,7 +367,6 @@ $(function () {
         });
     });
 
-    $(document).on('change', '#photos', function () { $('#photos-errors').addClass('d-none').text(''); });
 
     $(document).on('click', '.btn_eliminar_foto', function () {
         var boton = $(this).prop('disabled', true);

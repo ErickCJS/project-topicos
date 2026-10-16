@@ -1,0 +1,22 @@
+.rsu-validation-list {
+    display: grid;
+    gap: .55rem;
+    margin: .25rem 0 0;
+    padding: 0;
+    text-align: left;
+    list-style: none;
+}
+
+.rsu-validation-list li {
+    padding: .65rem .8rem;
+    border: 1px solid #f3d4d4;
+    border-radius: .5rem;
+    background: #fff8f8;
+    color: #555;
+    font-size: .95rem;
+    line-height: 1.4;
+}
+
+.rsu-validation-list strong {
+    color: #b42318;
+}

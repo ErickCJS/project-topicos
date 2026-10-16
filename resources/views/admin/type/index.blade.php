@@ -110,49 +110,25 @@ $(function () {
     const showModal = bootstrap.Modal.getOrCreateInstance(showModalElement);
 
     function mostrarAlerta(esExito, mensaje) {
+        if (!esExito) return window.RSUValidation.error(mensaje);
         return Swal.fire({
-            title: esExito ? 'Proceso exitoso' : 'Ocurrió un error',
-            icon: esExito ? 'success' : 'error',
+            title: 'Proceso exitoso',
+            icon: 'success',
             text: mensaje,
             confirmButtonText: 'Entendido'
         });
     }
 
-    function limpiarErrores(form) {
-        form.find('.is-invalid').removeClass('is-invalid');
-        form.find('.vehicle-type-field-error').remove();
-    }
-
-    function mostrarErroresValidacion(form, errors) {
-        limpiarErrores(form);
-
-        Object.entries(errors).forEach(function ([field, messages]) {
-            const input = form.find('[name="' + field + '"]').first();
-            if (!input.length) return;
-
-            input.addClass('is-invalid');
-            $('<div>', {
-                class: 'invalid-feedback vehicle-type-field-error',
-                text: messages.join(' ')
-            }).insertAfter(input);
-        });
-
-        form.find('.is-invalid').first().trigger('focus');
-    }
-
-    function mostrarError(error, form = null) {
+    function mostrarError(error) {
         const response = error.responseJSON || {};
-
-        if (error.status === 422 && response.errors && form) {
-            mostrarErroresValidacion(form, response.errors);
+        if (error.status === 422 && response.errors) {
+            window.RSUValidation.show(response.errors);
             return;
         }
 
-        let mensaje = response.mensaje || response.message || 'No se pudo completar la operación. Inténtelo nuevamente.';
+        let mensaje = response.mensaje || 'No se pudo completar la operación. Inténtelo nuevamente.';
         if (error.status === 404) mensaje = 'El tipo de vehículo ya no existe.';
         if (error.status === 419) mensaje = 'La sesión ha expirado. Recargue la página.';
-        if (error.status === 422 && response.errors) mensaje = Object.values(response.errors).flat().join(' ');
-
         mostrarAlerta(false, mensaje);
     }
 
@@ -226,18 +202,11 @@ $(function () {
         abrirFormulario($(this).data('url'), 'Editar Tipo de Vehículo');
     });
 
-    $(document).on('input change', '#formModal [name]', function () {
-        const input = $(this);
-        input.removeClass('is-invalid');
-        input.next('.vehicle-type-field-error').remove();
-    });
-
     $('#formModal').on('submit', 'form', function (event) {
         event.preventDefault();
 
         const form = $(this);
         const submitButton = form.find('[type="submit"]').prop('disabled', true);
-        limpiarErrores(form);
 
         $.ajax({
             url: form.attr('action'),
@@ -252,7 +221,7 @@ $(function () {
                 mostrarAlerta(true, response.mensaje || 'Tipo de vehículo guardado correctamente.');
             },
             error: function (error) {
-                mostrarError(error, form);
+                mostrarError(error);
             },
             complete: function () {
                 submitButton.prop('disabled', false);

@@ -28,8 +28,8 @@
                         x-ref="confirmable_password"
                         wire:model="confirmablePassword"
                         wire:keydown.enter="confirmPassword" />
+                        <x-input-error for="confirmable_password" />
 
-            <x-input-error for="confirmable_password" class="mt-2" />
         </div>
     </x-slot>
 

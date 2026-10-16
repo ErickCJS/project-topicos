@@ -4,7 +4,6 @@ namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\admin\Attendance;
-use App\Models\admin\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -71,9 +70,14 @@ class AttendancesController extends Controller
         $data = $request->validate([
             'dni' => ['required', 'digits:8'],
             'password' => ['required', 'string', 'min:8'],
+        ], [
+            'dni.required' => 'El DNI es obligatorio.',
+            'dni.digits' => 'El DNI debe tener exactamente 8 dígitos.',
+            'password.required' => 'La contraseña es obligatoria.',
+            'password.string' => 'La contraseña debe ser texto.',
+            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
         ]);
 
-        $person =  Employee::where('dni', $data['dni'])->get();
         $attendance = Attendance::create();
 
         return response()->json([
@@ -137,8 +141,10 @@ class AttendancesController extends Controller
             'notes' => ['nullable', 'string'],
         ], [
             'employee_id.required' => 'Seleccione un empleado.',
+            'employee_id.integer' => 'El empleado seleccionado no es válido.',
             'employee_id.exists' => 'El empleado seleccionado no existe.',
             'shift_id.required' => 'Seleccione un turno.',
+            'shift_id.integer' => 'El turno seleccionado no es válido.',
             'shift_id.exists' => 'El turno seleccionado no existe.',
             'date.required' => 'Ingrese la fecha de asistencia.',
             'date.date_format' => 'La fecha de asistencia no es válida.',
@@ -148,6 +154,7 @@ class AttendancesController extends Controller
             'type.in' => 'El tipo de marcación seleccionado no es válido.',
             'status.required' => 'Seleccione el estado de la asistencia.',
             'status.in' => 'El estado seleccionado no es válido.',
+            'notes.string' => 'Las observaciones deben ser texto.',
         ]);
     }
 

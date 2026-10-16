@@ -18,6 +18,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="{{ asset('css/admin-layout.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/validation-modal.css') }}">
+@endpush
+
+@push('js')
+    <script>window.RSUInitialValidationErrors = @json($errors->getMessages());</script>
+    <script src="{{ asset('js/validation-modal.js') }}"></script>
 @endpush
 
 @section('adminlte_css_pre')

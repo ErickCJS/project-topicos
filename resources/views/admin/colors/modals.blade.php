@@ -22,7 +22,6 @@
                         <label for="crearName" class="form-label fw-semibold">Nombre del color</label>
                         <input class="form-control" id="crearName" name="name" required maxlength="100"
                             autocomplete="off" placeholder="Ej. Azul">
-                        <div class="invalid-feedback color-field-error" data-error-for="name"></div>
                     </div>
 
                     <div class="col-12 col-md-6">
@@ -33,7 +32,6 @@
                             <input class="form-control form-control-color color-picker" id="crearPicker" type="color"
                                 value="#000000" title="Seleccionar color" aria-label="Seleccionar color">
                         </div>
-                        <div class="invalid-feedback color-field-error" data-error-for="code"></div>
                         <div class="form-text">Formatos aceptados: #RGB y #RRGGBB. El prefijo # se agrega automáticamente.</div>
                     </div>
 
@@ -41,7 +39,6 @@
                         <label for="crearDescription" class="form-label fw-semibold">Descripción</label>
                         <textarea class="form-control" id="crearDescription" name="description" rows="3" maxlength="100"
                             placeholder="Agregue una descripción del color"></textarea>
-                        <div class="invalid-feedback color-field-error" data-error-for="description"></div>
                         <div class="d-flex justify-content-end color-counter">
                             <small><span data-counter-for="crearDescription">0</span>/100</small>
                         </div>
@@ -85,7 +82,6 @@
                     <div class="col-12 col-md-6">
                         <label for="editarName" class="form-label fw-semibold">Nombre del color</label>
                         <input class="form-control" id="editarName" name="name" required maxlength="100" autocomplete="off">
-                        <div class="invalid-feedback color-field-error" data-error-for="name"></div>
                     </div>
 
                     <div class="col-12 col-md-6">
@@ -96,7 +92,6 @@
                             <input class="form-control form-control-color color-picker" id="editarPicker" type="color"
                                 value="#000000" title="Seleccionar color" aria-label="Seleccionar color">
                         </div>
-                        <div class="invalid-feedback color-field-error" data-error-for="code"></div>
                         <div class="form-text">Formatos aceptados: #RGB y #RRGGBB. El prefijo # se agrega automáticamente.</div>
                     </div>
 
@@ -104,7 +99,6 @@
                         <label for="editarDescription" class="form-label fw-semibold">Descripción</label>
                         <textarea class="form-control" id="editarDescription" name="description" rows="3" maxlength="100"
                             placeholder="Agregue una descripción del color"></textarea>
-                        <div class="invalid-feedback color-field-error" data-error-for="description"></div>
                         <div class="d-flex justify-content-end color-counter">
                             <small><span data-counter-for="editarDescription">0</span>/100</small>
                         </div>

@@ -177,6 +177,12 @@ class VehiclesController extends Controller
         $request->validate([
             'photos' => ['required', 'array'],
             'photos.*' => ['required', 'image', 'mimes:jpeg,png,jpg,webp'],
+        ], [
+            'photos.required' => 'Seleccione al menos una imagen para subir.',
+            'photos.array' => 'Los archivos seleccionados no son válidos.',
+            'photos.*.required' => 'Cada archivo seleccionado es obligatorio.',
+            'photos.*.image' => 'Cada archivo debe ser una imagen.',
+            'photos.*.mimes' => 'Las imágenes deben estar en formato JPEG, PNG o WEBP.',
         ]);
 
         $storedPaths = [];
@@ -199,7 +205,6 @@ class VehiclesController extends Controller
             });
 
             return response()->json([
-                'codigo' => 1,
                 'mensaje' => 'Imágenes subidas correctamente',
             ]);
         } catch (ModelNotFoundException $exception) {
@@ -210,7 +215,6 @@ class VehiclesController extends Controller
             report($exception);
 
             return response()->json([
-                'codigo' => 0,
                 'mensaje' => 'No fue posible subir las imágenes.',
             ], 500);
         }
@@ -246,7 +250,6 @@ class VehiclesController extends Controller
 
             return response()->json([
                 'mensaje' => 'Imagen eliminada correctamente',
-                'titulo' => 'Éxito',
             ]);
         } catch (ModelNotFoundException $exception) {
             throw $exception;
@@ -255,7 +258,6 @@ class VehiclesController extends Controller
 
             return response()->json([
                 'mensaje' => 'No fue posible eliminar la imagen.',
-                'titulo' => 'Error',
             ], 500);
         }
     }
@@ -273,7 +275,6 @@ class VehiclesController extends Controller
             });
 
             return response()->json([
-                'codigo' => 1,
                 'mensaje' => 'Imagen principal actualizada correctamente',
             ]);
         } catch (ModelNotFoundException $exception) {
@@ -282,7 +283,6 @@ class VehiclesController extends Controller
             report($exception);
 
             return response()->json([
-                'codigo' => 0,
                 'mensaje' => 'No fue posible seleccionar la imagen principal.',
             ], 500);
         }
@@ -299,13 +299,14 @@ class VehiclesController extends Controller
             'occupats_capacity' => ['required', 'integer', 'min:0'],
             'fuel_capacity' => ['required', 'integer', 'min:0'],
             'compact_capacity' => ['required', 'integer', 'min:0'],
-            'type_id' => ['required', 'exists:vehicletypes,id'],
-            'brand_id' => ['required', 'exists:brands,id'],
+            'type_id' => ['required', 'integer', 'exists:vehicletypes,id'],
+            'brand_id' => ['required', 'integer', 'exists:brands,id'],
             'model_id' => [
                 'required',
+                'integer',
                 Rule::exists('brandmodels', 'id')->where('brand_id', $request->input('brand_id')),
             ],
-            'color_id' => ['required', 'exists:color,id'],
+            'color_id' => ['required', 'integer', 'exists:color,id'],
             'description' => ['nullable', 'string'],
         ], $this->validationMessages());
     }
@@ -314,24 +315,45 @@ class VehiclesController extends Controller
     {
         return [
             'code.required' => 'El código del vehículo es obligatorio.',
+            'code.string' => 'El código del vehículo debe ser texto.',
+            'code.max' => 'El código del vehículo no debe superar los 100 caracteres.',
             'code.unique' => 'Ya existe un vehículo con ese código.',
             'name.required' => 'El nombre del vehículo es obligatorio.',
+            'name.string' => 'El nombre del vehículo debe ser texto.',
+            'name.max' => 'El nombre del vehículo no debe superar los 100 caracteres.',
             'plate.required' => 'La placa del vehículo es obligatoria.',
+            'plate.string' => 'La placa debe ser texto.',
+            'plate.max' => 'La placa no debe superar los 10 caracteres.',
             'plate.unique' => 'Ya existe un vehículo con esa placa.',
             'year.required' => 'El año del vehículo es obligatorio.',
+            'year.integer' => 'El año debe ser un número entero.',
+            'year.min' => 'El año no puede ser anterior a 1900.',
             'year.max' => 'El año no puede ser posterior al próximo año.',
             'load_capacity.required' => 'La capacidad de carga es obligatoria.',
+            'load_capacity.integer' => 'La capacidad de carga debe ser un número entero.',
+            'load_capacity.min' => 'La capacidad de carga no puede ser negativa.',
             'occupats_capacity.required' => 'La capacidad de personas es obligatoria.',
+            'occupats_capacity.integer' => 'La capacidad de personas debe ser un número entero.',
+            'occupats_capacity.min' => 'La capacidad de personas no puede ser negativa.',
             'fuel_capacity.required' => 'La capacidad de combustible es obligatoria.',
+            'fuel_capacity.integer' => 'La capacidad de combustible debe ser un número entero.',
+            'fuel_capacity.min' => 'La capacidad de combustible no puede ser negativa.',
             'compact_capacity.required' => 'La capacidad de compactación es obligatoria.',
+            'compact_capacity.integer' => 'La capacidad de compactación debe ser un número entero.',
+            'compact_capacity.min' => 'La capacidad de compactación no puede ser negativa.',
             'type_id.required' => 'Selecciona el tipo de vehículo.',
+            'type_id.integer' => 'El tipo de vehículo seleccionado no es válido.',
             'type_id.exists' => 'El tipo de vehículo seleccionado no existe.',
             'brand_id.required' => 'Selecciona la marca del vehículo.',
+            'brand_id.integer' => 'La marca seleccionada no es válida.',
             'brand_id.exists' => 'La marca seleccionada no existe.',
             'model_id.required' => 'Selecciona el modelo del vehículo.',
+            'model_id.integer' => 'El modelo seleccionado no es válido.',
             'model_id.exists' => 'El modelo no pertenece a la marca seleccionada.',
             'color_id.required' => 'Selecciona el color del vehículo.',
+            'color_id.integer' => 'El color seleccionado no es válido.',
             'color_id.exists' => 'El color seleccionado no existe.',
+            'description.string' => 'La descripción debe ser texto.',
         ];
     }
 }

@@ -107,10 +107,20 @@ class BrandModelController extends Controller
     private function validatedData(Request $request): array
     {
         return $request->validate([
-            'brand_id' => 'required|exists:brands,id',
+            'brand_id' => 'required|integer|exists:brands,id',
             'name' => 'required|string|max:100',
             'code' => 'nullable|string|max:50',
             'description' => 'nullable|string',
+        ], [
+            'brand_id.required' => 'Seleccione una marca.',
+            'brand_id.integer' => 'La marca seleccionada no es válida.',
+            'brand_id.exists' => 'La marca seleccionada no existe.',
+            'name.required' => 'El nombre del modelo es obligatorio.',
+            'name.string' => 'El nombre del modelo debe ser texto.',
+            'name.max' => 'El nombre del modelo no debe superar los 100 caracteres.',
+            'code.string' => 'El código debe ser texto.',
+            'code.max' => 'El código no debe superar los 50 caracteres.',
+            'description.string' => 'La descripción debe ser texto.',
         ]);
     }
 }

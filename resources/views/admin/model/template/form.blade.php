@@ -6,9 +6,6 @@
             'placeholder' => 'Seleccione una marca',
             'required',
         ]) !!}
-        @error('brand_id')
-            <div class="invalid-feedback model-field-error">{{ $message }}</div>
-        @enderror
     </div>
 
     <div class="col-12 col-md-6">
@@ -19,9 +16,6 @@
             'required',
             'maxlength' => 100,
         ]) !!}
-        @error('name')
-            <div class="invalid-feedback model-field-error">{{ $message }}</div>
-        @enderror
     </div>
 
     <div class="col-12 col-md-6">
@@ -31,9 +25,6 @@
             'placeholder' => 'Código del modelo (opcional)',
             'maxlength' => 50,
         ]) !!}
-        @error('code')
-            <div class="invalid-feedback model-field-error">{{ $message }}</div>
-        @enderror
     </div>
 
     <div class="col-12">
@@ -43,8 +34,5 @@
             'placeholder' => 'Descripción del modelo (opcional)',
             'rows' => 4,
         ]) !!}
-        @error('description')
-            <div class="invalid-feedback model-field-error">{{ $message }}</div>
-        @enderror
     </div>
 </div>

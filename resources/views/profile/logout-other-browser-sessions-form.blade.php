@@ -77,8 +77,8 @@
                                 x-ref="password"
                                 wire:model="password"
                                 wire:keydown.enter="logoutOtherBrowserSessions" />
+                                <x-input-error for="password" />
 
-                    <x-input-error for="password" class="mt-2" />
                 </div>
             </x-slot>
 

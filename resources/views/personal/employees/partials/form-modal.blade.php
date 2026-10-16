@@ -126,7 +126,7 @@
                         <label class="form-label fw-semibold" for="employeeLicense">Número de licencia <span class="text-danger">*</span></label>
                         <input class="form-control" id="employeeLicense" name="licencia"
                             value="{{ old('licencia', $employee->license ?? '') }}"
-                            maxlength="9" pattern="[A-Za-z][0-9]{8}" placeholder="Q22413362" disabled>
+                            maxlength="9" pattern="Q[0-9]{8}" placeholder="Q22413362" disabled>
                         <div class="form-text">Una letra seguida exactamente por los ocho dígitos del DNI.</div>
                     </div>
                 </div>

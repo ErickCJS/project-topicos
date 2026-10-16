@@ -36,11 +36,13 @@ class EmployeeController extends Controller
 
             return DataTables::of($employees)
                 ->addColumn('photo', function (Employee $employee) {
-                    $photo = $employee->profile_photo_path
-                        ? asset('storage/'.$employee->profile_photo_path)
-                        : asset('storage/images/no_logo.png');
+                    // Ignore legacy external avatar URLs instead of generating /storage/https:// requests.
+                    $photoPath = trim((string) $employee->profile_photo_path);
+                    $photo = $photoPath !== '' && ! preg_match('/^https?:\\/\\//i', $photoPath)
+                        ? asset('storage/'.ltrim($photoPath, '/'))
+                        : self::employeePhotoPlaceholder();
 
-                    return '<img src="'.e($photo).'" loading="lazy" decoding="async" width="48" height="48" onerror="this.onerror=null;this.src=\''.e(asset('storage/images/no_logo.png')).'\'" alt="Foto de '.e($employee->first_name).'" style="width:48px;height:48px;max-width:none;object-fit:cover;border-radius:9999px">';
+                    return '<img src="'.e($photo).'" loading="lazy" decoding="async" width="48" height="48" onerror="this.onerror=null;this.src=\''.e(self::employeePhotoPlaceholder()).'\'" alt="Foto de '.e($employee->first_name).'" style="width:48px;height:48px;max-width:none;object-fit:cover;border-radius:9999px">';
                 })
                 ->editColumn('created_at', fn (Employee $employee) => $employee->created_at?->format('d/m/Y H:i'))
                 ->editColumn('status', function (Employee $employee) {
@@ -62,6 +64,11 @@ class EmployeeController extends Controller
         $tipos = EmployeeType::orderBy('name')->get(['id', 'name']);
 
         return view('personal.employees.index', compact('tipos'));
+    }
+
+    private static function employeePhotoPlaceholder(): string
+    {
+        return 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" rx="24" fill="#e9ecef"/><circle cx="24" cy="18" r="8" fill="#adb5bd"/><path d="M8 43c1-9 7-14 16-14s15 5 16 14" fill="#adb5bd"/></svg>');
     }
 
     public function store(Request $request)
@@ -209,6 +216,7 @@ class EmployeeController extends Controller
             'email.unique' => 'Ya existe un empleado con ese correo electrónico.',
             'estado.required' => 'Seleccione el estado del empleado.',
             'estado.in' => 'El estado seleccionado no es válido.',
+            'password.string' => 'La contraseña debe ser texto válido.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'direccion.required' => 'Ingrese la dirección.',
             'direccion.string' => 'La dirección debe ser texto válido.',

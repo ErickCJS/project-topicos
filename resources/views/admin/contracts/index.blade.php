@@ -65,82 +65,26 @@ $(function () {
     const showModal = bootstrap.Modal.getOrCreateInstance(showModalElement);
 
     function mostrarAlerta(esExito, mensaje) {
+        if (!esExito) return window.RSUValidation.error(mensaje);
         return Swal.fire({
-            title: esExito ? 'Proceso exitoso' : 'Ocurrió un error',
-            icon: esExito ? 'success' : 'error',
+            title: 'Proceso exitoso',
+            icon: 'success',
             text: mensaje,
             confirmButtonText: 'Entendido'
         });
     }
 
-    function mensajesError(xhr, fallback) {
-        const response = xhr.responseJSON || {};
-        const errors = response.errors ? Object.values(response.errors).flat() : [];
-
-        if (errors.length) return errors;
-        if (response.mensaje || response.message) return [response.mensaje || response.message];
-        if (xhr.status === 404) return ['El contrato o trabajador ya no existe.'];
-        if (xhr.status === 419) return ['La sesión ha expirado. Recargue la página.'];
-
-        return [fallback];
-    }
-
     function mostrarErrorGeneral(xhr, fallback) {
-        mostrarAlerta(false, mensajesError(xhr, fallback).join(' '));
-    }
-
-    function limpiarErrores(form) {
-        form.find('.is-invalid').removeClass('is-invalid');
-        form.find('.select2-selection.is-invalid').removeClass('is-invalid');
-        form.find('.contract-field-error, .contract-validation-errors').remove();
-    }
-
-    function campoParaError(form, field) {
-        if (field === 'employee_id' && form.find('[name="employee_display"]').length) {
-            return form.find('[name="employee_display"]').first();
+        const response = xhr.responseJSON || {};
+        if (xhr.status === 422 && response.errors) {
+            window.RSUValidation.show(response.errors);
+            return;
         }
-
-        return form.find('[name="' + field + '"]').not('[type="hidden"]').first();
+        mostrarAlerta(false, response.mensaje || response.message || fallback);
     }
 
-    function mostrarErroresValidacion(form, errors) {
-        limpiarErrores(form);
-        const generales = [];
-
-        Object.entries(errors).forEach(function ([field, messages]) {
-            const input = campoParaError(form, field);
-
-            if (!input.length) {
-                generales.push(...messages);
-                return;
-            }
-
-            input.addClass('is-invalid');
-            let target = input;
-
-            if (input.hasClass('select2-hidden-accessible')) {
-                target = input.next('.select2-container');
-                target.find('.select2-selection').addClass('is-invalid');
-            }
-
-            $('<div>', {
-                class: 'invalid-feedback contract-field-error',
-                text: messages.join(' ')
-            }).insertAfter(target);
-        });
-
-        if (generales.length) {
-            const items = generales.map(function (message) {
-                return $('<li>').text(message).prop('outerHTML');
-            }).join('');
-
-            form.find('.contract-modal-body').prepend(
-                '<div class="alert alert-danger contract-validation-errors" role="alert">' +
-                    '<div class="fw-semibold mb-1">No se pudo completar la operación:</div>' +
-                    '<ul class="mb-0 ps-3">' + items + '</ul>' +
-                '</div>'
-            );
-        }
+    function mostrarErroresValidacion(errors) {
+        window.RSUValidation.show(errors);
     }
 
     function sumarMeses(fecha, meses) {
@@ -231,76 +175,64 @@ $(function () {
         }
     });
 
-    $('#formModal').on('change input', '#contract_type, [name="start_date"], #contract_end_date', actualizarFechas);
-
-    $('#formModal').on('input change', '[name]', function () {
-        const input = $(this);
-        input.removeClass('is-invalid');
-        input.next('.contract-field-error').remove();
-        input.next('.select2-container').find('.select2-selection').removeClass('is-invalid');
-        input.next('.select2-container').next('.contract-field-error').remove();
-    });
-
     $('#btnNuevo').on('click', function () {
-        abrirFormulario("{{ route('contracts.create') }}");
+        abrirFormulario(@json(route('contracts.create')));
     });
 
-    $('#DataTable').on('click', '.btnVer', function () {
-        $.get($(this).data('url'), function (response) {
-            $('#contractShowContent').html(response);
-            showModal.show();
-        }).fail(function (error) {
-            mostrarErrorGeneral(error, 'No se pudo cargar el contrato.');
-        });
+    $(document).on('click', '.btnVer', function () {
+        $.get($(this).data('url'))
+            .done(function (response) {
+                $('#contractShowContent').html(response);
+                showModal.show();
+            })
+            .fail(function (error) {
+                mostrarErrorGeneral(error, 'No se pudo abrir el detalle del contrato.');
+            });
     });
 
-    $('#DataTable').on('click', '.btnEditar', function () {
+    $(document).on('click', '.btnEditar', function () {
         abrirFormulario($(this).data('url'));
     });
 
-    $('#DataTable').on('click', '.btnAnular', function () {
-        const button = $(this);
+    $(document).on('click', '.btnAnular', function () {
+        const url = $(this).data('url');
 
         Swal.fire({
-            title: '¿Está seguro de anular el contrato?',
-            text: 'Se cerrará con la fecha de hoy. Se conservará el historial y no podrá editarse ni reactivarse.',
+            title: '\u00BFAnular contrato?',
+            text: 'El contrato dejara de estar vigente.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#b54747',
-            confirmButtonText: 'Sí, anular',
-            cancelButtonText: 'Cancelar'
+            confirmButtonText: 'Si, anular',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#dc3545'
         }).then(function (result) {
             if (!result.isConfirmed) return;
 
-            button.prop('disabled', true);
-
             $.ajax({
-                url: button.data('url'),
+                url: url,
                 type: 'PATCH',
                 headers: {
                     Accept: 'application/json',
-                    'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function (response) {
                     table.ajax.reload(null, false);
-                    mostrarAlerta(true, response.mensaje);
+                    mostrarAlerta(true, response.mensaje || 'Contrato anulado correctamente.');
                 },
                 error: function (error) {
                     mostrarErrorGeneral(error, 'No se pudo anular el contrato.');
-                },
-                complete: function () {
-                    button.prop('disabled', false);
                 }
             });
         });
     });
+
+    $('#formModal').on('change input', '#contract_type, [name="start_date"], #contract_end_date', actualizarFechas);
 
     $('#formModal').on('submit', 'form', function (event) {
         event.preventDefault();
 
         const form = $(this);
         const buttons = form.find('button[type="submit"]').prop('disabled', true);
-        limpiarErrores(form);
 
         $.ajax({
             url: form.attr('action'),
@@ -318,7 +250,7 @@ $(function () {
                 const response = error.responseJSON || {};
 
                 if (error.status === 422 && response.errors) {
-                    mostrarErroresValidacion(form, response.errors);
+                    mostrarErroresValidacion(response.errors);
                     return;
                 }
 

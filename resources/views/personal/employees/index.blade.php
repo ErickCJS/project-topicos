@@ -73,9 +73,10 @@ $(function () {
     }
 
     function mostrarMensaje(texto, error = false) {
+        if (error) return window.RSUValidation.error(texto);
         return Swal.fire({
-            icon: error ? 'error' : 'success',
-            title: error ? 'Ocurrió un error' : 'Proceso exitoso',
+            icon: 'success',
+            title: 'Proceso exitoso',
             text: texto,
             confirmButtonText: 'Entendido'
         });
@@ -84,33 +85,14 @@ $(function () {
     function mensajeError(xhr, fallback) {
         const data = xhr.responseJSON || {};
 
-        return data.mensaje || data.message || fallback;
+        if (xhr.status === 404) return 'No se encontró el empleado solicitado.';
+        if (xhr.status === 419) return 'La sesión ha expirado. Recargue la página.';
+
+        return data.mensaje || fallback;
     }
 
-    function limpiarErrores(form) {
-        form.find('.is-invalid').removeClass('is-invalid');
-        form.find('.employee-field-error').remove();
-        form.find('.employee-photo-picker').removeClass('border-danger');
-    }
-
-    function mostrarErroresValidacion(form, errors) {
-        limpiarErrores(form);
-
-        Object.entries(errors).forEach(function ([field, messages]) {
-            const input = form.find('[name="' + field + '"]').not(':disabled').first();
-
-            if (!input.length) return;
-
-            input.addClass('is-invalid');
-            $('<div>', {
-                class: 'invalid-feedback employee-field-error',
-                text: messages.join(' ')
-            }).insertAfter(input);
-
-            if (field === 'foto') {
-                form.find('.employee-photo-picker').addClass('border-danger');
-            }
-        });
+    function mostrarErroresValidacion(errors) {
+        window.RSUValidation.show(errors);
     }
 
     function mostrarErrorGeneral(xhr, fallback) {
@@ -184,23 +166,11 @@ $(function () {
         if (!this.checked) password.value = '';
     });
 
-    $(document).on('input change', '#employeeFormContent [name]', function () {
-        const input = $(this);
-        input.removeClass('is-invalid');
-        input.next('.employee-field-error').remove();
-
-        if (input.attr('name') === 'foto') {
-            input.closest('.employee-photo-panel').find('.employee-photo-picker').removeClass('border-danger');
-        }
-    });
-
     $(document).on('submit', '#employeeFormContent form', function (event) {
         event.preventDefault();
 
         const form = $(this);
         const submitButton = form.find('[type="submit"]').prop('disabled', true);
-        limpiarErrores(form);
-
         $.ajax({
             url: form.attr('action'),
             type: 'POST',
@@ -217,7 +187,7 @@ $(function () {
                 const response = error.responseJSON || {};
 
                 if (error.status === 422 && response.errors) {
-                    mostrarErroresValidacion(form, response.errors);
+                    mostrarErroresValidacion(response.errors);
                     return;
                 }
 

@@ -11,8 +11,15 @@
 <div class="modal-body employee-modal-body">
     <div class="employee-show-profile p-3 mb-4">
         <div class="d-flex flex-column flex-sm-row align-items-center gap-3 gap-md-4">
-            <img src="{{ $employee->profile_photo_path ? asset('storage/'.$employee->profile_photo_path) : asset('storage/images/no_logo.png') }}"
-                onerror="this.onerror=null;this.src='{{ asset('storage/images/no_logo.png') }}'"
+            @php
+                $photoPath = trim((string) $employee->profile_photo_path);
+                $employeePhotoPlaceholder = 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" rx="24" fill="#e9ecef"/><circle cx="24" cy="18" r="8" fill="#adb5bd"/><path d="M8 43c1-9 7-14 16-14s15 5 16 14" fill="#adb5bd"/></svg>');
+                $employeePhoto = $photoPath !== '' && ! preg_match('/^https?:\/\//i', $photoPath)
+                    ? asset('storage/'.ltrim($photoPath, '/'))
+                    : $employeePhotoPlaceholder;
+            @endphp
+            <img src="{{ $employeePhoto }}"
+                onerror="this.onerror=null;this.src='{{ $employeePhotoPlaceholder }}'"
                 alt="Foto de {{ $employee->first_name }}"
                 class="employee-show-photo rounded-circle border shadow-sm">
             <div class="text-center text-sm-start">

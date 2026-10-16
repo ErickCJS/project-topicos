@@ -52,7 +52,7 @@ class EmployeeTypeController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:50|unique:employee_types,name',
             'description' => 'nullable|string|max:255',
-        ]);
+        ], $this->validationMessages());
 
         EmployeeType::create($data);
 
@@ -82,7 +82,7 @@ class EmployeeTypeController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:50|unique:employee_types,name,'.$id,
             'description' => 'nullable|string|max:255',
-        ]);
+        ], $this->validationMessages());
 
         $type->update($data);
 
@@ -106,5 +106,17 @@ class EmployeeTypeController extends Controller
         return response()->json([
             'message' => 'Tipo de personal eliminado correctamente',
         ]);
+    }
+
+    private function validationMessages(): array
+    {
+        return [
+            'name.required' => 'El nombre del tipo de personal es obligatorio.',
+            'name.string' => 'El nombre del tipo de personal debe ser texto.',
+            'name.max' => 'El nombre del tipo de personal no debe superar los 50 caracteres.',
+            'name.unique' => 'Ya existe un tipo de personal con ese nombre.',
+            'description.string' => 'La descripción debe ser texto.',
+            'description.max' => 'La descripción no debe superar los 255 caracteres.',
+        ];
     }
 }

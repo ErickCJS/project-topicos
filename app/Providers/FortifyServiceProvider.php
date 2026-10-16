@@ -21,7 +21,10 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            \Laravel\Fortify\Http\Requests\SendPasswordResetLinkRequest::class,
+            \App\Http\Requests\Auth\SendPasswordResetLinkRequest::class
+        );
     }
 
     /**
