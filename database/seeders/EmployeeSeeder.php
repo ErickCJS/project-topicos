@@ -32,14 +32,15 @@ class EmployeeSeeder extends Seeder
                 $employeeTypes->get('Ayudante'),
             ]);
             $isDriver = $employeeTypeId === $employeeTypes->get('Conductor');
+            $dni = $faker->unique()->numerify('########');
 
             $employees[] = [
                 'employee_type_id' => $employeeTypeId,
-                'dni' => $faker->unique()->numerify('########'),
+                'dni' => $dni,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'birthdate' => $faker->dateTimeBetween('-60 years', '-18 years')->format('Y-m-d'),
-                'license' => $isDriver ? strtoupper($faker->bothify('Q########')) : null,
+                'license' => $isDriver ? 'Q'.$dni : null,
                 'phone' => $faker->numerify('9########'),
                 'address' => $faker->streetAddress(),
                 'email' => strtolower($faker->unique()->userName()).'@employees.test',

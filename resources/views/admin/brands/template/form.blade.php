@@ -1,56 +1,73 @@
 <div class="row">
-    <div class="col-md-6">
-        <div class="form-group mb-3">
-            {!! Form::label('dni', 'DNI', ['class' => 'form-label mb-1']) !!}
-            {!! Form::text('dni', null, [
-                'class' => 'form-control',
-                'placeholder' => 'Ingrese su DNI',
-                'maxlength' => 8,
-                'inputmode' => 'numeric',
-                'pattern' => '[0-9]{8}',
-                'autocomplete' => 'username',
-                'required',
-            ]) !!}
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="form-group mb-3">
-            {!! Form::label('password', 'Contraseña', ['class' => 'form-label mb-1']) !!}
-            <div class="input-group">
-                {!! Form::password('password', [
+    <div class="col-6 ">
+        <div >
+            <div class="form-group">
+                {!! Form::label('name', 'Nombre') !!}
+                {!! Form::text('name', null, ['class' => 'form-control', 'placeholder' => 'Nombre de la marca', 'required']) !!}
+            </div>
+            <div class="form-group mt-2">
+                {!! Form::label('description', 'Descripción') !!}
+                {!! Form::textarea('description', null, [
                     'class' => 'form-control',
-                    'placeholder' => 'Ingrese su contraseña',
-                    'id' => 'password',
-                    'autocomplete' => 'current-password',
-                    'required',
+                    'placeholder' => 'Agregue una descripción',
+                    'rows' => 3,
                 ]) !!}
-                <button class="btn btn-outline-secondary"
-                        type="button"
-                        id="togglePassword"
-                        aria-label="Mostrar contraseña">
-                    <i class="bi bi-eye" id="passwordIcon"></i>
-                </button>
+            </div>
+            <div class="form-group mt-2">
+                {!! Form::file('logo', [
+                    'class' => 'form-control',
+                    'id' => 'logo',
+                    'accept' => 'image/*'
+                ]) !!}
             </div>
         </div>
+        
+    </div>
+    <div class="col-6 d-flex justify-content-center align-items-center ">
+        <div class="text-center">
+            <p class="mb-2">Vista previa</p>
+            <img
+                id="preview-logo"
+                src="{{ isset($brand) && $brand->logo ? asset($brand->logo) : '#' }}"
+                alt="Vista previa"
+                style="
+                    width: 250px;
+                    height: 250px;
+                    object-fit: contain;
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    padding: 10px;
+                    {{ isset($brand) && $brand->logo ? '' : 'display:none;' }}
+                "
+            >
+            <div
+                id="preview-placeholder"
+                style="{{ isset($brand) && $brand->logo ? 'display:none;' : '' }}"
+            >
+                <i class="bi bi-image" style="font-size: 80px;"></i>
+                <p class="text-muted">No se ha seleccionado una imagen</p>
+            </div>
+
+        </div>
+
     </div>
 </div>
 
-
 <script>
-    document.getElementById('togglePassword').addEventListener('click', function () {
-        const password = document.getElementById('password');
-        const icon = document.getElementById('passwordIcon');
+    
+    $('#logo').on('change', function (event) {
+        const file = event.target.files[0];
+        const preview = $('#preview-logo');
+        const placeholder = $('#preview-placeholder');
 
-        const mostrar = password.type === 'password';
-        password.type = mostrar ? 'text' : 'password';
-
-        icon.classList.toggle('bi-eye', !mostrar);
-        icon.classList.toggle('bi-eye-slash', mostrar);
-
-        this.setAttribute(
-            'aria-label',
-            mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña'
-        );
+        if (file) {
+            preview.attr('src', URL.createObjectURL(file));
+            preview.show();
+            placeholder.hide();
+        } else {
+            preview.hide();
+            placeholder.show();
+        }
     });
+
 </script>
