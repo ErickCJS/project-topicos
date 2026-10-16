@@ -329,6 +329,7 @@
                 success: function (response) {
                     $('#photos').val('');
                     cargarFotos();
+                    refresTable();
                     mostrar_alerta(1, response.mensaje, response.titulo)
                 },
                 error: function (response) {

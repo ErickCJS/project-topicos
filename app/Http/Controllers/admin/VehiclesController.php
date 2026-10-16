@@ -262,15 +262,16 @@ class VehiclesController extends Controller
             ]);
 
             $vehicle = Vehicle::findOrFail($vehicle_id);
-            
+            $profile = $vehicle->images()->where('profile', 1)->exists();
 
             foreach ($request->file('photos') as $photo) {
                 $ruta = $photo->store('vehiclesphotos', 'public');
 
                 $vehicle->images()->create([
                     'imagen' => $ruta,
-                    'profile' => 0
+                    'profile' => !$profile
                 ]);
+                $profile = true;
             }
 
             return response()->json([
@@ -288,6 +289,7 @@ class VehiclesController extends Controller
 
 
 
+
     public function eliminar_imagen(int $photo_id)
     {
         try {
@@ -300,13 +302,29 @@ class VehiclesController extends Controller
                 ], 404);
             }
 
-            if ($foto->url_photo) {
-                $ruta = public_path($foto->url_photo);
-                if (file_exists($ruta)) {
-                    unlink($ruta);
+            $id_vehiculo = $foto->vehicle_id;
+            $era_perfil = $foto->profile == 1;
+            $ruta_imagen = $foto->url_photo
+                ? public_path($foto->url_photo)
+                : null;
+
+            if ($ruta_imagen && file_exists($ruta_imagen)) {
+                unlink($ruta_imagen);
+            }
+
+            $foto->delete();
+
+            if ($era_perfil) {
+                $nueva_imagen = VehicleImage::where('vehicle_id', $id_vehiculo)
+                    ->orderBy('id')
+                    ->first();
+
+                if ($nueva_imagen) {
+                    $nueva_imagen->update([
+                        'profile' => 1
+                    ]);
                 }
             }
-            $foto->delete();
 
             return response()->json([
                 'mensaje' => 'Imagen eliminada correctamente',
@@ -314,7 +332,7 @@ class VehiclesController extends Controller
             ]);
         } catch (\Throwable $e) {
             return response()->json([
-                'mensaje' => 'Error al eliminar la imagen' . $e->getMessage(),
+                'mensaje' => 'Error al eliminar la imagen: ' . $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
