@@ -6,7 +6,7 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
 <link href="{{ asset('css/vehicle-select2.css') }}" rel="stylesheet">
-@vite('resources/css/admin-indexes.css')
+<link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 @stop
 
 @section('content')

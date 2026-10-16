@@ -73,7 +73,7 @@ class AttendancesController extends Controller
             'password' => ['required', 'string', 'min:8'],
         ]);
 
-        $person =  Employee::where('dni', $data->dni)->get();
+        $person =  Employee::where('dni', $data['dni'])->get();
         $attendance = Attendance::create();
 
         return response()->json([
