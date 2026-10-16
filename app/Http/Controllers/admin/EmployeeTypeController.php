@@ -22,17 +22,18 @@ class EmployeeTypeController extends Controller
                 ->editColumn('updated_at', function ($type) {
                     return $type->updated_at?->format('d/m/Y H:i:s');
                 })
-                ->addColumn('actions', function ($type) {
-                    return '<div class="d-flex justify-content-center gap-2">
-                        <button type="button" class="btn btn-primary btn-sm btnEditar"
-                            data-id="' . $type->id . '" title="Editar">
-                            <i class="fas fa-pencil-alt"></i>
-                        </button>
-                        <button type="button" class="btn btn-danger btn-sm btnEliminar"
-                            data-id="' . $type->id . '" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>';
+                ->addColumn('actions', function (EmployeeType $type) {
+                    return '<div class="employee-type-actions">
+                                <button type="button" class="btn btn-info btn-sm employee-type-action-btn btnVer" data-id="'.$type->id.'" data-url="'.e(route('employee-types.show', $type)).'" title="Ver" aria-label="Ver tipo de personal">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-warning btn-sm employee-type-action-btn btnEditar" data-id="'.$type->id.'" data-url="'.e(route('employee-types.edit', $type)).'" title="Editar" aria-label="Editar tipo de personal">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm employee-type-action-btn btnEliminar" data-id="'.$type->id.'" data-url="'.e(route('employee-types.destroy', $type)).'" title="Eliminar" aria-label="Eliminar tipo de personal">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>';
                 })
                 ->rawColumns(['actions'])
                 ->make(true);
@@ -56,8 +57,15 @@ class EmployeeTypeController extends Controller
         EmployeeType::create($data);
 
         return response()->json([
-            'message' => 'Tipo de personal registrado correctamente'
+            'message' => 'Tipo de personal registrado correctamente',
         ]);
+    }
+
+    public function show(string $id)
+    {
+        $type = EmployeeType::findOrFail($id);
+
+        return view('admin.employee_types.show', compact('type'));
     }
 
     public function edit(string $id)
@@ -72,14 +80,14 @@ class EmployeeTypeController extends Controller
         $type = EmployeeType::findOrFail($id);
 
         $data = $request->validate([
-            'name' => 'required|string|max:50|unique:employee_types,name,' . $id,
+            'name' => 'required|string|max:50|unique:employee_types,name,'.$id,
             'description' => 'nullable|string|max:255',
         ]);
 
         $type->update($data);
 
         return response()->json([
-            'message' => 'Tipo de personal actualizado correctamente'
+            'message' => 'Tipo de personal actualizado correctamente',
         ]);
     }
 
@@ -89,14 +97,14 @@ class EmployeeTypeController extends Controller
 
         if (DB::table('employees')->where('employee_type_id', $id)->exists()) {
             return response()->json([
-                'message' => 'No se puede eliminar porque tiene personal relacionado'
+                'message' => 'No se puede eliminar porque tiene personal relacionado',
             ], 409);
         }
 
         $type->delete();
 
         return response()->json([
-            'message' => 'Tipo de personal eliminado correctamente'
+            'message' => 'Tipo de personal eliminado correctamente',
         ]);
     }
 }
