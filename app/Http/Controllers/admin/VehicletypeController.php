@@ -10,35 +10,37 @@ use Yajra\DataTables\Facades\DataTables;
 
 class VehicletypeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            return DataTables::of(Vehicletype::query())
-                ->editColumn('created_at', fn ($type) => $type->created_at?->format('d/m/Y H:i:s'))
-                ->editColumn('updated_at', fn ($type) => $type->updated_at?->format('d/m/Y H:i:s'))
-                ->addColumn('edit', fn ($type) => '<button type="button" class="btn btn-primary btn-sm btnEditar" data-id="'.$type->id.'" aria-label="Editar tipo"><i class="fas fa-pencil-alt"></i></button>')
-                ->addColumn('delete', fn ($type) => '<button type="button" class="btn btn-danger btn-sm btnEliminar" data-id="'.$type->id.'" aria-label="Eliminar tipo"><i class="fas fa-trash"></i></button>')
-                ->rawColumns(['edit', 'delete'])
-                ->make(true);
+            return DataTables::eloquent(Vehicletype::query())
+                ->editColumn('created_at', fn (Vehicletype $type) => $type->created_at?->format('d/m/Y H:i:s'))
+                ->editColumn('updated_at', fn (Vehicletype $type) => $type->updated_at?->format('d/m/Y H:i:s'))
+                ->addColumn('actions', function (Vehicletype $type) {
+                    return '<div class="vehicle-type-actions">
+                                <button type="button" class="btn btn-info btn-sm vehicle-type-action-btn btnVer" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.show', $type)).'" title="Ver" aria-label="Ver tipo de vehículo">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-warning btn-sm vehicle-type-action-btn btnEditar" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.edit', $type)).'" title="Editar" aria-label="Editar tipo de vehículo">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm vehicle-type-action-btn btnEliminar" data-id="'.$type->id.'" data-url="'.e(route('vehiclestype.destroy', $type)).'" title="Eliminar" aria-label="Eliminar tipo de vehículo">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </button>
+                            </div>';
+                })
+                ->rawColumns(['actions'])
+                ->toJson();
         }
 
         return view('admin.type.index');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         return view('admin.type.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         Vehicletype::create($this->validatedData($request));
@@ -46,17 +48,11 @@ class VehicletypeController extends Controller
         return response()->json(['mensaje' => 'Tipo de vehículo registrado correctamente']);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
         return response()->json(Vehicletype::findOrFail($id));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(string $id)
     {
         $type = Vehicletype::findOrFail($id);
@@ -64,9 +60,6 @@ class VehicletypeController extends Controller
         return view('admin.type.edit', compact('type'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
         $type = Vehicletype::findOrFail($id);
@@ -75,9 +68,6 @@ class VehicletypeController extends Controller
         return response()->json(['mensaje' => 'Tipo de vehículo actualizado correctamente']);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
         $type = Vehicletype::findOrFail($id);
