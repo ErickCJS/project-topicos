@@ -827,7 +827,7 @@ return [
         ],
         [
             'text' => 'Asistencias',
-            'route' => 'attendances.index',
+            'url' => '#',
             'icon' => 'fas fa-clipboard-check',
         ],
     ],
