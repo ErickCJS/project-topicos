@@ -134,7 +134,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('brands.index') }}",
+        ajax: "{{ route('brands.index', [], false) }}",
         columns: [
             { data: 'logo', orderable: false, searchable: false },
             { data: 'name', name: 'name' },

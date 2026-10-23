@@ -104,7 +104,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('brandsmodel.index') }}",
+        ajax: "{{ route('brandsmodel.index', [], false) }}",
         columns: [
             { data: 'name', name: 'name' },
             { data: 'brand_name', orderable: false, searchable: false },

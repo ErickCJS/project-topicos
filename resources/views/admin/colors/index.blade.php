@@ -42,7 +42,7 @@
 @section('js')
 <script>
     window.coloresConfig = {
-        endpoint: "{{ route('vehiclescolor.index') }}",
+        endpoint: "{{ route('vehiclescolor.index', [], false) }}",
         token: "{{ csrf_token() }}"
     };
 </script>

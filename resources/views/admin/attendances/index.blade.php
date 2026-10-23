@@ -101,7 +101,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('attendances.index') }}",
+        ajax: "{{ route('attendances.index', [], false) }}",
         order: [[2, 'desc']],
         columns: [
             { data: 'dni', name: 'employees.dni' },

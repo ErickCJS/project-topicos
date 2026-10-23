@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             EmployeeSeeder::class,
             ContractSeeder::class,
             VacationSeeder::class,
+            HolidaySeeder::class,
             AttendanceSeeder::class,
             CatalogSeeder::class,
         ]);

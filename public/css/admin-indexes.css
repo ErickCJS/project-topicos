@@ -3123,3 +3123,53 @@ html[data-bs-theme="dark"] :is(.attendances-module, .brands-module, .colors-modu
     background: var(--sidebar-bg, #141613);
     border-bottom-color: var(--sidebar-border, #292c27);
 }
+
+/* Holidays dashboard (visual draft; filters are not connected yet). */
+.holiday-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.holiday-summary-card {
+    position: relative;
+    min-height: 78px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 12px 16px;
+    border-radius: 7px;
+    color: #fff;
+    box-shadow: 0 2px 6px rgb(23 43 77 / 16%);
+}
+
+.holiday-summary-card strong { font-size: 1.42rem; line-height: 1.1; }
+.holiday-summary-card span { margin-top: 7px; font-size: .72rem; font-weight: 600; }
+.holiday-summary-icon { position: absolute; right: 17px; font-size: 3rem; opacity: .1; }
+.holiday-summary-total { background: #0587c2; }
+.holiday-summary-active { background: #2fb54e; }
+.holiday-summary-upcoming { background: #ffc71c; color: #fff; }
+.holiday-summary-year { background: #29acc1; }
+
+.holiday-filters { border: 1px solid #e4e8ed; box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+.holiday-filter-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; align-items: end; gap: 10px; }
+.holiday-filter-field { min-width: 0; }
+.holiday-filter-field label { display: block; margin-bottom: 6px; color: #334155; font-size: .72rem; font-weight: 700; }
+.holiday-filter-actions { display: flex; gap: 0; }
+.holiday-filter-actions .btn { min-width: 135px; border-radius: 0; }
+.holiday-filter-actions .btn:first-child { border-radius: .25rem 0 0 .25rem; }
+.holiday-filter-actions .btn:last-child { border-radius: 0 .25rem .25rem 0; }
+
+@media (max-width: 991px) {
+    .holiday-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .holiday-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .holiday-filter-actions { grid-column: span 2; }
+}
+
+@media (max-width: 575px) {
+    .holiday-summary, .holiday-filter-form { grid-template-columns: 1fr; }
+    .holiday-filter-actions { grid-column: auto; flex-direction: column; }
+    .holiday-filter-actions .btn { width: 100%; border-radius: .25rem !important; }
+}

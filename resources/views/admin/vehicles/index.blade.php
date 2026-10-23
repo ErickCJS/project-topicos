@@ -173,7 +173,7 @@ $(function () {
         scrollX: false,
         autoWidth: false,
         searchDelay: 350,
-        ajax: "{{ route('vehicles.index') }}",
+        ajax: "{{ route('vehicles.index', [], false) }}",
         order: [[1, 'asc']],
         columns: [
             { data: 'logo', name: 'vehicle_images.imagen', orderable: false, searchable: false },

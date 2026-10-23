@@ -8,6 +8,7 @@ use App\Http\Controllers\admin\BrandModelController;
 use App\Http\Controllers\admin\EmployeeTypeController;
 use App\Http\Controllers\admin\EmployeeController;
 use App\Http\Controllers\admin\ColorController;
+use App\Http\Controllers\admin\HolidaysController;
 use App\Http\Controllers\admin\VehiclesController;
 use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;
@@ -28,8 +29,12 @@ Route::resource('vehiclescolor', ColorController::class)
     ->names('vehiclescolor');
 
 Route::resource('attendances', AttendancesController::class)->names('attendances');
+Route::get('holidays/resumen', [HolidaysController::class, 'resumenFeriados'])
+    ->name('holidays.resumen');
 
-
+Route::resource('holidays', HolidaysController::class)
+    ->names('holidays');
+    
 Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');
 Route::post('subirimagenes/{id_products}', [VehiclesController::class, 'subirimagenes'])->name('vehicles.photo.subirimagenes');
 Route::get('retonar_rutas_fotos/{id_product}', [VehiclesController::class, 'retonar_rutas_fotos'])->name('vehicles.photo.retonar_rutas_fotos');
