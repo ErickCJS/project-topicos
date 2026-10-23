@@ -293,7 +293,12 @@ class VehiclesController extends Controller
         return $request->validate([
             'code' => ['required', 'string', 'max:100', Rule::unique('vehicles', 'code')->ignore($vehicle)],
             'name' => ['required', 'string', 'max:100'],
-            'plate' => ['required', 'string', 'max:10', Rule::unique('vehicles', 'plate')->ignore($vehicle)],
+            'plate' => [
+                'required',
+                'string',
+                'regex:/^(?:[A-Za-z0-9]{6}|[A-Za-z0-9]{2}-[A-Za-z0-9]{4}|[A-Za-z0-9]{3}-[A-Za-z0-9]{3})$/',
+                Rule::unique('vehicles', 'plate')->ignore($vehicle),
+            ],
             'year' => ['required', 'integer', 'min:1900', 'max:'.(now()->year + 1)],
             'load_capacity' => ['required', 'integer', 'min:0'],
             'occupats_capacity' => ['required', 'integer', 'min:0'],
@@ -323,7 +328,7 @@ class VehiclesController extends Controller
             'name.max' => 'El nombre del vehículo no debe superar los 100 caracteres.',
             'plate.required' => 'La placa del vehículo es obligatoria.',
             'plate.string' => 'La placa debe ser texto.',
-            'plate.max' => 'La placa no debe superar los 10 caracteres.',
+            'plate.regex' => 'La placa debe contener 6 letras o números: ABC123, AB-1234 o ABC-123.',
             'plate.unique' => 'Ya existe un vehículo con esa placa.',
             'year.required' => 'El año del vehículo es obligatorio.',
             'year.integer' => 'El año debe ser un número entero.',

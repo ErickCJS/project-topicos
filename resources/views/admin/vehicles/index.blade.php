@@ -7,6 +7,7 @@
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
 <link href="{{ asset('css/vehicle-select2.css') }}" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
+<link rel="stylesheet" href="{{ asset('css/vehicle-images.css') }}">
 @stop
 
 @section('content')
@@ -225,6 +226,11 @@ $(function () {
 
     $(document).on('submit', '#formModal form', function (event) {
         event.preventDefault();
+        if (!this.checkValidity()) {
+            this.reportValidity();
+            return;
+        }
+
         var formulario = $(this);
         var botonEnviar = formulario.find('[type="submit"]').prop('disabled', true);
         $.ajax({
@@ -305,31 +311,45 @@ $(function () {
     function obtenerIdVehiculoGaleria() { return $('#vehicleImagesManager').data('vehicle-id'); }
     function construirUrlFoto(plantillaRuta, id) { return plantillaRuta.replace(':id', id); }
 
+    function crearTarjetaFoto(foto) {
+        var urlImagen = '/storage/' + foto.imagen;
+        var tarjeta = $('<article>', { class: 'vehicle-photo-card', 'data-photo-id': foto.id })
+            .css('background-image', 'url("' + urlImagen + '")');
+        var vistaPrevia = $('<button>', {
+            type: 'button', class: 'vehicle-photo-preview ampliar_foto', title: 'Ampliar fotografía',
+            'aria-label': 'Ampliar fotografía del vehículo', 'data-image': urlImagen
+        }).append($('<span>', { class: 'visually-hidden', text: 'Ampliar fotografía del vehículo' }));
+        var acciones = $('<div>', { class: 'vehicle-photo-actions', 'aria-label': 'Acciones de la fotografía' });
+
+        if (!foto.profile) {
+            acciones.append($('<button>', {
+                type: 'button', class: 'vehicle-photo-action btn_seleccionar_foto', 'data-id': foto.id,
+                title: 'Seleccionar como principal', 'aria-label': 'Seleccionar como imagen principal'
+            }).append($('<i>', { class: 'bi bi-star', 'aria-hidden': 'true' })));
+        }
+
+        acciones.append($('<button>', {
+            type: 'button', class: 'vehicle-photo-action vehicle-photo-action--danger btn_eliminar_foto', 'data-id': foto.id,
+            title: 'Eliminar fotografía', 'aria-label': 'Eliminar fotografía'
+        }).append($('<i>', { class: 'bi bi-trash', 'aria-hidden': 'true' })));
+
+        tarjeta.append(vistaPrevia, acciones);
+        if (foto.profile) {
+            tarjeta.append($('<span>', { class: 'vehicle-photo-featured' })
+                .attr({ title: 'Imagen principal', 'aria-label': 'Imagen principal' })
+                .append($('<i>', { class: 'bi bi-star-fill me-1', 'aria-hidden': 'true' }))
+                .append('Principal'));
+        }
+        return tarjeta;
+    }
+
     function mostrarFotos(fotos) {
-        var cuerpoTabla = $('#preview-photos').empty();
+        var galeria = $('#preview-photos').empty();
         if (!fotos.length) {
-            cuerpoTabla.append($('<tr>').append($('<td>', { colspan: 3, class: 'text-center text-body-secondary', text: 'No hay imágenes registradas.' })));
+            galeria.append($('<p>', { class: 'vehicle-photo-empty', text: 'No hay imágenes registradas.' }));
             return;
         }
-        $.each(fotos, function (indice, foto) {
-            var urlImagen = '/storage/' + foto.imagen;
-            var botonVistaPrevia = $('<button>', {
-                type: 'button', class: 'vehicle-photo-preview ampliar_foto', title: 'Ampliar fotografía',
-                'aria-label': 'Ampliar fotografía del vehículo', 'data-image': urlImagen
-            }).append($('<img>', { src: urlImagen, alt: 'Foto del vehículo', width: 80, height: 80 }));
-            var radioPrincipal = $('<input>', {
-                type: 'radio', name: 'foto_principal', class: 'form-check-input radio_principal',
-                value: foto.id, checked: Boolean(foto.profile), 'aria-label': 'Seleccionar como fotografía principal'
-            });
-            var botonEliminar = $('<button>', {
-                type: 'button', class: 'btn btn-danger btn-sm btn_eliminar_foto',
-                'data-id': foto.id, title: 'Eliminar fotografía', 'aria-label': 'Eliminar fotografía'
-            }).append('<i class="bi bi-trash" aria-hidden="true"></i>');
-            cuerpoTabla.append($('<tr>')
-                .append($('<td>').append(botonVistaPrevia))
-                .append($('<td>', { class: 'text-center' }).append(radioPrincipal))
-                .append($('<td>', { class: 'text-center' }).append(botonEliminar)));
-        });
+        $.each(fotos, function (indice, foto) { galeria.append(crearTarjetaFoto(foto)); });
     }
 
     function cargarFotos() {
@@ -369,23 +389,29 @@ $(function () {
 
 
     $(document).on('click', '.btn_eliminar_foto', function () {
-        var boton = $(this).prop('disabled', true);
-        $.ajax({
-            url: construirUrlFoto("{{ route('vehicles.photo.eliminar_imagen', ':id') }}", boton.data('id')),
-            type: 'DELETE', headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}", Accept: 'application/json' },
-            success: function (response) { cargarFotos(); window.refresTable(); mostrarAlerta(true, response.mensaje); },
-            error: function (error) { boton.prop('disabled', false); mostrarAlerta(false, mensajeError(error, 'No se pudo eliminar la imagen.')); }
+        var boton = $(this);
+        Swal.fire({ title: '¿Eliminar esta fotografía?', icon: 'warning', showCancelButton: true,
+            confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar', confirmButtonColor: '#b54747' }).then(function (resultado) {
+            if (!resultado.isConfirmed) return;
+            boton.prop('disabled', true);
+            $.ajax({
+                url: construirUrlFoto("{{ route('vehicles.photo.eliminar_imagen', ':id') }}", boton.data('id')),
+                type: 'DELETE', headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}", Accept: 'application/json' },
+                success: function (response) { cargarFotos(); window.refresTable(); mostrarAlerta(true, response.mensaje); },
+                error: function (error) { boton.prop('disabled', false); mostrarAlerta(false, mensajeError(error, 'No se pudo eliminar la imagen.')); }
+            });
         });
     });
 
-    $(document).on('change', '.radio_principal', function () {
-        var radios = $('.radio_principal').prop('disabled', true);
+    $(document).on('click', '.btn_seleccionar_foto', function () {
+        var boton = $(this);
+        var acciones = $('.btn_seleccionar_foto, .btn_eliminar_foto').prop('disabled', true);
         $.ajax({
-            url: construirUrlFoto("{{ route('vehicles.photo.seleccionar', ':id') }}", $(this).val()),
+            url: construirUrlFoto("{{ route('vehicles.photo.seleccionar', ':id') }}", boton.data('id')),
             type: 'PATCH', headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}", Accept: 'application/json' },
             success: function (response) { cargarFotos(); window.refresTable(); mostrarAlerta(true, response.mensaje); },
             error: function (error) { cargarFotos(); mostrarAlerta(false, mensajeError(error, 'No se pudo seleccionar la imagen principal.')); },
-            complete: function () { radios.prop('disabled', false); }
+            complete: function () { acciones.prop('disabled', false); }
         });
     });
 

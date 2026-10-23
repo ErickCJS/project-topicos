@@ -23,8 +23,10 @@
         {!! Form::label('plate', 'Placa', ['class' => 'form-label fw-semibold']) !!}
         {!! Form::text('plate', null, [
             'class' => 'form-control',
-            'placeholder' => 'Ej. ABC-123',
-            'maxlength' => 10,
+            'placeholder' => 'Ej. ABC123, AB-1234 o ABC-123',
+            'maxlength' => 7,
+            'pattern' => '[A-Za-z0-9]{6}|[A-Za-z0-9]{2}-[A-Za-z0-9]{4}|[A-Za-z0-9]{3}-[A-Za-z0-9]{3}',
+            'title' => 'Ingrese 6 letras o números: ABC123, AB-1234 o ABC-123.',
             'required',
         ]) !!}
     </div>
@@ -111,7 +113,7 @@
         {!! Form::label('occupats_capacity', 'Personas', ['class' => 'form-label fw-semibold']) !!}
         {!! Form::number('occupats_capacity', null, [
             'class' => 'form-control',
-            'min' => 0,
+            'min' => 1,
             'required',
         ]) !!}
     </div>
