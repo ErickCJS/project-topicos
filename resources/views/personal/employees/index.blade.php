@@ -114,7 +114,7 @@ $(function () {
     const table = $('#tablaEmpleados').DataTable({
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('personal.employees.index') }}",
+        ajax: "{{ route('personal.employees.index', [], false) }}",
         order: [[7, 'desc']],
         columns: [
             { data: 'photo', name: 'employees.profile_photo_path', orderable: false, searchable: false },

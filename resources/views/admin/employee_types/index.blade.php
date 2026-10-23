@@ -104,7 +104,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('employee-types.index') }}",
+        ajax: "{{ route('employee-types.index', [], false) }}",
         columns: [
             { data: 'name', name: 'name' },
             { data: 'description', name: 'description', defaultContent: '' },

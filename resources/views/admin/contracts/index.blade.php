@@ -150,7 +150,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('contracts.index') }}",
+        ajax: "{{ route('contracts.index', [], false) }}",
         columns: [
             { data: 'dni', name: 'employees.dni' },
             { data: 'employee', name: 'employees.last_name' },

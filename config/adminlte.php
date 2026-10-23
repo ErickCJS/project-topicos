@@ -822,8 +822,13 @@ return [
         ],
         [
             'text' => 'Asistencias',
-            'url' => '#',
+            'route' => 'attendances.index',
             'icon' => 'fas fa-clipboard-check',
+        ],
+        [
+            'text' => 'Feriados',
+            'route' => 'holidays.index',
+            'icon' => 'fas fa-calendar-days',
         ],
     ],
 

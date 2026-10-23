@@ -157,7 +157,7 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('vehiclestype.index') }}",
+        ajax: "{{ route('vehiclestype.index', [], false) }}",
         columns: [
             { data: 'name', name: 'name' },
             { data: 'description', name: 'description', defaultContent: '' },
