@@ -38,22 +38,20 @@
 </div>
 
 {{-- Estado --}}
-@if (!isset($no_mostrar))
-    <div class="mt-3">
-        {!! Form::label('state', 'Estado', [
-            'class' => 'form-label fw-semibold'
-        ]) !!}
+<div class="mt-3">
+    {!! Form::label('state', 'Estado', [
+        'class' => 'form-label fw-semibold'
+    ]) !!}
 
-        {!! Form::select('state', [
-            1 => 'Activo',
-            0 => 'Inactivo',
-        ], null, [
-            'class' => 'form-select',
-            'required' => true,
-        ]) !!}
+    {!! Form::select('state', [
+        1 => 'Activo',
+        0 => 'Inactivo',
+    ], null, [
+        'class' => 'form-select',
+        'required' => true,
+    ]) !!}
 
-        <small class="text-secondary">
-            Los feriados inactivos no se consideran en las validaciones.
-        </small>
-    </div>
-@endif
+    <small class="text-secondary">
+        Los feriados inactivos no se consideran en las validaciones.
+    </small>
+</div>

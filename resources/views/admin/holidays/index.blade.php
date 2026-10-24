@@ -318,23 +318,36 @@ $(function () {
 
     $('#btn-feriados').on('click', function () {
         const boton = this;
-        boton.disabled = true;
-        $.ajax({
-            url: '/admin/holidays/cargaferiado',
-            type: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function (response) {
-                refresTable();
-                mostrar_alerta(1, response.mensaje);
-            },
-            error: function (error) {
-                mostrar_alerta(0, mensajeError(error, 'No se pudo guardar este feriado'));
-            },
-            complete: function() {
-                boton.disabled = false;
-            }
+        Swal.fire({
+            title: '¿Cargar feriados de Perú?',
+            text: 'Se cargarán los días feriados oficiales del Perú, para el año actual',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#b54747',
+            cancelButtonColor: '#f8faf8',
+            confirmButtonText: 'Sí, cargar!',
+            cancelButtonText: 'Cancelar'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            boton.disabled = true;
+
+            $.ajax({
+                url: '/admin/holidays/cargaferiado',
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function (response) {
+                    refresTable();
+                    mostrar_alerta(1, response.mensaje);
+                },
+                error: function (error) {
+                    mostrar_alerta(0, mensajeError(error, 'No se pudo guardar este feriado'));
+                },
+                complete: function() {
+                    boton.disabled = false;
+                }
+            });
         });
     });
 
