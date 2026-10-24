@@ -821,6 +821,11 @@ return [
             'icon' => 'bi bi-file-earmark-text',
         ],
         [
+            'text' => 'Vacaciones',
+            'route' => 'vacations.index',
+            'icon' => 'bi bi-calendar2-week',
+        ],
+        [
             'text' => 'Asistencias',
             'route' => 'attendances.index',
             'icon' => 'fas fa-clipboard-check',

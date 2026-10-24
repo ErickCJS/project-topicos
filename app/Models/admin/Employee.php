@@ -25,6 +25,11 @@ class Employee extends Model
         return $this->hasMany(Contract::class);
     }
 
+    public function vacations(): HasMany
+    {
+        return $this->hasMany(Vacation::class);
+    }
+
     public function hasVigenteContract(): bool
     {
         return $this->contracts()
