@@ -35,11 +35,11 @@ class ContractController extends Controller
                     ? $contract->effectiveEndDate()->copy()->addMonthsNoOverflow(2)->format('d/m/Y') : 'No corresponde')
                 ->addColumn('status', fn ($contract) => $contract->statusLabel())
                 ->addColumn('edit', function (Contract $contract) {
-                    $actions = '<button type="button" class="btn btn-outline-primary btn-sm contract-action-btn btnVer" data-url="'.e(route('contracts.show', $contract)).'" title="Ver" aria-label="Ver contrato"><i class="bi bi-eye" aria-hidden="true"></i></button>';
+                    $actions = '<button type="button" class="btn btn-info btn-sm contract-action-btn btnVer" data-url="'.e(route('contracts.show', $contract)).'" title="Ver" aria-label="Ver contrato"><i class="bi bi-eye" aria-hidden="true"></i></button>';
 
                     if (! $contract->isClosed()) {
-                        $actions .= '<button type="button" class="btn btn-outline-warning btn-sm contract-action-btn btnEditar" data-url="'.e(route('contracts.edit', $contract)).'" title="Editar" aria-label="Editar contrato"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
-                        $actions .= '<button type="button" class="btn btn-outline-danger btn-sm contract-action-btn btnAnular" data-url="'.e(route('contracts.cancel', $contract)).'" title="Anular" aria-label="Anular contrato"><i class="bi bi-ban" aria-hidden="true"></i></button>';
+                        $actions .= '<button type="button" class="btn btn-warning btn-sm contract-action-btn btnEditar" data-url="'.e(route('contracts.edit', $contract)).'" title="Editar" aria-label="Editar contrato"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+                        $actions .= '<button type="button" class="btn btn-danger btn-sm contract-action-btn btnAnular" data-url="'.e(route('contracts.cancel', $contract)).'" title="Anular" aria-label="Anular contrato"><i class="bi bi-ban" aria-hidden="true"></i></button>';
                     }
 
                     return '<div class="contract-actions">'.$actions.'</div>';

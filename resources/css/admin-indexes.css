@@ -1,5 +1,42 @@
 @import './modal-theme.css';
 
+/* admin/vacations/index.blade.php */
+.vacations-module #vacationsTable { width: 100% !important; }
+.vacations-module #vacationsTable th,
+.vacations-module #vacationsTable td { vertical-align: middle; white-space: nowrap; }
+.vacations-module .vacation-actions { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; white-space: nowrap; }
+.vacations-module .vacation-action-btn { display: inline-flex; width: 36px; min-width: 36px; height: 31px; flex: 0 0 36px; align-items: center; justify-content: center; padding: 0; border-radius: .25rem; }
+.vacations-module .vacation-action-btn i { line-height: 1; }
+.vacations-module .vacation-modal-heading { display: flex; align-items: center; gap: .75rem; }
+.vacations-module .vacation-modal-icon { display: inline-grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; color: var(--bs-success-text-emphasis); background: var(--bs-success-bg-subtle); border: 1px solid var(--bs-success-border-subtle); border-radius: .6rem; }
+.vacations-module .vacation-balance-card { display: flex; min-height: 98px; flex-direction: column; justify-content: center; padding: .85rem 1rem; color: var(--bs-body-color); background: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color); border-radius: .6rem; }
+.vacations-module .vacation-balance-card > span,
+.vacations-module .vacation-detail-label { display: block; color: var(--bs-secondary-color); font-size: .76rem; font-weight: 600; letter-spacing: .035em; text-transform: uppercase; }
+.vacations-module .vacation-balance-card strong { display: block; margin: .1rem 0; font-size: 1.35rem; }
+.vacations-module .vacation-balance-card small { color: var(--bs-secondary-color); }
+.vacations-module .vacation-detail-card { height: 100%; padding: 1rem !important; background: var(--bs-tertiary-bg) !important; border: 1px solid var(--bs-border-color) !important; border-radius: .6rem; }
+.vacations-module .vacation-detail-value { display: block; margin-top: .3rem; color: var(--bs-body-color); font-weight: 600; }
+.vacations-module .invalid-feedback:not(.d-none) { display: block; }
+
+.vacations-module .table {
+    --bs-table-color: var(--sidebar-text, #26352d);
+    --bs-table-border-color: transparent;
+    --bs-table-striped-bg: rgba(28, 65, 43, .025);
+    --bs-table-hover-bg: var(--sidebar-hover, #f4f7f5);
+    margin-bottom: 0;
+    font-size: .9rem;
+}
+.vacations-module .table > :not(caption) > * > * { padding: .45rem .8rem; }
+.vacations-module .table thead th { color: #637168; background: transparent; border-bottom: 1px solid #e6ebe7; font-size: .76rem; font-weight: 650; }
+html.dark .vacations-module .table,
+html[data-bs-theme="dark"] .vacations-module .table { --bs-table-color: var(--sidebar-text, #fafaf9); --bs-table-bg: transparent; --bs-table-striped-bg: rgba(255, 255, 255, .035); --bs-table-hover-bg: var(--sidebar-hover, #20231f); }
+html.dark .vacations-module .table thead th,
+html[data-bs-theme="dark"] .vacations-module .table thead th { color: var(--sidebar-muted, #b1b5ad); border-bottom-color: var(--sidebar-border, #292c27); }
+@media (max-width: 575.98px) {
+    .vacations-module #vacationsTable { min-width: 1040px; }
+    .vacations-module .vacation-modal-body { padding: 1rem; }
+}
+
 /* admin/index.blade.php */
 .content-header:has(.rsu-page-heading){padding-bottom:8px}.content-header:has(.rsu-page-heading) .rsu-page-heading{display:flex;align-items:end;justify-content:space-between;max-width:1200px;margin:auto}.content-header:has(.rsu-page-heading) .rsu-page-heading h1{font-size:25px;line-height:1;font-weight:700;color:#14261e;margin:6px 0 0;letter-spacing:-.7px}.content-header:has(.rsu-page-heading) .rsu-eyebrow,
 .rsu-dashboard .rsu-kicker{color:#5f7469;font-size:10px;font-weight:800;letter-spacing:1.25px;text-transform:uppercase}.content-header:has(.rsu-page-heading) .rsu-date{color:#7d8c84;font-size:12px;padding-bottom:2px}.content-header:has(.rsu-page-heading) .rsu-date i{color:#1f7650;margin-right:6px}
