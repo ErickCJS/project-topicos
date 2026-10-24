@@ -17,8 +17,8 @@ class VacationService
             $employee = Employee::whereKey($data['employee_id'])->lockForUpdate()->firstOrFail();
             [$start, $end, $days] = $this->period($data);
             $this->assertCurrentEligibility($employee, $start, $end);
+            $this->assertNotPast($start);
             $this->lockAnnualRecords($employee->id, (int) $data['year']);
-            $this->assertAvailable($employee->id, (int) $data['year'], $start, $end, $days);
 
             $vacation = Vacation::create([
                 'employee_id' => $employee->id,
@@ -27,6 +27,9 @@ class VacationService
                 'end_date' => $end->toDateString(),
                 'scheduled_days' => $days,
                 'pending_days' => 0,
+                'status' => 'Pendiente',
+                'rejection_reason' => null,
+                'reviewed_at' => null,
             ]);
             $this->syncAnnualBalance($employee->id, (int) $data['year']);
 
@@ -44,6 +47,10 @@ class VacationService
                 $this->reject('employee_id', 'El trabajador de una vacación registrada no se puede cambiar.');
             }
 
+            if (! $vacation->isPending() && ! ($vacation->isApproved() && $vacation->isHistorical())) {
+                $this->reject('status', 'Solo las solicitudes pendientes pueden editarse.');
+            }
+
             [$start, $end, $days] = $this->period($data);
             if ($vacation->isHistorical()) {
                 if ((int) $data['year'] !== $vacation->year) {
@@ -58,6 +65,7 @@ class VacationService
                 $this->assertHistoricalEligibility($employee, $start, $end);
             } else {
                 $this->assertCurrentEligibility($employee, $start, $end);
+                $this->assertNotPast($start);
             }
 
             $oldYear = $vacation->year;
@@ -66,7 +74,9 @@ class VacationService
             if ($newYear !== $oldYear) {
                 $this->lockAnnualRecords($employee->id, $newYear);
             }
-            $this->assertAvailable($employee->id, $newYear, $start, $end, $days, $vacation->id);
+            if ($vacation->isApproved()) {
+                $this->assertAvailable($employee->id, $newYear, $start, $end, $days, $vacation->id);
+            }
 
             $vacation->update([
                 'year' => $newYear,
@@ -79,6 +89,70 @@ class VacationService
             if ($newYear !== $oldYear) {
                 $this->syncAnnualBalance($employee->id, $newYear);
             }
+
+            return $vacation->fresh();
+        }, 5);
+    }
+
+    public function approve(Vacation $original): Vacation
+    {
+        return DB::transaction(function () use ($original) {
+            $employee = Employee::whereKey($original->employee_id)->lockForUpdate()->firstOrFail();
+            $vacation = Vacation::whereKey($original->id)->lockForUpdate()->firstOrFail();
+
+            if (! $vacation->isPending()) {
+                $this->reject('status', 'Solo una solicitud pendiente puede aprobarse.');
+            }
+
+            if ($vacation->isHistorical()) {
+                $this->reject('status', 'Primero regularice el registro histórico asignándole fechas.');
+            }
+
+            [$start, $end, $days] = $this->period([
+                'year' => $vacation->year,
+                'start_date' => $vacation->start_date?->toDateString(),
+                'end_date' => $vacation->end_date?->toDateString(),
+            ]);
+            if ($vacation->isHistorical()) {
+                if ($days !== $vacation->scheduled_days) {
+                    $this->reject('status', 'El registro histórico debe regularizarse conservando sus días originales.');
+                }
+                $this->assertHistoricalEligibility($employee, $start, $end);
+            } else {
+                $this->assertCurrentEligibility($employee, $start, $end);
+                $this->assertNotPast($start);
+            }
+
+            $this->lockAnnualRecords($employee->id, $vacation->year);
+            $this->assertAvailable($employee->id, $vacation->year, $start, $end, $days, $vacation->id);
+
+            $vacation->update([
+                'status' => 'Aprobada',
+                'rejection_reason' => null,
+                'reviewed_at' => now(),
+            ]);
+            $this->syncAnnualBalance($employee->id, $vacation->year);
+
+            return $vacation->fresh();
+        }, 5);
+    }
+
+    public function rejectRequest(Vacation $original, string $reason): Vacation
+    {
+        return DB::transaction(function () use ($original, $reason) {
+            $employee = Employee::whereKey($original->employee_id)->lockForUpdate()->firstOrFail();
+            $vacation = Vacation::whereKey($original->id)->lockForUpdate()->firstOrFail();
+
+            if (! $vacation->isPending()) {
+                $this->reject('status', 'Solo una solicitud pendiente puede rechazarse.');
+            }
+
+            $vacation->update([
+                'status' => 'Rechazada',
+                'rejection_reason' => $reason,
+                'reviewed_at' => now(),
+            ]);
+            $this->syncAnnualBalance($employee->id, $vacation->year);
 
             return $vacation->fresh();
         }, 5);
@@ -99,6 +173,10 @@ class VacationService
                 );
             }
 
+            if (! $vacation->isPending()) {
+                $this->reject('status', 'Solo las solicitudes pendientes pueden eliminarse.');
+            }
+
             $this->lockAnnualRecords($employeeId, $year);
             $vacation->delete();
             $this->syncAnnualBalance($employeeId, $year);
@@ -107,7 +185,9 @@ class VacationService
 
     public function annualBalance(int $employeeId, int $year, ?int $excludingId = null): int
     {
-        $query = Vacation::query()->where('employee_id', $employeeId)->where('year', $year);
+        $query = Vacation::query()->where('employee_id', $employeeId)
+            ->where('year', $year)
+            ->where('status', 'Aprobada');
         if ($excludingId !== null) {
             $query->where('id', '!=', $excludingId);
         }
@@ -125,6 +205,13 @@ class VacationService
         }
 
         return [$start, $end, (int) $start->diffInDays($end) + 1];
+    }
+
+    private function assertNotPast(CarbonImmutable $start): void
+    {
+        if ($start->lt(CarbonImmutable::today())) {
+            $this->reject('start_date', 'La fecha de inicio de una solicitud ordinaria debe ser hoy o posterior.');
+        }
     }
 
     private function assertCurrentEligibility(Employee $employee, CarbonImmutable $start, CarbonImmutable $end): Contract
@@ -192,7 +279,9 @@ class VacationService
         int $days,
         ?int $excludingId = null,
     ): void {
-        $annual = Vacation::query()->where('employee_id', $employeeId)->where('year', $year);
+        $annual = Vacation::query()->where('employee_id', $employeeId)
+            ->where('year', $year)
+            ->where('status', 'Aprobada');
         if ($excludingId !== null) {
             $annual->where('id', '!=', $excludingId);
         }

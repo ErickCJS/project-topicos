@@ -10,8 +10,11 @@ class Vacation extends Model
 {
     public const ANNUAL_DAYS = 30;
 
+    public const STATUSES = ['Pendiente', 'Aprobada', 'Rechazada'];
+
     protected $fillable = [
         'employee_id', 'year', 'start_date', 'end_date', 'scheduled_days', 'pending_days',
+        'status', 'rejection_reason', 'reviewed_at',
     ];
 
     protected function casts(): array
@@ -22,6 +25,7 @@ class Vacation extends Model
             'end_date' => 'date',
             'scheduled_days' => 'integer',
             'pending_days' => 'integer',
+            'reviewed_at' => 'datetime',
         ];
     }
 
@@ -32,14 +36,17 @@ class Vacation extends Model
 
     public function scopeCovering(Builder $query, string $date): Builder
     {
-        return $query->whereNotNull('start_date')
+        return $query->where('status', 'Aprobada')
+            ->whereNotNull('start_date')
             ->whereDate('start_date', '<=', $date)
             ->whereDate('end_date', '>=', $date);
     }
 
     public static function employeeIsOnVacation(int $employeeId, string $date): bool
     {
-        return static::query()->where('employee_id', $employeeId)->covering($date)->exists();
+        return static::query()->where('employee_id', $employeeId)
+            ->covering($date)
+            ->exists();
     }
 
     public function isHistorical(): bool
@@ -49,18 +56,21 @@ class Vacation extends Model
 
     public function statusLabel(): string
     {
-        if ($this->isHistorical()) {
-            return 'Pendiente de regularización';
-        }
+        return $this->status ?: 'Pendiente';
+    }
 
-        if ($this->start_date->gt(today())) {
-            return 'Programada';
-        }
+    public function isPending(): bool
+    {
+        return $this->status === 'Pendiente';
+    }
 
-        if ($this->end_date->lt(today())) {
-            return 'Finalizada';
-        }
+    public function isApproved(): bool
+    {
+        return $this->status === 'Aprobada';
+    }
 
-        return 'En vacaciones';
+    public function isRejected(): bool
+    {
+        return $this->status === 'Rechazada';
     }
 }

@@ -51,6 +51,34 @@
             <div class="modal-content" id="vacationShowContent"></div>
         </div>
     </div>
+
+    <div class="modal fade" id="vacationRejectModal" data-bs-backdrop="static" data-bs-keyboard="false"
+        tabindex="-1" aria-labelledby="vacationRejectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="vacationRejectForm" method="POST">
+                    @csrf
+                    <div class="modal-header vacation-modal-header">
+                        <div class="vacation-modal-heading">
+                            <span class="vacation-modal-icon" aria-hidden="true"><i class="bi bi-x-circle"></i></span>
+                            <div><h5 class="modal-title mb-0" id="vacationRejectModalLabel">Rechazar solicitud</h5></div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body vacation-modal-body">
+                        <div class="alert alert-danger vacation-reject-error d-none" role="alert"></div>
+                        <label for="vacation_rejection_reason" class="form-label">Motivo del rechazo *</label>
+                        <textarea id="vacation_rejection_reason" name="rejection_reason" class="form-control" rows="4" maxlength="1000" required></textarea>
+                        <div class="invalid-feedback d-none" data-error-for="rejection_reason"></div>
+                    </div>
+                    <div class="modal-footer vacation-modal-footer">
+                        <button type="submit" class="btn btn-danger"><i class="bi bi-x-circle me-1"></i>Rechazar</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 @stop
 
@@ -61,6 +89,8 @@ $(function () {
     const formModal = bootstrap.Modal.getOrCreateInstance(formModalElement);
     const showModalElement = document.getElementById('vacationShowModal');
     const showModal = bootstrap.Modal.getOrCreateInstance(showModalElement);
+    const rejectModalElement = document.getElementById('vacationRejectModal');
+    const rejectModal = bootstrap.Modal.getOrCreateInstance(rejectModalElement);
     let balanceRequest = null;
 
     function alertMessage(success, message) {
@@ -226,6 +256,44 @@ $(function () {
         openForm($(this).data('url'));
     });
 
+    $(document).on('click', '.vacations-module .btnAprobar', function () {
+        const url = $(this).data('url');
+        Swal.fire({
+            title: '¿Aprobar solicitud?',
+            text: 'Se descontarán sus días del saldo anual y bloqueará la asignación del trabajador en esas fechas.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, aprobar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#198754'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            $.ajax({
+                url: url,
+                type: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function (response) {
+                    table.ajax.reload(null, false);
+                    alertMessage(true, response.mensaje || 'Solicitud aprobada correctamente.');
+                },
+                error: function (xhr) {
+                    showRequestError(xhr, 'No se pudo aprobar la solicitud.');
+                }
+            });
+        });
+    });
+
+    $(document).on('click', '.vacations-module .btnRechazar', function () {
+        $('#vacationRejectForm').attr('action', $(this).data('url'));
+        $('#vacation_rejection_reason').val('').removeClass('is-invalid');
+        $('[data-error-for="rejection_reason"]').text('').addClass('d-none');
+        $('.vacation-reject-error').addClass('d-none').text('');
+        rejectModal.show();
+    });
+
     $('#vacationFormModal').on('input change', '[name="employee_id"], [name="year"], [name="start_date"], [name="end_date"]', refreshCalculation);
 
     $('#vacationFormModal').on('submit', 'form', function (event) {
@@ -248,6 +316,42 @@ $(function () {
             },
             error: function (xhr) {
                 showRequestError(xhr, 'No se pudo guardar la vacación.', form);
+            },
+            complete: function () {
+                submit.prop('disabled', false);
+            }
+        });
+    });
+
+    $('#vacationRejectForm').on('submit', function (event) {
+        event.preventDefault();
+        const form = $(this);
+        const submit = form.find('[type="submit"]').prop('disabled', true);
+        form.find('.is-invalid').removeClass('is-invalid');
+        form.find('[data-error-for]').text('').addClass('d-none');
+        form.find('.vacation-reject-error').addClass('d-none').text('');
+
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: { Accept: 'application/json' },
+            success: function (response) {
+                rejectModal.hide();
+                table.ajax.reload(null, false);
+                alertMessage(true, response.mensaje || 'Solicitud rechazada correctamente.');
+            },
+            error: function (xhr) {
+                const response = xhr.responseJSON || {};
+                if (xhr.status === 422 && response.errors) {
+                    const messages = response.errors.rejection_reason || response.errors.status;
+                    if (messages) {
+                        form.find('[name="rejection_reason"]').addClass('is-invalid');
+                        form.find('[data-error-for="rejection_reason"]').removeClass('d-none').text(messages[0]);
+                    }
+                    return;
+                }
+                showRequestError(xhr, 'No se pudo rechazar la solicitud.');
             },
             complete: function () {
                 submit.prop('disabled', false);
@@ -292,6 +396,9 @@ $(function () {
     });
     showModalElement.addEventListener('hidden.bs.modal', function () {
         $('#vacationShowContent').empty();
+    });
+    rejectModalElement.addEventListener('hidden.bs.modal', function () {
+        $('#vacation_rejection_reason').val('').removeClass('is-invalid');
     });
 });
 </script>

@@ -19,6 +19,8 @@ Route::resource('contracts', ContractController::class)->only(['index', 'create'
 Route::patch('contracts/{id}/cancel', [ContractController::class, 'cancel'])->name('contracts.cancel');
 Route::get('vacations/check', [VacationController::class, 'check'])->name('vacations.check');
 Route::get('vacations/balance', [VacationController::class, 'balance'])->name('vacations.balance');
+Route::post('vacations/{vacation}/approve', [VacationController::class, 'approve'])->name('vacations.approve');
+Route::post('vacations/{vacation}/reject', [VacationController::class, 'reject'])->name('vacations.reject');
 Route::resource('vacations', VacationController::class)->names('vacations');
 Route::resource('brands', BrandController::class)->names('brands');
 Route::resource('vehicles', VehiclesController::class)->names('vehicles');
@@ -38,7 +40,7 @@ Route::get('holidays/resumen', [HolidaysController::class, 'resumenFeriados'])
 
 Route::resource('holidays', HolidaysController::class)
     ->names('holidays');
-    
+
 Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');
 Route::post('subirimagenes/{id_products}', [VehiclesController::class, 'subirimagenes'])->name('vehicles.photo.subirimagenes');
 Route::get('retonar_rutas_fotos/{id_product}', [VehiclesController::class, 'retonar_rutas_fotos'])->name('vehicles.photo.retonar_rutas_fotos');

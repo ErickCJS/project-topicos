@@ -30,7 +30,8 @@ class VacationController extends Controller
                     $query->from('vacations as annual_vacations')
                         ->selectRaw('COALESCE(SUM(annual_vacations.scheduled_days), 0)')
                         ->whereColumn('annual_vacations.employee_id', 'vacations.employee_id')
-                        ->whereColumn('annual_vacations.year', 'vacations.year');
+                        ->whereColumn('annual_vacations.year', 'vacations.year')
+                        ->where('annual_vacations.status', 'Aprobada');
                 }, 'annual_scheduled_days');
 
             return DataTables::eloquent($query)
@@ -49,20 +50,28 @@ class VacationController extends Controller
                 ->editColumn('status', function (Vacation $vacation) {
                     $status = $vacation->statusLabel();
                     $class = match ($status) {
-                        'En vacaciones' => 'text-bg-success',
-                        'Programada' => 'text-bg-info',
-                        'Finalizada' => 'text-bg-secondary',
+                        'Aprobada' => 'text-bg-success',
+                        'Rechazada' => 'text-bg-secondary',
                         default => 'text-bg-warning',
                     };
 
                     return '<span class="badge '.$class.'">'.e($status).'</span>';
                 })
                 ->addColumn('actions', function (Vacation $vacation) {
-                    return '<div class="vacation-actions">'
-                        .'<button type="button" class="btn btn-info btn-sm vacation-action-btn btnVer" data-url="'.e(route('vacations.show', $vacation)).'" title="Ver" aria-label="Ver vacación"><i class="bi bi-eye" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-warning btn-sm vacation-action-btn btnEditar" data-url="'.e(route('vacations.edit', $vacation)).'" title="Editar" aria-label="Editar vacación"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-danger btn-sm vacation-action-btn btnEliminar" data-url="'.e(route('vacations.destroy', $vacation)).'" title="Eliminar" aria-label="Eliminar vacación"><i class="bi bi-trash" aria-hidden="true"></i></button>'
-                        .'</div>';
+                    $actions = '<div class="vacation-actions">'
+                        .'<button type="button" class="btn btn-info btn-sm vacation-action-btn btnVer" data-url="'.e(route('vacations.show', $vacation)).'" title="Ver" aria-label="Ver vacación"><i class="bi bi-eye" aria-hidden="true"></i></button>';
+
+                    if ($vacation->isPending() || ($vacation->isApproved() && $vacation->isHistorical())) {
+                        $actions .= '<button type="button" class="btn btn-warning btn-sm vacation-action-btn btnEditar" data-url="'.e(route('vacations.edit', $vacation)).'" title="Editar" aria-label="Editar vacación"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+                    }
+
+                    if ($vacation->isPending()) {
+                        $actions .= '<button type="button" class="btn btn-danger btn-sm vacation-action-btn btnEliminar" data-url="'.e(route('vacations.destroy', $vacation)).'" title="Eliminar" aria-label="Eliminar vacación"><i class="bi bi-trash" aria-hidden="true"></i></button>'
+                            .'<button type="button" class="btn btn-success btn-sm vacation-action-btn btnAprobar" data-url="'.e(route('vacations.approve', $vacation)).'" title="Aprobar" aria-label="Aprobar vacación"><i class="bi bi-check-circle" aria-hidden="true"></i></button>'
+                            .'<button type="button" class="btn btn-secondary btn-sm vacation-action-btn btnRechazar" data-url="'.e(route('vacations.reject', $vacation)).'" title="Rechazar" aria-label="Rechazar vacación"><i class="bi bi-x-circle" aria-hidden="true"></i></button>';
+                    }
+
+                    return $actions.'</div>';
                 })
                 ->rawColumns(['status', 'actions'])
                 ->toJson();
@@ -82,7 +91,7 @@ class VacationController extends Controller
 
         return response()->json([
             'mensaje' => 'Vacación registrada correctamente.',
-            'data' => ['id' => $vacation->id, 'scheduled_days' => $vacation->scheduled_days, 'balance' => $vacation->pending_days],
+            'data' => ['id' => $vacation->id, 'scheduled_days' => $vacation->scheduled_days, 'status' => $vacation->status, 'balance' => $vacation->pending_days],
         ], 201);
     }
 
@@ -106,13 +115,40 @@ class VacationController extends Controller
 
     public function update(Request $request, Vacation $vacation, VacationService $service)
     {
-        $updated = $service->update($vacation, $this->validatedData($request));
+        $updated = $service->update($vacation, $this->validatedData($request, $vacation));
 
         return response()->json([
             'mensaje' => $vacation->isHistorical()
                 ? 'Vacación histórica regularizada correctamente.'
                 : 'Vacación actualizada correctamente.',
-            'data' => ['id' => $updated->id, 'scheduled_days' => $updated->scheduled_days, 'balance' => $updated->pending_days],
+            'data' => ['id' => $updated->id, 'scheduled_days' => $updated->scheduled_days, 'status' => $updated->status, 'balance' => $updated->pending_days],
+        ]);
+    }
+
+    public function approve(Vacation $vacation, VacationService $service)
+    {
+        $approved = $service->approve($vacation);
+
+        return response()->json([
+            'mensaje' => 'Solicitud de vacaciones aprobada correctamente.',
+            'data' => ['id' => $approved->id, 'status' => $approved->status, 'balance' => $approved->pending_days],
+        ]);
+    }
+
+    public function reject(Request $request, Vacation $vacation, VacationService $service)
+    {
+        $data = $request->validate([
+            'rejection_reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'rejection_reason.required' => 'Ingrese el motivo del rechazo.',
+            'rejection_reason.string' => 'El motivo del rechazo no es válido.',
+            'rejection_reason.max' => 'El motivo del rechazo no debe superar los 1000 caracteres.',
+        ]);
+        $rejected = $service->rejectRequest($vacation, trim($data['rejection_reason']));
+
+        return response()->json([
+            'mensaje' => 'Solicitud de vacaciones rechazada correctamente.',
+            'data' => ['id' => $rejected->id, 'status' => $rejected->status, 'balance' => $rejected->pending_days],
         ]);
     }
 
@@ -189,12 +225,17 @@ class VacationController extends Controller
         ]);
     }
 
-    private function validatedData(Request $request): array
+    private function validatedData(Request $request, ?Vacation $vacation = null): array
     {
+        $startRules = ['required', 'date_format:Y-m-d'];
+        if (! $vacation || ! $vacation->isHistorical()) {
+            $startRules[] = 'after_or_equal:today';
+        }
+
         return $request->validate([
             'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'year' => ['required', 'integer', 'between:1900,2100'],
-            'start_date' => ['required', 'date_format:Y-m-d'],
+            'start_date' => $startRules,
             'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
         ], [
             'employee_id.required' => 'Seleccione un empleado.',
@@ -204,6 +245,7 @@ class VacationController extends Controller
             'year.between' => 'El año debe estar entre 1900 y 2100.',
             'start_date.required' => 'Ingrese la fecha de inicio.',
             'start_date.date_format' => 'La fecha de inicio no es válida.',
+            'start_date.after_or_equal' => 'La fecha de inicio de una solicitud ordinaria debe ser hoy o posterior.',
             'end_date.required' => 'Ingrese la fecha de término.',
             'end_date.date_format' => 'La fecha de término no es válida.',
             'end_date.after_or_equal' => 'La fecha de término no puede ser anterior a la fecha de inicio.',
