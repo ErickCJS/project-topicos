@@ -9,6 +9,7 @@ use App\Http\Controllers\admin\HolidaysController;
 use App\Http\Controllers\admin\ContractController;
 use App\Http\Controllers\admin\EmployeeController;
 use App\Http\Controllers\admin\EmployeeTypeController;
+use App\Http\Controllers\admin\ShiftController;
 use App\Http\Controllers\admin\VacationController;
 use App\Http\Controllers\admin\VehiclesController;
 use App\Http\Controllers\admin\VehicletypeController;
@@ -40,7 +41,7 @@ Route::get('holidays/resumen', [HolidaysController::class, 'resumenFeriados'])
 
 Route::resource('holidays', HolidaysController::class)
     ->names('holidays');
-
+Route::resource('shifts', ShiftController::class)->names('shifts');
 Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');
 Route::post('subirimagenes/{id_products}', [VehiclesController::class, 'subirimagenes'])->name('vehicles.photo.subirimagenes');
 Route::get('retonar_rutas_fotos/{id_product}', [VehiclesController::class, 'retonar_rutas_fotos'])->name('vehicles.photo.retonar_rutas_fotos');
