@@ -16,7 +16,7 @@ return new class extends Migration
             $table->boolean('state')->default(true);
             $table->timestamps();
             $table->unsignedSmallInteger('year')
-                ->storedAs('YEAR(date)');
+                ->storedAs(Schema::getConnection()->getDriverName() === 'sqlite' ? "CAST(strftime('%Y', date) AS INTEGER)" : 'YEAR(date)');
             $table->unique(['name', 'year']);
         });
     }
