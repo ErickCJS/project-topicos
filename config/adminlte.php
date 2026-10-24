@@ -774,74 +774,101 @@ return [
             'icon' => 'fas fa-house',
         ],
         [
-            'header' => 'Vehículos',
-        ],
-        [
-            'text' => 'Vehículos',
-            'route' => 'vehicles.index',
+            'text' => 'Gestión de vehículos',
             'icon' => 'fas fa-truck',
+            'submenu' => [
+                [
+                    'text' => 'Vehículos',
+                    'route' => 'vehicles.index',
+                    'icon' => 'fas fa-truck',
+                ],
+                [
+                    'text' => 'Marcas',
+                    'route' => 'brands.index',
+                    'icon' => 'fas fa-tag',
+                ],
+                [
+                    'text' => 'Modelos',
+                    'route' => 'brandsmodel.index',
+                    'icon' => 'fas fa-cubes',
+                ],
+                [
+                    'text' => 'Colores',
+                    'route' => 'vehiclescolor.index',
+                    'icon' => 'fas fa-palette',
+                ],
+                [
+                    'text' => 'Tipos de vehículo',
+                    'route' => 'vehiclestype.index',
+                    'icon' => 'fas fa-list',
+                ],
+            ],
         ],
         [
-            'text' => 'Marcas',
-            'route' => 'brands.index',
-            'icon' => 'fas fa-tag',
-        ],
-        [
-            'text' => 'Modelos',
-            'route' => 'brandsmodel.index',
-            'icon' => 'fas fa-cubes',
-        ],
-        [
-            'text' => 'Colores',
-            'route' => 'vehiclescolor.index',
-            'icon' => 'fas fa-palette',
-        ],
-        [
-            'text' => 'Tipos de vehículo',
-            'route' => 'vehiclestype.index',
-            'icon' => 'fas fa-list',
-        ],
-        [
-            'header' => 'Personal',
-        ],
-        [
-            'text' => 'Personal',
-            'route' => 'personal.employees.index',
-            'icon' => 'bi bi-person-vcard',
-        ],
-        [
-            'text' => 'Tipos de personal',
-            'route' => 'employee-types.index',
+            'text' => 'Gestión de personal',
             'icon' => 'fas fa-users',
-        ],
+            'submenu' => [
+                [
+                    'text' => 'Personal',
+                    'route' => 'personal.employees.index',
+                    'icon' => 'bi bi-person-vcard',
+                ],
+                [
+                    'text' => 'Tipos de personal',
+                    'route' => 'employee-types.index',
+                    'icon' => 'fas fa-users',
+                ],
+                [
+                    'text' => 'Contratos',
+                    'route' => 'contracts.index',
+                    'icon' => 'bi bi-file-earmark-text',
+                ],
+                [
+                    'text' => 'Vacaciones',
+                    'route' => 'vacations.index',
+                    'icon' => 'bi bi-calendar2-week',
+                ],
 
-        [
-            'text' => 'Contratos',
-            'route' => 'contracts.index',
-            'icon' => 'bi bi-file-earmark-text',
+                [
+                    'text' => 'Asistencias',
+                    'route' => 'attendances.index',
+                    'icon' => 'fas fa-clipboard-check',
+                ],
+          
+            ],
         ],
         [
-            'text' => 'Vacaciones',
-            'route' => 'vacations.index',
+            'text' => 'Programación',
             'icon' => 'bi bi-calendar2-week',
-        ],
-        [
-            'text' => 'Turnos',
-            'route' => 'shifts.index',
-            'icon' => 'bi bi-clock',
-        ],
-        [
-            'text' => 'Asistencias',
-            'route' => 'attendances.index',
-            'icon' => 'fas fa-clipboard-check',
-        ],
-        [
-            'text' => 'Feriados',
-            'route' => 'holidays.index',
-            'icon' => 'fas fa-calendar-days',
-        ],
+            'submenu' => [
+                [
+                    'text' => 'Turnos',
+                    'route' => 'shifts.index',
+                    'icon' => 'bi bi-clock',
+                ],
+                [
+                    'text' => 'Zonas',
+                    'route' => 'zones.index',
+                    'icon' => 'bi bi-geo-alt',
+                ],
+                [
+                    'text' => 'Feriados',
+                    'route' => 'holidays.index',
+                    'icon' => 'bi bi-calendar2-check',
+                ],
+                [
+                    'text' => 'Grupo de personal',
+                    'route' => 'staff_group.index',
+                    'icon' => 'bi bi-people',
+                ],
+                [
+                    'text' => 'Programación',
+                    'route' => 'programming.index',
+                    'icon' => 'bi bi-calendar-week',
+                ],
+            ],
+        ]
     ],
-
     /*
     |--------------------------------------------------------------------------
     | Menu Filters
