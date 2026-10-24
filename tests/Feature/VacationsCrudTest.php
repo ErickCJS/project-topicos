@@ -99,15 +99,19 @@ class VacationsCrudTest extends TestCase
 
     public function test_fractioned_periods_count_calendar_days_and_keep_one_annual_balance(): void
     {
-        $this->postJson(route('vacations.store'), $this->data([
+        $first = $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-07-03',
             'end_date' => '2026-07-06',
-        ]))->assertCreated()->assertJsonPath('data.scheduled_days', 4)->assertJsonPath('data.balance', 26);
+        ]))->assertCreated()->assertJsonPath('data.scheduled_days', 4)->assertJsonPath('data.balance', 30);
+        $this->postJson(route('vacations.approve', $first->json('data.id')))
+            ->assertOk()->assertJsonPath('data.balance', 26);
 
-        $this->postJson(route('vacations.store'), $this->data([
+        $second = $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-08-10',
             'end_date' => '2026-08-15',
-        ]))->assertCreated()->assertJsonPath('data.scheduled_days', 6)->assertJsonPath('data.balance', 20);
+        ]))->assertCreated()->assertJsonPath('data.scheduled_days', 6)->assertJsonPath('data.balance', 26);
+        $this->postJson(route('vacations.approve', $second->json('data.id')))
+            ->assertOk()->assertJsonPath('data.balance', 20);
 
         $this->assertSame([20, 20], Vacation::orderBy('id')->pluck('pending_days')->all());
         $this->assertSame([4, 6], Vacation::orderBy('id')->pluck('scheduled_days')->all());
@@ -115,32 +119,39 @@ class VacationsCrudTest extends TestCase
 
     public function test_limit_overlap_and_cross_year_periods_are_rejected(): void
     {
-        $this->postJson(route('vacations.store'), $this->data([
+        $first = $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-07-01',
             'end_date' => '2026-07-20',
         ]))->assertCreated();
+        $this->postJson(route('vacations.approve', $first->json('data.id')))->assertOk();
 
-        $this->postJson(route('vacations.store'), $this->data([
+        $overLimit = $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-08-01',
             'end_date' => '2026-08-11',
-        ]))->assertUnprocessable()->assertJsonValidationErrors('end_date');
+        ]))->assertCreated();
+        $this->postJson(route('vacations.approve', $overLimit->json('data.id')))
+            ->assertUnprocessable()->assertJsonValidationErrors('end_date');
 
-        $this->postJson(route('vacations.store'), $this->data([
+        $overlap = $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-07-20',
             'end_date' => '2026-07-22',
-        ]))->assertUnprocessable()->assertJsonValidationErrors('start_date');
+        ]))->assertCreated();
+        $this->postJson(route('vacations.approve', $overlap->json('data.id')))
+            ->assertUnprocessable()->assertJsonValidationErrors('start_date');
 
         $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-12-30',
             'end_date' => '2027-01-02',
         ]))->assertUnprocessable()->assertJsonValidationErrors('end_date');
 
-        $this->postJson(route('vacations.store'), $this->data([
+        $exact = $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-08-01',
             'end_date' => '2026-08-10',
-        ]))->assertCreated()->assertJsonPath('data.balance', 0);
+        ]))->assertCreated();
+        $this->postJson(route('vacations.approve', $exact->json('data.id')))
+            ->assertOk()->assertJsonPath('data.balance', 0);
 
-        $this->assertDatabaseCount('vacations', 2);
+        $this->assertDatabaseCount('vacations', 4);
     }
 
     public function test_historical_days_count_but_do_not_block_dates_and_regularization_does_not_duplicate_them(): void
@@ -150,20 +161,24 @@ class VacationsCrudTest extends TestCase
             'year' => 2026,
             'scheduled_days' => 10,
             'pending_days' => 10,
+            'status' => 'Aprobada',
         ]);
 
-        $this->postJson(route('vacations.store'), $this->data([
+        $new = $this->postJson(route('vacations.store'), $this->data([
             'start_date' => '2026-07-01',
             'end_date' => '2026-07-05',
-        ]))->assertCreated()->assertJsonPath('data.balance', 15);
+        ]))->assertCreated()->assertJsonPath('data.balance', 20);
+        $this->postJson(route('vacations.approve', $new->json('data.id')))
+            ->assertOk()->assertJsonPath('data.balance', 15);
         $this->assertSame([15, 15], Vacation::orderBy('id')->pluck('pending_days')->all());
 
         $listing = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('vacations.index', ['draw' => 1, 'start' => 0, 'length' => 10]));
         $this->assertStringContainsString(
-            'Pendiente de regularización',
+            'Aprobada',
             collect($listing->json('data'))->pluck('status')->implode(' '),
         );
+        $this->assertContains('Sin fechas', collect($listing->json('data'))->pluck('period')->all());
 
         $this->putJson(route('vacations.update', $historical), $this->data([
             'start_date' => '2026-08-01',
@@ -239,6 +254,56 @@ class VacationsCrudTest extends TestCase
         ]);
     }
 
+    public function test_new_request_is_pending_and_rejection_requires_a_reason(): void
+    {
+        $response = $this->postJson(route('vacations.store'), $this->data([
+            'start_date' => '2026-11-01',
+            'end_date' => '2026-11-03',
+        ]))->assertCreated()
+            ->assertJsonPath('data.status', 'Pendiente')
+            ->assertJsonPath('data.balance', 30);
+        $vacation = Vacation::findOrFail($response->json('data.id'));
+
+        $this->postJson(route('vacations.reject', $vacation), [])
+            ->assertUnprocessable()->assertJsonValidationErrors('rejection_reason');
+        $this->postJson(route('vacations.reject', $vacation), ['rejection_reason' => 'No corresponde al cronograma autorizado.'])
+            ->assertOk()->assertJsonPath('data.status', 'Rechazada')->assertJsonPath('data.balance', 30);
+
+        $this->postJson(route('vacations.approve', $vacation))
+            ->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->postJson(route('vacations.reject', $vacation), ['rejection_reason' => 'Otro motivo'])
+            ->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->get(route('vacations.show', $vacation->fresh()))
+            ->assertOk()->assertSee('No corresponde al cronograma autorizado.');
+    }
+
+    public function test_pending_requests_do_not_consume_balance_or_block_availability_until_approved(): void
+    {
+        $response = $this->postJson(route('vacations.store'), $this->data([
+            'start_date' => '2026-12-01',
+            'end_date' => '2026-12-05',
+        ]))->assertCreated()->assertJsonPath('data.balance', 30);
+        $vacation = Vacation::findOrFail($response->json('data.id'));
+
+        $this->getJson(route('vacations.check', ['employee_id' => $this->employeeId, 'date' => '2026-12-03']))
+            ->assertOk()->assertJsonPath('on_vacation', false);
+        $this->getJson(route('vacations.balance', ['employee_id' => $this->employeeId, 'year' => 2026]))
+            ->assertOk()->assertJsonPath('available_days', 30);
+
+        $this->postJson(route('vacations.approve', $vacation))
+            ->assertOk()->assertJsonPath('data.status', 'Aprobada')->assertJsonPath('data.balance', 25);
+        $this->getJson(route('vacations.check', ['employee_id' => $this->employeeId, 'date' => '2026-12-03']))
+            ->assertOk()->assertJsonPath('on_vacation', true);
+    }
+
+    public function test_ordinary_new_requests_cannot_start_in_the_past(): void
+    {
+        $this->postJson(route('vacations.store'), $this->data([
+            'start_date' => '2026-05-01',
+            'end_date' => '2026-05-03',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('start_date');
+    }
+
     public function test_crud_listing_modals_and_accidental_delete_protection(): void
     {
         $this->get(route('vacations.index'))
@@ -252,7 +317,7 @@ class VacationsCrudTest extends TestCase
             ->assertSee('data-error-for="start_date"', false)
             ->assertSee('data-error-for="end_date"', false);
 
-        $this->postJson(route('vacations.store'), $this->data())->assertCreated();
+        $new = $this->postJson(route('vacations.store'), $this->data())->assertCreated();
         $vacation = Vacation::first();
 
         $listing = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
@@ -261,7 +326,8 @@ class VacationsCrudTest extends TestCase
             ->assertJsonPath('recordsTotal', 1)
             ->assertJsonPath('data.0.dni', '12345678')
             ->assertJsonPath('data.0.scheduled_days', 10)
-            ->assertJsonPath('data.0.balance', 20)
+            ->assertJsonPath('data.0.balance', 30)
+            ->assertJsonPath('data.0.status', '<span class="badge text-bg-warning">Pendiente</span>')
             ->assertJsonPath('data.0.period', '01/07/2026 - 10/07/2026');
         $actions = (string) $listing->json('data.0.actions');
         $this->assertStringContainsString('btn btn-info btn-sm', $actions);
@@ -270,6 +336,8 @@ class VacationsCrudTest extends TestCase
         $this->assertStringContainsString('bi bi-pencil-square', $actions);
         $this->assertStringContainsString('btn btn-danger btn-sm', $actions);
         $this->assertStringContainsString('bi bi-trash', $actions);
+        $this->assertStringContainsString('btnAprobar', $actions);
+        $this->assertStringContainsString('btnRechazar', $actions);
 
         $this->get(route('vacations.show', $vacation))->assertOk()->assertSee('Detalle de la vacación');
         $this->get(route('vacations.edit', $vacation))->assertOk()->assertSee('Editar vacación');
@@ -277,12 +345,22 @@ class VacationsCrudTest extends TestCase
         $this->putJson(route('vacations.update', $vacation), $this->data([
             'start_date' => '2026-09-01',
             'end_date' => '2026-09-05',
-        ]))->assertOk()->assertJsonPath('data.balance', 25);
+        ]))->assertOk()->assertJsonPath('data.balance', 30);
 
-        $this->deleteJson(route('vacations.destroy', $vacation))->assertUnprocessable();
-        $this->assertDatabaseHas('vacations', ['id' => $vacation->id]);
-        $this->deleteJson(route('vacations.destroy', $vacation), ['confirmed' => true])->assertOk();
-        $this->assertDatabaseMissing('vacations', ['id' => $vacation->id]);
+        $this->postJson(route('vacations.approve', $vacation))
+            ->assertOk()->assertJsonPath('data.balance', 25);
+        $this->deleteJson(route('vacations.destroy', $vacation), ['confirmed' => true])
+            ->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->assertDatabaseHas('vacations', ['id' => $vacation->id, 'status' => 'Aprobada']);
+
+        $pending = $this->postJson(route('vacations.store'), $this->data([
+            'start_date' => '2026-10-01',
+            'end_date' => '2026-10-02',
+        ]))->assertCreated();
+        $pendingVacation = Vacation::findOrFail($pending->json('data.id'));
+        $this->deleteJson(route('vacations.destroy', $pendingVacation), ['confirmed' => true])->assertOk();
+        $this->assertDatabaseHas('vacations', ['id' => $vacation->id, 'status' => 'Aprobada']);
+        $this->assertDatabaseMissing('vacations', ['id' => $pendingVacation->id]);
     }
 
     public function test_availability_endpoint_ignores_historical_rows_and_finds_dated_periods(): void
@@ -292,8 +370,10 @@ class VacationsCrudTest extends TestCase
             'year' => 2026,
             'scheduled_days' => 5,
             'pending_days' => 25,
+            'status' => 'Aprobada',
         ]);
-        $this->postJson(route('vacations.store'), $this->data())->assertCreated();
+        $new = $this->postJson(route('vacations.store'), $this->data())->assertCreated();
+        $this->postJson(route('vacations.approve', $new->json('data.id')))->assertOk();
 
         $this->getJson(route('vacations.check', ['employee_id' => $this->employeeId, 'date' => '2026-07-05']))
             ->assertOk()->assertJsonPath('on_vacation', true)
@@ -332,6 +412,7 @@ class VacationsCrudTest extends TestCase
             'end_date' => '2026-07-10',
             'scheduled_days' => 10,
             'pending_days' => 20,
+            'status' => 'Aprobada',
         ]);
         auth()->logout();
 
@@ -339,6 +420,9 @@ class VacationsCrudTest extends TestCase
         $this->postJson(route('vacations.store'), $this->data())->assertUnauthorized();
         $this->putJson(route('vacations.update', $vacation), $this->data())->assertUnauthorized();
         $this->deleteJson(route('vacations.destroy', $vacation), ['confirmed' => true])->assertUnauthorized();
+        $this->postJson(route('vacations.approve', $vacation))->assertUnauthorized();
+        $this->postJson(route('vacations.reject', $vacation), ['rejection_reason' => 'Motivo'])
+            ->assertUnauthorized();
         $this->getJson(route('vacations.check', ['employee_id' => $this->employeeId, 'date' => '2026-07-01']))
             ->assertUnauthorized();
     }
@@ -372,6 +456,7 @@ class VacationsCrudTest extends TestCase
             'year' => 2026,
             'scheduled_days' => $scheduledDays,
             'pending_days' => $scheduledDays,
+            'status' => 'Aprobada',
         ]);
     }
 }
