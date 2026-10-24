@@ -831,6 +831,11 @@ return [
             'icon' => 'bi bi-clock',
         ],
         [
+            'text' => 'Zonas',
+            'route' => 'zones.index',
+            'icon' => 'bi bi-geo-alt',
+        ],
+        [
             'text' => 'Asistencias',
             'route' => 'attendances.index',
             'icon' => 'fas fa-clipboard-check',
