@@ -826,6 +826,11 @@ return [
             'icon' => 'bi bi-calendar2-week',
         ],
         [
+            'text' => 'Turnos',
+            'route' => 'shifts.index',
+            'icon' => 'bi bi-clock',
+        ],
+        [
             'text' => 'Asistencias',
             'route' => 'attendances.index',
             'icon' => 'fas fa-clipboard-check',
