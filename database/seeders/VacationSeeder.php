@@ -31,7 +31,7 @@ class VacationSeeder extends Seeder
                 'employee_id' => $employeeId,
                 'year' => 2026,
                 'scheduled_days' => $days,
-                'pending_days' => $days,
+                'pending_days' => 30 - $days,
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
