@@ -39,6 +39,9 @@ Route::resource('attendances', AttendancesController::class)->names('attendances
 Route::get('holidays/resumen', [HolidaysController::class, 'resumenFeriados'])
     ->name('holidays.resumen');
 
+Route::post('holidays/cargaferiado', [HolidaysController::class, 'cargaFeriado'])
+    ->name('holidays.cargaFeriado');
+
 Route::resource('holidays', HolidaysController::class)
     ->names('holidays');
 Route::resource('shifts', ShiftController::class)->names('shifts');

@@ -34,5 +34,9 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'feriados' => [
+        'base_url' => 'https://api.feriados.io/v1',
+        'key' => env('FERIADOS_API_KEY'),
+    ],
 
 ];
