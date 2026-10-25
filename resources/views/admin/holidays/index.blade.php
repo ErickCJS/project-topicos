@@ -11,9 +11,15 @@
                 <h4 class="mb-1">Listado de Feriados</h4>
                 <p class="text-muted small mb-0">Consulta y organiza los días no laborables.</p>
             </div>
-            <button type="button" class="btn btn-success" id="btnNuevo">
-                <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Feriado
-            </button>
+            <div class="mx-end">
+                <button type="button" class="btn btn-secondary me-2" id="btn-feriados">
+                    <i class="bi bi-cloud-arrow-down me-1 " aria-hidden="true"></i>Carga Feriado Perú
+                </button>
+                <button type="button" class="btn btn-success" id="btnNuevo">
+                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Feriado
+                </button>
+            </div>
+       
         </div>
 
         {{-- Valores visuales temporales: aún no están vinculados a la base de datos. --}}
@@ -45,21 +51,35 @@
                 <form class="holiday-filter-form" onsubmit="return false;">
                     <div class="holiday-filter-field">
                         <label for="holidayStartDate">Fecha inicio</label>
-                        <input id="holidayStartDate" class="form-control" type="date">
+                        <input id="holidayStartDate" class="form-control" type="date" 
+                           min="{{ now()->startOfYear()->format('Y-m-d') }}"
+                            max="{{ now()->endOfYear()->format('Y-m-d') }}"
+                        >
                     </div>
                     <div class="holiday-filter-field">
                         <label for="holidayEndDate">Fecha fin</label>
-                        <input id="holidayEndDate" class="form-control" type="date">
+                        <input id="holidayEndDate" class="form-control" type="date"
+                            min="{{ now()->startOfYear()->format('Y-m-d') }}"
+                            max="{{ now()->endOfYear()->format('Y-m-d') }}"
+                        >
                     </div>
                     <div class="holiday-filter-field">
                         <label for="holidayStatus">Estado</label>
                         <select id="holidayStatus" class="form-select">
-                            <option>Todos</option>
+                            <option value="2">Todos</option>
+                            <option value="1">Activo</option>
+                            <option value="0">Inactivo</option>
+
                         </select>
                     </div>
                     <div class="holiday-filter-actions">
-                        <button class="btn btn-primary" type="button"><i class="bi bi-search me-1" aria-hidden="true"></i>Filtrar</button>
-                        <button class="btn btn-outline-secondary" type="button"><i class="bi bi-x-lg me-1" aria-hidden="true"></i>Limpiar</button>
+                        <button id="btnFiltrar" class="btn btn-primary" type="button">
+                            <i class="bi bi-search me-1" aria-hidden="true"></i>Filtrar
+                        </button>
+
+                        <button id="btnLimpiar" class="btn btn-outline-secondary" type="button">
+                            <i class="bi bi-x-lg me-1" aria-hidden="true"></i>Limpiar
+                        </button>
                     </div>
                 </form>
             </div>
@@ -145,7 +165,15 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('holidays.index') }}",
+        ajax: {
+            url: "{{ route('holidays.index') }}",
+            type: 'GET',
+            data: function (d) {
+                d.fechaInicio = $('#holidayStartDate').val();
+                d.fechaFin = $('#holidayEndDate').val();
+                d.estado = $('#holidayStatus').val();
+            }
+        },
         columns: [
             { data: 'date'},
             { data: 'name'},
@@ -206,14 +234,7 @@ $(function () {
         });
     });
 
-    $(document).on('click', '.btnVer', function () {
-        $.get($(this).data('url'), function (response) {
-            $('#brandShowContent').html(response);
-            showModal.show();
-        }).fail(function (error) {
-            mostrar_alerta(0, mensajeError(error, 'No se pudo cargar el feriado.'));
-        });
-    });
+  
 
     $(document).on('click', '.btnEditar', function () {
         const holiday_id = $(this).data('id');
@@ -293,6 +314,73 @@ $(function () {
                 }
             });
         });
+    });
+
+    $('#btn-feriados').on('click', function () {
+        const boton = this;
+        Swal.fire({
+            title: '¿Cargar feriados de Perú?',
+            text: 'Se cargarán los días feriados oficiales del Perú, para el año actual',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#b54747',
+            cancelButtonColor: '#f8faf8',
+            confirmButtonText: 'Sí, cargar!',
+            cancelButtonText: 'Cancelar'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            boton.disabled = true;
+
+            $.ajax({
+                url: '/admin/holidays/cargaferiado',
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function (response) {
+                    refresTable();
+                    mostrar_alerta(1, response.mensaje);
+                },
+                error: function (error) {
+                    mostrar_alerta(0, mensajeError(error, 'No se pudo guardar este feriado'));
+                },
+                complete: function() {
+                    boton.disabled = false;
+                }
+            });
+        });
+    });
+
+    $('#btnFiltrar').on('click', function () {
+        table.ajax.reload();
+    });
+
+
+    $('#btnLimpiar').on('click', function () {
+        $('#holidayStartDate').val('');
+        $('#holidayEndDate').val('');
+        $('#holidayStatus').val('2');
+        // Limpiar el buscador propio de DataTables
+        $('#dt-search-0').val('');
+
+        // Quitar el filtro de búsqueda de DataTables
+        table.search('');
+
+        // Recargar la tabla
+        table.ajax.reload();
+    });
+    $('#holidayStartDate').on('change', function () {
+        $('#holidayEndDate').attr(
+            'min',
+            this.value || "{{ now()->startOfYear()->format('Y-m-d') }}"
+        );
+    });
+
+    $('#holidayEndDate').on('change', function () {
+        $('#holidayStartDate').attr(
+            'max',
+            this.value || "{{ now()->endOfYear()->format('Y-m-d') }}"
+        );
     });
 });
 </script>

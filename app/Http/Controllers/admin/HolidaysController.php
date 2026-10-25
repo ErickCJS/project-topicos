@@ -7,6 +7,7 @@ use App\Models\admin\Holiday;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use Carbon\Carbon as Carbon;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 
 class HolidaysController extends Controller
@@ -20,7 +21,21 @@ class HolidaysController extends Controller
 
         if ($request->ajax()) {
 
-            $holidays = Holiday::query()->orderBy('date');
+            $holidays = Holiday::query();
+
+            if ($request->filled('fechaInicio')) {
+                $holidays->whereDate('date', '>=', $request->fechaInicio);
+            }
+
+            if ($request->filled('fechaFin')) {
+                $holidays->whereDate('date', '<=', $request->fechaFin);
+            }
+
+            if ($request->estado !== null && $request->estado !== '2') {
+                $holidays->where('state', $request->estado);
+            }
+
+            $holidays->orderBy('date');
 
             return DataTables::eloquent($holidays)
                 ->editColumn('date', function ($holiday) {
@@ -225,4 +240,81 @@ class HolidaysController extends Controller
             ], 500);
         }
     }
+    //cargas de feriados 
+    public function cargaFeriado()
+    {
+        try {
+            $anio = now()->year;
+            $apiKey = config('services.feriados.key');
+            if (empty($apiKey)) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'La API key no está configurada.'
+                ], 500);
+            }
+            $response = Http::timeout(10)
+                ->withToken($apiKey)
+                ->get(
+                    config('services.feriados.base_url')
+                        . "/PE/holidays/{$anio}"
+                );
+
+            if ($response->failed()) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'Error al consultar la API de feriados.',
+                    'status' => $response->status(),
+                    'detalle' => $response->json('error.message')
+                        ?? 'La API devolvió un error.'
+                ], 502);
+            }
+
+            $feriados = $response->json('data');
+
+            if (!is_array($feriados)) {
+                return response()->json([
+                    'success' => false,
+                    'mensaje' => 'La respuesta de la API no contiene una lista válida.'
+                ], 502);
+            }
+
+            //casteamos
+            $feriados = collect($feriados);
+
+            //guardamos feriados
+            $feriados_base = Holiday::whereYear('date', $anio)->get();
+            $creados = 0;
+            foreach ($feriados as $feriado){
+                $existe = $feriados_base->contains(function ($base) use ($feriado) {
+                    return $base->name === $feriado['name']
+                        || $base->date->format('Y-m-d') === $feriado['date'];
+                });
+
+                if ($existe) {
+                    continue;
+                }
+                Holiday::create([
+                    'name' => $feriado['name'],
+                    'date' => $feriado['date'],
+                    'description' => null,
+                    'state' => true,
+                ]);
+                $creados++;
+
+            }
+            return response()->json([
+                'success' => $creados > 0,
+                'mensaje' => $creados > 0
+                    ? "Se insertaron {$creados} feriados correctamente."
+                    : 'No se crearon feriados nuevos porque ya estaban registrados.',
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'No se pudo conectar con la API de feriados.'
+            ], 502);
+        }
+    }
+    
+
 }
