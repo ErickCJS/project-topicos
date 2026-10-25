@@ -33,6 +33,71 @@
 .zones-module .zone-detail-label { display: block; color: var(--bs-secondary-color); font-size: .76rem; font-weight: 600; letter-spacing: .035em; text-transform: uppercase; }
 .zones-module .zone-detail-value { display: block; margin-top: .3rem; color: var(--bs-body-color); font-weight: 600; }
 .zones-module .invalid-feedback:not(.d-none) { display: block; }
+.zones-module #zoneFormModal .modal-dialog,
+.zones-module #zoneShowModal .modal-dialog {
+    width: 95vw;
+    max-width: 1600px;
+}
+.zones-module #zoneFormContent > form,
+.zones-module #zoneShowContent {
+    display: flex;
+    min-height: 0;
+    max-height: calc(100dvh - 2rem);
+    flex-direction: column;
+}
+.zones-module #zoneFormContent .zone-modal-body,
+.zones-module #zoneShowContent .zone-modal-body {
+    min-height: 0;
+    overflow-y: auto;
+}
+.zones-module #zoneFormContent .zone-modal-body > .row.g-3,
+.zones-module #zoneShowContent .zone-modal-body > .row.g-3 {
+    display: grid;
+    grid-template-columns: minmax(280px, 35fr) minmax(0, 65fr);
+    align-items: stretch;
+    gap: 1rem;
+    margin: 0;
+}
+.zones-module #zoneFormContent .zone-modal-body > .row.g-3 > .col-12,
+.zones-module #zoneShowContent .zone-modal-body > .row.g-3 > .col-12 {
+    width: auto;
+    min-width: 0;
+    padding: 0;
+}
+.zones-module #zoneFormContent .zone-modal-body > .row.g-3 > .col-12:nth-child(-n+5),
+.zones-module #zoneShowContent .zone-modal-body > .row.g-3 > .col-12:nth-child(-n+5) {
+    grid-column: 1;
+}
+.zones-module #zoneFormContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6),
+.zones-module #zoneShowContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6) {
+    grid-column: 2;
+    grid-row: 1 / span 5;
+}
+.zones-module #zoneFormContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6) .zone-map,
+.zones-module #zoneShowContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6) .zone-map {
+    height: clamp(420px, 62vh, 640px);
+    min-height: 420px;
+}
+.zones-module #zoneFormContent .zone-modal-footer,
+.zones-module #zoneShowContent .zone-modal-footer { flex: 0 0 auto; }
+@media (max-width: 767.98px) {
+    .zones-module #zoneFormModal .modal-dialog,
+    .zones-module #zoneShowModal .modal-dialog { width: auto; max-width: none; }
+    .zones-module #zoneFormContent > form,
+    .zones-module #zoneShowContent { max-height: calc(100dvh - 1rem); }
+    .zones-module #zoneFormContent .zone-modal-body > .row.g-3,
+    .zones-module #zoneShowContent .zone-modal-body > .row.g-3 {
+        display: flex;
+        flex-direction: column;
+    }
+    .zones-module #zoneFormContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6),
+    .zones-module #zoneShowContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6) { order: 6; }
+    .zones-module #zoneFormContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6) .zone-map,
+    .zones-module #zoneShowContent .zone-modal-body > .row.g-3 > .col-12:nth-child(6) .zone-map {
+        height: 52vh;
+        min-height: 320px;
+    }
+}
 @media (max-width: 575.98px) {
     .zones-module #zonesTable { min-width: 980px; }
     .zones-module .zone-modal-body { padding: 1rem; }

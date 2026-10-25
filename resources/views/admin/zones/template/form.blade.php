@@ -1,16 +1,18 @@
 @php
+    $isEdit = $zone !== null;
     $district = $zone?->district;
     $province = $district?->province;
-    $departmentId = old('department_id', $province?->department_id);
-    $provinceId = old('province_id', $district?->province_id);
-    $districtId = old('district_id', $zone?->district_id);
+    $departmentId = $isEdit ? $province?->department_id : old('department_id', $defaultDepartment?->id);
+    $provinceId = $isEdit ? $district?->province_id : old('province_id', $defaultProvince?->id);
+    $districtId = $isEdit ? $zone?->district_id : old('district_id', $defaultDistrict?->id);
+    $selectedProvince = $isEdit ? $province : ($defaultProvince ?? null);
+    $selectedDistrict = $isEdit ? $district : ($defaultDistrict ?? null);
     $perimeter = old('perimeter');
     if (is_array($perimeter)) {
         $perimeter = json_encode($perimeter, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     } elseif ($perimeter === null && $zone?->perimeter) {
         $perimeter = json_encode($zone->perimeter, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
-    $isEdit = $zone !== null;
 @endphp
 
 <form method="POST" action="{{ $isEdit ? route('zones.update', $zone) : route('zones.store') }}"
@@ -51,8 +53,8 @@
                 <label for="zone_province_id" class="form-label fw-semibold">Provincia *</label>
                 <select id="zone_province_id" name="province_id" class="form-select" data-selected="{{ $provinceId }}" required>
                     <option value="">Seleccione una provincia</option>
-                    @if($province)
-                        <option value="{{ $province->id }}" selected>{{ $province->name }} ({{ $province->code }})</option>
+                    @if($selectedProvince)
+                        <option value="{{ $selectedProvince->id }}" selected>{{ $selectedProvince->name }} ({{ $selectedProvince->code }})</option>
                     @endif
                 </select>
                 <div class="invalid-feedback d-none" data-error-for="province_id"></div>
@@ -61,8 +63,8 @@
                 <label for="zone_district_id" class="form-label fw-semibold">Distrito *</label>
                 <select id="zone_district_id" name="district_id" class="form-select" data-selected="{{ $districtId }}" required>
                     <option value="">Seleccione un distrito</option>
-                    @if($district)
-                        <option value="{{ $district->id }}" selected>{{ $district->name }} ({{ $district->code }})</option>
+                    @if($selectedDistrict)
+                        <option value="{{ $selectedDistrict->id }}" selected>{{ $selectedDistrict->name }} ({{ $selectedDistrict->code }})</option>
                     @endif
                 </select>
                 <div class="invalid-feedback d-none" data-error-for="district_id"></div>
@@ -76,7 +78,7 @@
                 <label class="form-label fw-semibold">Perímetro *</label>
                 <div class="form-text mb-2">Dibuje un polígono cerrado con al menos tres vértices. Las coordenadas se guardan como [longitud, latitud].</div>
                 <div class="zone-map" data-zone-map></div>
-                <input type="hidden" name="perimeter" value="{{ e($perimeter ?? '') }}" data-zone-perimeter>
+                <input type="hidden" name="perimeter" value="{{ $perimeter ?? '' }}" data-zone-perimeter>
                 <div class="invalid-feedback d-none" data-error-for="perimeter"></div>
             </div>
         </div>

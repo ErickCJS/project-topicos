@@ -140,6 +140,83 @@ class ZonesCrudTest extends TestCase
             ->assertOk()->assertJsonPath('0.id', $this->district->id)->assertJsonPath('0.code', '150101');
     }
 
+    public function test_new_zone_uses_the_ubigeo_defaults_and_edit_keeps_saved_location(): void
+    {
+        $defaultDepartment = Department::create(['code' => '14', 'name' => 'Lambayeque']);
+        $defaultProvince = Province::create([
+            'department_id' => $defaultDepartment->id,
+            'code' => '1401',
+            'name' => 'Chiclayo',
+        ]);
+        $defaultDistrict = District::create([
+            'province_id' => $defaultProvince->id,
+            'code' => '140105',
+            'name' => 'José Leonardo Ortiz',
+        ]);
+
+        $this->get(route('zones.create'))
+            ->assertOk()
+            ->assertSee('value="'.$defaultDepartment->id.'" selected', false)
+            ->assertSee('value="'.$defaultProvince->id.'" selected', false)
+            ->assertSee('value="'.$defaultDistrict->id.'" selected', false);
+
+        $zone = Zone::create(array_merge($this->data(), ['perimeter' => json_decode($this->geometry(), true)]));
+        $this->get(route('zones.edit', $zone))
+            ->assertOk()
+            ->assertSee('value="'.$this->department->id.'" selected', false)
+            ->assertSee('value="'.$this->province->id.'" selected', false)
+            ->assertSee('value="'.$this->district->id.'" selected', false)
+            ->assertDontSee('value="'.$defaultDistrict->id.'" selected', false);
+    }
+
+    public function test_show_and_edit_deliver_geojson_and_update_keeps_perimeter_when_unchanged(): void
+    {
+        $geometry = json_decode($this->geometry(), true);
+        $zone = Zone::create(array_merge($this->data(), ['perimeter' => $geometry]));
+
+        $this->get(route('zones.show', $zone))
+            ->assertOk()
+            ->assertSee('data-zone-show-map', false)
+            ->assertSee('-77.04', false)
+            ->assertSee('-12.05', false);
+        $this->get(route('zones.edit', $zone))
+            ->assertOk()
+            ->assertSee('data-zone-perimeter', false)
+            ->assertSee('-77.04', false)
+            ->assertSee('-12.05', false);
+
+        $this->putJson(route('zones.update', $zone), $this->data(['name' => 'Zona sin cambios de perímetro']))
+            ->assertOk();
+        $this->assertSame($geometry, $zone->fresh()->perimeter);
+    }
+
+    public function test_zone_index_configures_real_geolocation_and_responsive_map_modals(): void
+    {
+        $response = $this->get(route('zones.index'))
+            ->assertOk()
+            ->assertSee('nominatim.openstreetmap.org/search', false)
+            ->assertSee('polygon_geojson=1', false)
+            ->assertSee('AbortController', false)
+            ->assertSee('fitBounds', false)
+            ->assertSee("element.data('zone-sync-perimeter', sync)", false)
+            ->assertSee('let confirmedPerimeter = parseGeoJson(input.val())', false)
+            ->assertSee('element.data(\'zone-fit-perimeter\', fitPerimeter)', false)
+            ->assertSee('L.Draw.Event.EDITSTART', false)
+            ->assertSee('L.Draw.Event.EDITVERTEX', false)
+            ->assertSee('L.Draw.Event.EDITSTOP', false);
+
+        $content = $response->getContent();
+        $this->assertLessThan(
+            strpos($content, 'new FormData(this)'),
+            strpos($content, 'const syncPerimeter = mapElement.data')
+        );
+
+        $styles = file_get_contents(public_path('css/admin-indexes.css'));
+        $this->assertStringContainsString('width: 95vw', $styles);
+        $this->assertStringContainsString('grid-template-columns: minmax(280px, 35fr) minmax(0, 65fr)', $styles);
+        $this->assertStringContainsString('height: clamp(420px, 62vh, 640px)', $styles);
+    }
+
     public function test_zone_routes_require_authentication(): void
     {
         $zone = Zone::create(array_merge($this->data(), ['perimeter' => $this->geometry()]));
