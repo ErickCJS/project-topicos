@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\admin\AdminController;
+use App\Http\Controllers\admin\ProgrammingController;
 use App\Http\Controllers\admin\AttendancesController;
 use App\Http\Controllers\admin\BrandController;
 use App\Http\Controllers\admin\BrandModelController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
+Route::get('programming', [ProgrammingController::class, 'index'])->name('programming.index');
 Route::resource('contracts', ContractController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update'])->names('contracts');
 Route::patch('contracts/{id}/cancel', [ContractController::class, 'cancel'])->name('contracts.cancel');
 Route::get('vacations/check', [VacationController::class, 'check'])->name('vacations.check');
