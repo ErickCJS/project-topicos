@@ -66,7 +66,15 @@ $(function () {
     const showModal = bootstrap.Modal.getOrCreateInstance(showModalElement);
     const provincesUrl = @json(route('zones.provinces', ['department' => '__ID__']));
     const districtsUrl = @json(route('zones.districts', ['province' => '__ID__']));
-    const peruCenter = [-9.19, -75.015];
+    const perimetersUrl = @json(route('zones.perimeters'));
+    // Nominatim (OpenStreetMap) is used without credentials. Requests are cached,
+    // serialized and kept below the public service's recommended rate.
+    const geocoderUrl = 'https://nominatim.openstreetmap.org/search';
+    const geocodeCache = new Map();
+    let geocodeSequence = 0;
+    let activeGeocodeRequest = null;
+    let geocodeTimer = null;
+    let lastGeocodeAt = 0;
 
     function alertMessage(success, message) {
         return Swal.fire({
@@ -110,123 +118,323 @@ $(function () {
         items.forEach(function (item) {
             select.append($('<option>', {
                 value: item.id,
-                text: item.name + ' (' + item.code + ')'
+                text: item.name + ' (' + item.code + ')',
+                'data-location-name': item.name,
+                'data-location-code': item.code
             }));
         });
         if (selected) select.val(String(selected));
     }
 
-    function loadProvinces(departmentId, selected) {
-        const select = $('#zone_province_id');
-        const districts = $('#zone_district_id');
+    function loadProvinces(form, departmentId, selected) {
+        const select = form.find('[name="province_id"]');
+        const districts = form.find('[name="district_id"]');
+        const previousRequest = select.data('geography-request');
+        if (previousRequest) previousRequest.abort();
         fillSelect(select, [], 'Cargando provincias...', '');
         fillSelect(districts, [], 'Seleccione un distrito', '');
         if (!departmentId) {
             fillSelect(select, [], 'Seleccione una provincia', '');
             return $.Deferred().resolve().promise();
         }
-        return $.get(provincesUrl.replace('__ID__', departmentId)).done(function (items) {
+        const request = $.get(provincesUrl.replace('__ID__', departmentId)).done(function (items) {
             fillSelect(select, items, 'Seleccione una provincia', selected || '');
         });
+        select.data('geography-request', request);
+        return request;
     }
 
-    function loadDistricts(provinceId, selected) {
-        const select = $('#zone_district_id');
+    function loadDistricts(form, provinceId, selected) {
+        const select = form.find('[name="district_id"]');
+        const previousRequest = select.data('geography-request');
+        if (previousRequest) previousRequest.abort();
         fillSelect(select, [], 'Cargando distritos...', '');
         if (!provinceId) {
             fillSelect(select, [], 'Seleccione un distrito', '');
             return $.Deferred().resolve().promise();
         }
-        return $.get(districtsUrl.replace('__ID__', provinceId)).done(function (items) {
+        const request = $.get(districtsUrl.replace('__ID__', provinceId)).done(function (items) {
             fillSelect(select, items, 'Seleccione un distrito', selected || '');
         });
+        select.data('geography-request', request);
+        return request;
+    }
+
+    function optionName(select) {
+        const option = select.find('option:selected');
+        return option.data('location-name') || option.text().replace(/\s*\([^)]*\)\s*$/, '').trim();
+    }
+
+    function applyGeocodedLocation(map, result) {
+        const locationLayer = map._zoneLocationLayer;
+        if (locationLayer) locationLayer.clearLayers();
+        if (result.geojson && ['Polygon', 'MultiPolygon', 'LineString'].includes(result.geojson.type)) {
+            const boundary = L.geoJSON(result.geojson, {
+                style: { color: '#0d6efd', weight: 2, dashArray: '6 5', fillOpacity: .05 }
+            });
+            boundary.addTo(locationLayer);
+            if (boundary.getBounds().isValid()) map.fitBounds(boundary.getBounds(), { padding: [28, 28], maxZoom: 14 });
+            return;
+        }
+        const latitude = Number(result.lat);
+        const longitude = Number(result.lon);
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            map.flyTo([latitude, longitude], result.type === 'city' ? 12 : 13, { duration: .8 });
+        }
+    }
+
+    function geolocate(map, query) {
+        if (!query || !map) return;
+        const cacheKey = query.toLowerCase();
+        const sequence = ++geocodeSequence;
+        if (activeGeocodeRequest) activeGeocodeRequest.abort();
+        if (geocodeTimer) clearTimeout(geocodeTimer);
+        if (geocodeCache.has(cacheKey)) {
+            const cached = geocodeCache.get(cacheKey);
+            if (cached) applyGeocodedLocation(map, cached);
+            return;
+        }
+        const wait = Math.max(0, 1100 - (Date.now() - lastGeocodeAt));
+        geocodeTimer = setTimeout(function () {
+            const controller = new AbortController();
+            activeGeocodeRequest = controller;
+            lastGeocodeAt = Date.now();
+            const url = geocoderUrl + '?format=jsonv2&limit=1&polygon_geojson=1&countrycodes=pe&q=' + encodeURIComponent(query);
+            fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } })
+            .then(function (response) { if (!response.ok) throw new Error('Geocoder unavailable'); return response.json(); })
+            .then(function (results) {
+                if (sequence !== geocodeSequence) return;
+                const result = results[0] || null;
+                geocodeCache.set(cacheKey, result);
+                if (result) applyGeocodedLocation(map, result);
+            })
+            .catch(function (error) {
+                if (error.name !== 'AbortError') console.warn('No se pudo ubicar la selección geográfica.', error);
+            });
+        }, wait);
+    }
+
+    function selectedLocationQuery(form, level) {
+        const department = optionName(form.find('[name="department_id"]'));
+        const province = optionName(form.find('[name="province_id"]'));
+        const district = optionName(form.find('[name="district_id"]'));
+        if (level === 'department' && department) return department + ', Peru';
+        if (level === 'province' && province && department) return province + ', ' + department + ', Peru';
+        if (level === 'district' && district && province && department) return district + ', ' + province + ', ' + department + ', Peru';
+        return '';
     }
 
     function initializeZoneForm(form) {
+        if (!form.length || form.data('zone-form-initialized')) return;
+        form.data('zone-form-initialized', true);
         const department = form.find('[name="department_id"]');
         const province = form.find('[name="province_id"]');
         const district = form.find('[name="district_id"]');
         const selectedProvince = province.attr('data-selected') || province.val();
         const selectedDistrict = district.attr('data-selected') || district.val();
+        const mapElement = form.find('[data-zone-map]');
+        const hasExistingPerimeter = Boolean(form.find('[data-zone-perimeter]').val());
+        function moveTo(level) {
+            const move = mapElement.data('zone-geolocate');
+            if (move) move(selectedLocationQuery(form, level));
+        }
 
         department.off('change.zone').on('change.zone', function () {
-            loadProvinces(this.value, '').fail(function () {
+            moveTo('department');
+            loadProvinces(form, this.value, '').fail(function () {
                 alertMessage(false, 'No se pudieron cargar las provincias.');
             });
         });
         province.off('change.zone').on('change.zone', function () {
-            loadDistricts(this.value, '').fail(function () {
+            moveTo('province');
+            loadDistricts(form, this.value, '').fail(function () {
                 alertMessage(false, 'No se pudieron cargar los distritos.');
             });
         });
+        district.off('change.zone').on('change.zone', function () { moveTo('district'); });
 
         if (department.val()) {
-            loadProvinces(department.val(), selectedProvince).then(function () {
-                return loadDistricts(province.val(), selectedDistrict);
+            loadProvinces(form, department.val(), selectedProvince).then(function () {
+                return loadDistricts(form, province.val(), selectedDistrict);
             }).fail(function () {
                 alertMessage(false, 'No se pudo cargar la selección geográfica.');
+            }).then(function () {
+                if (!hasExistingPerimeter) moveTo('district');
             });
         }
-        initializeEditableMap(form.find('[data-zone-map]'), form.find('[data-zone-perimeter]'));
+        initializeEditableMap(mapElement, form.find('[data-zone-perimeter]'));
     }
 
-    function parseGeoJson(value) {
-        if (!value) return null;
-        try { return typeof value === 'string' ? JSON.parse(value) : value; }
-        catch (error) { return null; }
+function parseGeoJson(value) {
+    if (!value) return null;
+
+    if (typeof value !== 'string') {
+        return value;
     }
 
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = value;
+
+            return JSON.parse(textarea.value);
+        } catch (decodeError) {
+            console.error('Error al interpretar el GeoJSON:', decodeError);
+            return null;
+        }
+    }
+}
+
+    function loadExistingZones(map, layerGroup, currentZoneId) {
+        $.getJSON(perimetersUrl)
+            .done(function (zones) {
+                if (!map._loaded) return;
+
+                layerGroup.clearLayers();
+
+                zones.forEach(function (zone) {
+                    if (String(zone.id) === String(currentZoneId)) return;
+
+                    const geometry = parseGeoJson(zone.perimeter);
+                    if (!geometry || geometry.type !== 'Polygon') return;
+
+                    const polygon = L.geoJSON(geometry, {
+                        style: {
+                            color: '#dc3545',
+                            weight: 2,
+                            fillColor: '#dc3545',
+                            fillOpacity: 0.22
+                        }
+                    });
+
+                    polygon.bindPopup(
+                        $('<div>').text(zone.name).html()
+                    );
+
+                    polygon.addTo(layerGroup);
+                });
+            })
+            .fail(function () {
+                console.error('No se pudieron cargar las zonas existentes.');
+            });
+    }
     function initializeEditableMap(element, input) {
-        if (!element.length || typeof L === 'undefined') return;
-        const map = L.map(element[0]).setView(peruCenter, 5);
+        if (!element.length || typeof L === 'undefined' || element.data('leaflet-map')) return;
+        const map = L.map(element[0]);
+        map.fitWorld();
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: '&copy; OpenStreetMap contributors; geocoding: Nominatim'
         }).addTo(map);
+        map._zoneLocationLayer = new L.FeatureGroup().addTo(map);
+
+        // Capa independiente para visualizar las zonas existentes.
+        const existingZonesLayer = new L.FeatureGroup().addTo(map);
+
+        // Capa exclusiva del polígono que se está dibujando o editando.
         const layers = new L.FeatureGroup().addTo(map);
+
+        const currentZoneId = element.closest('form').attr('data-zone-id') || '';
+        loadExistingZones(map, existingZonesLayer, currentZoneId);
         const controls = new L.Control.Draw({
             edit: { featureGroup: layers },
             draw: { polyline: false, rectangle: false, circle: false, circlemarker: false, marker: false }
         });
         map.addControl(controls);
 
+        let confirmedPerimeter = parseGeoJson(input.val());
+        const editState = { active: false, dirty: false };
+
         function sync() {
-            const layer = layers.getLayers()[0];
-            input.val(layer ? JSON.stringify(layer.toGeoJSON().geometry) : '');
+            input.val(confirmedPerimeter ? JSON.stringify(confirmedPerimeter) : '');
+            editState.dirty = false;
         }
 
-        const existing = parseGeoJson(input.val());
+        function confirmLayer(layer) {
+            confirmedPerimeter = layer ? layer.toGeoJSON().geometry : null;
+            sync();
+        }
+
+        function fitPerimeter() {
+            if (!confirmedPerimeter || confirmedPerimeter.type !== 'Polygon') return;
+            const bounds = L.geoJSON(confirmedPerimeter).getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+        }
+
+        const existing = confirmedPerimeter;
         if (existing && existing.type === 'Polygon') {
             L.geoJSON(existing, { style: { color: '#198754' } }).eachLayer(function (layer) {
                 layers.addLayer(layer);
             });
-            if (layers.getLayers().length) map.fitBounds(layers.getBounds(), { padding: [20, 20] });
+            fitPerimeter();
         }
         map.on(L.Draw.Event.CREATED, function (event) {
             layers.clearLayers();
             layers.addLayer(event.layer);
-            sync();
+            confirmLayer(event.layer);
         });
-        map.on(L.Draw.Event.EDITED, sync);
-        map.on(L.Draw.Event.DELETED, sync);
-        setTimeout(function () { map.invalidateSize(); }, 100);
+        map.on(L.Draw.Event.EDITED, function () {
+            confirmLayer(layers.getLayers()[0]);
+        });
+        map.on(L.Draw.Event.DELETED, function () {
+            confirmLayer(null);
+        });
+        map.on(L.Draw.Event.EDITSTART, function () { editState.active = true; });
+        map.on(L.Draw.Event.EDITVERTEX, function () { editState.dirty = true; });
+        map.on(L.Draw.Event.EDITSTOP, function () {
+            editState.active = false;
+        });
+        element.data('zone-sync-perimeter', sync);
+        element.data('zone-fit-perimeter', fitPerimeter);
+        element.data('zone-edit-state', editState);
+        element.data('zone-geolocate', function (query) { geolocate(map, query); });
         element.data('leaflet-map', map);
     }
 
     function initializeReadonlyMap(element) {
-        if (!element.length || typeof L === 'undefined') return;
-        const map = L.map(element[0], { zoomControl: true }).setView(peruCenter, 5);
+        if (!element.length || typeof L === 'undefined' || element.data('leaflet-map')) return;
+        const map = L.map(element[0], { zoomControl: true });
+        map.fitWorld();
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
         const geometry = parseGeoJson(element.attr('data-perimeter'));
-        if (geometry && geometry.type === 'Polygon') {
-            const layer = L.geoJSON(geometry, { style: { color: '#0d6efd', fillOpacity: .25 } }).addTo(map);
-            map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+        function fitPerimeter() {
+            if (!geometry || geometry.type !== 'Polygon') return;
+            const bounds = L.geoJSON(geometry).getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
         }
-        setTimeout(function () { map.invalidateSize(); }, 100);
+        if (geometry && geometry.type === 'Polygon') {
+            const polygon = L.geoJSON(geometry, { style: { color: '#0d6efd', fillOpacity: .25 } }).addTo(map);
+            const ring = geometry.coordinates?.[0] || [];
+            const vertices = L.layerGroup(ring.slice(0, -1).map(function (coordinate) {
+                return L.circleMarker([coordinate[1], coordinate[0]], {
+                    radius: 5, color: '#084298', weight: 2, fillColor: '#0d6efd', fillOpacity: 1
+                });
+            })).addTo(map);
+            fitPerimeter();
+        }
+        element.data('zone-fit-perimeter', fitPerimeter);
         element.data('leaflet-map', map);
+    }
+
+    function destroyMaps(container) {
+        geocodeSequence++;
+        if (activeGeocodeRequest) activeGeocodeRequest.abort();
+        if (geocodeTimer) clearTimeout(geocodeTimer);
+        container.find('[data-zone-map], [data-zone-show-map]').each(function () {
+            const element = $(this);
+            const map = element.data('leaflet-map');
+            if (map) {
+                map.off();
+                map.remove();
+                map._zoneLocationLayer = null;
+            }
+            element.removeData('leaflet-map zone-geolocate zone-sync-perimeter zone-fit-perimeter zone-edit-state');
+        });
     }
 
     const table = $('#zonesTable').DataTable({
@@ -256,7 +464,6 @@ $(function () {
     function openForm(url) {
         $.get(url).done(function (response) {
             $('#zoneFormContent').html(response);
-            initializeZoneForm($('#zoneFormContent form'));
             formModal.show();
         }).fail(function (xhr) { requestError(xhr, 'No se pudo abrir el formulario de zonas.'); });
     }
@@ -265,7 +472,6 @@ $(function () {
     $('#zonesTable').on('click', '.btnVer', function () {
         $.get($(this).data('url')).done(function (response) {
             $('#zoneShowContent').html(response);
-            initializeReadonlyMap($('#zoneShowContent [data-zone-show-map]'));
             showModal.show();
         }).fail(function (xhr) { requestError(xhr, 'No se pudo cargar el detalle de la zona.'); });
     });
@@ -275,6 +481,9 @@ $(function () {
         event.preventDefault();
         const form = $(this);
         const submit = form.find('[type="submit"]').prop('disabled', true);
+        const mapElement = form.find('[data-zone-map]');
+        const syncPerimeter = mapElement.data('zone-sync-perimeter');
+        if (typeof syncPerimeter === 'function') syncPerimeter();
         clearErrors(form);
         if (!form.find('[name="perimeter"]').val()) {
             showErrors(form, { perimeter: ['Dibuje el perímetro de la zona.'] });
@@ -308,12 +517,34 @@ $(function () {
         });
     });
 
-    formModalElement.addEventListener('hidden.bs.modal', function () { $('#zoneFormContent').empty(); });
-    showModalElement.addEventListener('hidden.bs.modal', function () { $('#zoneShowContent').empty(); });
-    $('#zoneFormModal, #zoneShowModal').on('shown.bs.modal', function () {
+    formModalElement.addEventListener('hidden.bs.modal', function () {
+        destroyMaps($('#zoneFormContent'));
+        $('#zoneFormContent').empty();
+    });
+    showModalElement.addEventListener('hidden.bs.modal', function () {
+        destroyMaps($('#zoneShowContent'));
+        $('#zoneShowContent').empty();
+    });
+    $('#zoneFormModal').on('shown.bs.modal', function () {
+        initializeZoneForm($('#zoneFormContent form[data-zone-form]'));
+        $(this).find('[data-zone-map]').each(function () {
+            const map = $(this).data('leaflet-map');
+            const fitPerimeter = $(this).data('zone-fit-perimeter');
+            if (map) {
+                map.invalidateSize();
+                if (typeof fitPerimeter === 'function') fitPerimeter();
+            }
+        });
+    });
+    $('#zoneShowModal').on('shown.bs.modal', function () {
+        initializeReadonlyMap($('#zoneShowContent [data-zone-show-map]'));
         $(this).find('[data-zone-map], [data-zone-show-map]').each(function () {
             const map = $(this).data('leaflet-map');
-            if (map) map.invalidateSize();
+            if (map) {
+                map.invalidateSize();
+                const fitPerimeter = $(this).data('zone-fit-perimeter');
+                if (typeof fitPerimeter === 'function') fitPerimeter();
+            }
         });
     });
 });

@@ -90,6 +90,15 @@ class ZoneController extends Controller
         ]);
     }
 
+    public function perimeters()
+    {
+        $zones = Zone::query()
+            ->whereNotNull('perimeter')
+            ->orderBy('name')
+            ->get(['id', 'name', 'district_id', 'perimeter']);
+
+        return response()->json($zones);
+    }
     public function provinces(Department $department)
     {
         return response()->json($department->provinces()
@@ -106,8 +115,15 @@ class ZoneController extends Controller
 
     private function formData(?Zone $zone = null): array
     {
+        $defaultDepartment = Department::query()->where('code', '14')->first();
+        $defaultProvince = $defaultDepartment?->provinces()->where('code', '1401')->first();
+        $defaultDistrict = $defaultProvince?->districts()->where('code', '140105')->first();
+
         return [
             'departments' => Department::query()->orderBy('name')->get(['id', 'code', 'name']),
+            'defaultDepartment' => $defaultDepartment,
+            'defaultProvince' => $defaultProvince,
+            'defaultDistrict' => $defaultDistrict,
             'zone' => $zone,
         ];
     }
@@ -153,6 +169,8 @@ class ZoneController extends Controller
         }
 
         $data['perimeter'] = $this->validatedPerimeter($data['perimeter']);
+
+        $this->validateZoneOverlap($data['perimeter'], $zone);
 
         return $data;
     }
@@ -220,6 +238,52 @@ class ZoneController extends Controller
         return ['type' => 'Polygon', 'coordinates' => [$coordinates]];
     }
 
+    private function validateZoneOverlap(array $perimeter, ?Zone $zone = null): void
+    {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
+        $geojson = json_encode(
+            $perimeter,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+
+        $valid = DB::selectOne(
+            'SELECT ST_IsValid(ST_GeomFromGeoJSON(?)) AS valid',
+            [$geojson]
+        );
+
+        if (! $valid || ! $valid->valid) {
+            $this->validationError(
+                'perimeter',
+                'El perímetro no es válido. Revise que sus líneas no se crucen.'
+            );
+        }
+
+        $query = Zone::query()
+            ->select(['id', 'name'])
+            ->whereNotNull('perimeter')
+            ->whereRaw(
+                "ST_Intersects(ST_GeomFromGeoJSON(perimeter), ST_GeomFromGeoJSON(?)) = 1 AND ST_Touches(ST_GeomFromGeoJSON(perimeter), ST_GeomFromGeoJSON(?)) = 0",
+                [$geojson, $geojson]
+            );
+
+        if ($zone !== null) {
+            $query->whereKeyNot($zone->getKey());
+        }
+
+        $conflict = $query->first();
+
+        if ($conflict) {
+            $this->validationError(
+                'perimeter',
+                'No se puede guardar esta zona porque se superpone con "'
+                . $conflict->name
+                . '". Modifique el perímetro para evitar la superposición.'
+            );
+        }
+    }
     private function validationError(string $field, string $message): never
     {
         throw ValidationException::withMessages([$field => [$message]]);
