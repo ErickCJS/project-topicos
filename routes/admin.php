@@ -12,6 +12,7 @@ use App\Http\Controllers\admin\EmployeeTypeController;
 use App\Http\Controllers\admin\ShiftController;
 use App\Http\Controllers\admin\StaffGroupsController;
 use App\Http\Controllers\admin\VacationController;
+use App\Http\Controllers\admin\ZoneController;
 use App\Http\Controllers\admin\VehiclesController;
 use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;

@@ -834,7 +834,7 @@ return [
                     'route' => 'attendances.index',
                     'icon' => 'fas fa-clipboard-check',
                 ],
-          
+
             ],
         ],
         [
