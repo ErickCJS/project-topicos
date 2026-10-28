@@ -858,7 +858,7 @@ return [
                 ],
                 [
                     'text' => 'Grupo de personal',
-                    'route' => 'staff_group.index',
+                    'route' => 'staffgroups.index',
                     'icon' => 'bi bi-people',
                 ],
                 [

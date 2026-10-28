@@ -10,6 +10,7 @@ use App\Http\Controllers\admin\ContractController;
 use App\Http\Controllers\admin\EmployeeController;
 use App\Http\Controllers\admin\EmployeeTypeController;
 use App\Http\Controllers\admin\ShiftController;
+use App\Http\Controllers\admin\StaffGroupsController;
 use App\Http\Controllers\admin\VacationController;
 use App\Http\Controllers\admin\ZoneController;
 use App\Http\Controllers\admin\VehiclesController;
@@ -46,10 +47,11 @@ Route::post('holidays/cargaferiado', [HolidaysController::class, 'cargaFeriado']
 Route::resource('holidays', HolidaysController::class)
     ->names('holidays');
 Route::resource('shifts', ShiftController::class)->names('shifts');
-Route::get('zones/departments/{department}/provinces', [ZoneController::class, 'provinces'])->name('zones.provinces');
-Route::get('zones/provinces/{province}/districts', [ZoneController::class, 'districts'])->name('zones.districts');
-Route::get('zones/perimeters', [ZoneController::class, 'perimeters'])->name('zones.perimeters');
-Route::resource('zones', ZoneController::class)->names('zones');
+
+Route::resource('staffgroups', StaffGroupsController::class)->names('staffgroups');
+
+
+
 Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');
 Route::post('subirimagenes/{id_products}', [VehiclesController::class, 'subirimagenes'])->name('vehicles.photo.subirimagenes');
 Route::get('retonar_rutas_fotos/{id_product}', [VehiclesController::class, 'retonar_rutas_fotos'])->name('vehicles.photo.retonar_rutas_fotos');
