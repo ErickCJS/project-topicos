@@ -81,13 +81,14 @@
                 '6' => 'Sábado',
                 '7' => 'Domingo',
             ];
+            $array_dias = isset($staffgroups)
+                ? $staffgroups->days->pluck('day')->toArray()
+                : [];
         @endphp
-
         @foreach ($dias as $valor => $nombre)
-        
             <div class="col-6 col-md-3 col-lg-2">
                 <div class="form-check">
-                    {!! Form::checkbox('days[]', $valor, false, [
+                    {!! Form::checkbox('days[]', $valor, in_array($valor, $array_dias), [
                         'class' => 'form-check-input',
                         'id' => 'day_' . $valor,
                     ]) !!}
@@ -109,7 +110,24 @@
     @enderror
 </div>
 
-<div id="camposPersonal"></div>
+<div id="camposPersonal" class="d-none"></div>
 
 </div>
+@if (isset($staffgroups))
+    <div class="col-12 col-md-6">
+        {!! Form::label('state', 'Estado', ['class' => 'form-label']) !!}
 
+        {!! Form::select('state', [
+            1 => 'Activo',
+            0 => 'Inactivo',
+        ], old('state', $staffgroups->state), [
+            'class' => 'form-select',
+            'id' => 'state',
+            'required' => true,
+        ]) !!}
+
+        @error('state')
+            <div class="text-danger small mt-1">{{ $message }}</div>
+        @enderror
+    </div>
+@endif

@@ -85,6 +85,8 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
+<link rel="stylesheet" href="{{ asset('css/staff_group.css') }}">
+
 @stop
 
 @section('js')
@@ -139,18 +141,27 @@ $(function () {
     /*
      * Abrir formulario de creación o edición.
      */
-    function abrirModal(url, titulo, action) {
+    function abrirModal(url, titulo, esEdicion = false) {
         $.get(url, function (response) {
             $('#formModalLabel').text(titulo);
             $('#formModal .modal-body').html(response);
+
+            // Indicar si estamos creando o editando
+            $('#formModal').data('es-edicion', esEdicion);
+
             inicializarSelect2();
             formModal.show();
-            action ? $('#formModal').find('#vehicle_id').trigger('change')  : '';
+
+            if (esEdicion) {
+                $('#formModal').find('#vehicle_id').trigger('change');
+            }
         }).fail(function (error) {
-            mostrarAlerta(false, mensajeError(error, 'No se pudo abrir el formulario.'));
+            mostrarAlerta(
+                false,
+                mensajeError(error, 'No se pudo abrir el formulario.')
+            );
         });
     }
-
        /*
      * Inicializar DataTables.
      *
@@ -342,6 +353,16 @@ $(function () {
         });
     });
 
+
+    $(document).on('click', '.btnVer', function () {
+        const id = $(this).data('id');
+        const url = "{{ route('staffgroups.show', ':id') }}".replace(':id', id);
+
+        abrirModal(url, 'Detalle del grupo de personal');
+    });
+
+
+
     /*
      * Limpiar el formulario cuando se cierra el modal.
      */
@@ -422,6 +443,118 @@ $(function () {
         inicializarSelect2($contenedor);
     }
 
+    $(document).on('change', '#shift_id, #zone_id, #vehicle_id, [name="days[]"]', function () {
+        const shift = $('#shift_id').val();
+        const zone = $('#zone_id').val();
+        const vehicle = $('#vehicle_id').val();
+
+        const days = $('[name="days[]"]:checked').map(function () {
+            return this.value;
+        }).get();
+
+        if (shift && zone && vehicle && days.length > 0) {
+            $('#camposPersonal').removeClass('d-none');
+            
+            const $form = $('#formModal').find('form');
+
+            const data = {
+                turnos: shift,
+                zona: zone,
+                vehiculo: vehicle,
+                dias: days,
+                id_staff: $form.attr('data-id') || null
+            };
+
+            $.get({
+                url: "{{ route('staffgroups.helpers') }}",
+                data: data,
+
+                success: function (response) {
+
+
+                    const conductorActual = String(
+                        $form.attr('data-current-driver') || ''
+                    );
+
+                    const ayudantesActuales = JSON.parse(
+                        $form.attr('data-current-helpers') || '[]'
+                    ).map(String);
+
+                    // Cargar conductores
+                    const $driver = $('#driver_id');
+
+                    $driver.empty().append(
+                        new Option('Seleccione un conductor', '')
+                    );
+
+                    $.each(response.conductores, function (id, nombre) {
+                        $driver.append(new Option(nombre, id));
+                    });
+
+                    // Seleccionar conductor actual
+                    if (conductorActual) {
+                        $driver.val(conductorActual);
+                    }
+
+                    $driver.trigger('change.select2');
+
+                    // Cargar ayudantes
+                    $('[name="helpers[]"]').each(function (index) {
+                        const $select = $(this);
+                        const ayudanteActual = ayudantesActuales[index] || '';
+
+                        $select.empty().append(
+                            new Option('Seleccione un ayudante', '')
+                        );
+
+                        $.each(response.ayudantes, function (id, nombre) {
+                            $select.append(new Option(nombre, id));
+                        });
+
+                        if (ayudanteActual) {
+                            $select.val(ayudanteActual);
+                        }
+
+                        $select.trigger('change.select2');
+                    });
+
+                    $('[name="helpers[]"]').first().trigger('change');
+
+                },
+
+                error: function (xhr) {
+                    console.error(xhr.responseJSON ?? xhr.responseText);
+                }
+            });
+
+            return;
+        }
+
+        $('#camposPersonal').addClass('d-none');
+    });
+
+
+    $(document).on('change', '[name="helpers[]"]', function () {
+        const seleccionados = $('[name="helpers[]"]').map(function () {
+            return $(this).val();
+        }).get().filter(Boolean);
+
+        $('[name="helpers[]"]').each(function () {
+            const selectActual = this;
+            const valorActual = $(selectActual).val();
+
+            $(selectActual).find('option').each(function () {
+                const valor = this.value;
+
+                if (!valor) return;
+
+                // Ocultar si está seleccionado en otro select
+                const ocupadoEnOtro = seleccionados.includes(valor) && valor !== valorActual;
+
+                $(this).prop('disabled', ocupadoEnOtro);
+            });
+        });
+    });
 });
 </script>
 

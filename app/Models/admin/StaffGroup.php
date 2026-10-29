@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StaffGroup extends Model
 {
-    protected $fillable = ['name','shift_id','zone_id','vehicle_id','driver_id'];
+    protected $fillable = ['name','shift_id','zone_id','vehicle_id','driver_id', 'state'];
 
     public function days(): HasMany
     {
@@ -39,4 +39,5 @@ class StaffGroup extends Model
     {
         return $this->belongsTo(Employee::class, 'driver_id');
     }
+
 }
