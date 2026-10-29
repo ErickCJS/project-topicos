@@ -95,10 +95,6 @@ $(function () {
     const formModalElement = document.getElementById('formModal');
     const formModal = bootstrap.Modal.getOrCreateInstance(formModalElement);
 
-    const routes = {
-        index: @json(route('staffgroups.index', [], false)),
-        create: @json(route('staffgroups.create', [], false))
-    };
 
     /*
      * Mostrar alertas utilizando las funciones que ya tiene tu proyecto.
@@ -143,12 +139,13 @@ $(function () {
     /*
      * Abrir formulario de creación o edición.
      */
-    function abrirModal(url, titulo) {
+    function abrirModal(url, titulo, action) {
         $.get(url, function (response) {
             $('#formModalLabel').text(titulo);
             $('#formModal .modal-body').html(response);
             inicializarSelect2();
             formModal.show();
+            action ? $('#formModal').find('#vehicle_id').trigger('change')  : '';
         }).fail(function (error) {
             mostrarAlerta(false, mensajeError(error, 'No se pudo abrir el formulario.'));
         });
@@ -166,152 +163,25 @@ $(function () {
         searchDelay: 350,
         responsive: false,
         autoWidth: false,
-
         ajax: {
-            url: routes.index,
-            type: 'GET',
-            error: function (xhr) {
-                mostrarAlerta(
-                    false,
-                    mensajeError(xhr, 'No se pudieron cargar los grupos de personal.')
-                );
-            }
+            url: "{{ route('staffgroups.index') }}",
         },
-
         columns: [
-            {
-                data: 'name',
-                name: 'name',
-                defaultContent: ''
-            },
-            {
-                data: 'shift_name',
-                name: 'shift_name',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return data || '';
+            { data: 'name' },
+            { data: 'shift_name' },
+            { data: 'zone_name' },
+            { data: 'vehicle_name' },
+            { data: 'driver' },
+            { data: 'helpers' },
 
-                    return `<span class="staff-badge staff-badge-shift">
-                        ${escapeHtml(data || 'Sin turno')}
-                    </span>`;
-                }
-            },
-            {
-                data: 'zone_name',
-                name: 'zone_name',
-                defaultContent: ''
-            },
-            {
-                data: 'vehicle_code',
-                name: 'vehicle_code',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return data || '';
-
-                    return `<span class="staff-vehicle">
-                        ${escapeHtml(data || 'Sin vehículo')}
-                    </span>`;
-                }
-            },
-            {
-                data: 'driver_name',
-                name: 'driver_name',
-                defaultContent: 'Sin conductor'
-            },
-            {
-                data: 'helpers',
-                name: 'helpers',
-                orderable: false,
-                searchable: false,
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return '';
-
-                    let helpers = data;
-
-                    if (typeof helpers === 'string') {
-                        try {
-                            helpers = JSON.parse(helpers);
-                        } catch (error) {
-                            helpers = [];
-                        }
-                    }
-
-                    if (!Array.isArray(helpers) || helpers.length === 0) {
-                        return '<span class="text-muted">Sin ayudantes</span>';
-                    }
-
-                    return `<div class="staff-helper-list">
-                        ${helpers.map(helper => `
-                            <span class="staff-helper">${escapeHtml(
-                                typeof helper === 'string'
-                                    ? helper
-                                    : helper.name
-                            )}</span>
-                        `).join('')}
-                    </div>`;
-                }
-            },
-            {
-                data: 'days',
-                name: 'days',
-                orderable: false,
-                searchable: false,
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return '';
-
-                    let days = data;
-
-                    if (typeof days === 'string') {
-                        try {
-                            days = JSON.parse(days);
-                        } catch (error) {
-                            days = [];
-                        }
-                    }
-
-                    return renderDias(days);
-                }
-            },
-            {
-                data: 'status',
-                name: 'status',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return data || '';
-
-                    const status = String(data || 'Inactivo');
-                    const activo = ['activo', 'active', '1'].includes(
-                        status.toLowerCase()
-                    );
-
-                    return `<span class="staff-badge ${activo
-                        ? 'staff-badge-status'
-                        : 'bg-secondary text-white'}">
-                        ${escapeHtml(status)}
-                    </span>`;
-                }
-            },
-            {
-                data: 'created_at',
-                name: 'created_at',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display' || !data) return data || '';
-
-                    return `<span class="staff-created-at">
-                        ${escapeHtml(data)}
-                    </span>`;
-                }
-            },
+            { data: 'days'},
+            { data: 'state' },
+            { data: 'created_at' },
             {
                 data: 'actions',
                 name: 'actions',
                 orderable: false,
-                searchable: false,
-                className: 'text-center',
-                defaultContent: ''
+                searchable: false
             }
         ],
 
@@ -355,14 +225,10 @@ $(function () {
      * El backend debe generar un botón .btnEditar con data-url.
      */
     $(document).on('click', '.btnEditar', function () {
-        const url = $(this).data('url');
+        const id = $(this).data('id');
+        const url = "{{ route('staffgroups.edit', ':id') }}".replace(':id', id);
 
-        if (!url) {
-            mostrarAlerta(false, 'No se especificó la URL de edición.');
-            return;
-        }
-
-        abrirModal(url, 'Editar Grupo de Personal');
+        abrirModal(url, 'Editar Grupo de Personal', 1);
     });
 
     /*
@@ -396,7 +262,6 @@ $(function () {
             success: function (response) {
                 formModal.hide();
                 refrescarTabla();
-
                 mostrarAlerta(
                     true,
                     response.message || 'Grupo de personal guardado correctamente.'
@@ -430,8 +295,9 @@ $(function () {
      */
     $(document).on('click', '.btnEliminar', function (event) {
         event.preventDefault();
+        const id = $(this).data('id');
 
-        const url = $(this).data('url');
+        const url = "{{route('staffgroups.destroy', ':id')}}".replace(':id', id);
 
         if (!url) {
             mostrarAlerta(false, 'No se especificó la URL de eliminación.');
@@ -528,9 +394,14 @@ $(function () {
 
         // Campo del conductor
         $contenedor.append(`
-            <div class="mb-3">
-                <label for="driver_id" class="form-label">Conductor *</label>
-                <select name="driver_id" id="driver_id" class="form-select" required>
+        <hr>
+            <div class="">
+                Estos datos son para configuración no son obigatorios
+            <div>
+            
+            <div class="mb-3 ">
+                <label for="driver_id" class="form-label">Conductor</label>
+                <select name="driver_id" id="driver_id" class="form-select" >
                     <option value="">Seleccione un conductor</option>
                 </select>
             </div>
@@ -540,8 +411,8 @@ $(function () {
         for (let i = 1; i <= cantidadAyudantes; i++) {
             $contenedor.append(`
                 <div class="mb-3">
-                    <label for="helpers_${i}" class="form-label">Ayudante ${i} *</label>
-                    <select name="helpers[]" id="helpers_${i}" class="form-select" required>
+                    <label for="helpers_${i}" class="form-label">Ayudante ${i}</label>
+                    <select name="helpers[]" id="helpers_${i}" class="form-select" >
                         <option value="">Seleccione un ayudante</option>
                     </select>
                 </div>
@@ -553,4 +424,5 @@ $(function () {
 
 });
 </script>
+
 @stop

@@ -50,6 +50,10 @@ Route::resource('shifts', ShiftController::class)->names('shifts');
 
 Route::resource('staffgroups', StaffGroupsController::class)->names('staffgroups');
 
+Route::get('zones/departments/{department}/provinces', [ZoneController::class, 'provinces'])->name('zones.provinces');
+Route::get('zones/provinces/{province}/districts', [ZoneController::class, 'districts'])->name('zones.districts');
+Route::get('zones/perimeters', [ZoneController::class, 'perimeters'])->name('zones.perimeters');
+Route::resource('zones', ZoneController::class)->names('zones');
 
 
 Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');

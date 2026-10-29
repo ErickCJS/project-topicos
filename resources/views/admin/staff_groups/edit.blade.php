@@ -1,8 +1,8 @@
-{!! Form::model($model, [
-    'route' => ['brandsmodel.update', $model],
+{!! Form::model($staffgroups, [
+    'route' => ['staffgroups.update', $staffgroups->id],
     'method' => 'put',
 ]) !!}
-@include('admin.model.template.form')
+@include('admin.staff_groups.template.form')
 <div class="model-modal-footer">
     <button type="submit" class="btn btn-success">
         <i class="bi bi-floppy me-1" aria-hidden="true"></i>Actualizar

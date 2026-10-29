@@ -46,7 +46,7 @@
         {!! Form::label('vehicle_id', 'Vehículo *', [
             'class' => 'form-label fw-semibold'
         ]) !!}
-
+    
         <select name="vehicle_id" id="vehicle_id"
             class="form-select" required>
             <option value="">Seleccione un vehículo</option>
@@ -54,9 +54,12 @@
             @foreach ($vehicles as $vehicle)
                 <option
                     value="{{ $vehicle->id }}"
-                    data-capacity="{{ $vehicle->occupats_capacity }}">
+                    data-capacity="{{ $vehicle->occupats_capacity }}"
+                    {{ isset($staffgroups) && $staffgroups->vehicle_id == $vehicle->id ? 'selected' : '' }}
+                >
                     {{ $vehicle->code }} - {{ $vehicle->name }}
-                    (Capacidad: {{ $vehicle->occupats_capacity }})
+                    (Capacidad: {{ $vehicle->occupats_capacity }}) 
+
                 </option>
             @endforeach
         </select>
@@ -70,17 +73,18 @@
     <div class="row g-3">
         @php
             $dias = [
-                'lunes' => 'Lunes',
-                'martes' => 'Martes',
-                'miercoles' => 'Miércoles',
-                'jueves' => 'Jueves',
-                'viernes' => 'Viernes',
-                'sabado' => 'Sábado',
-                'domingo' => 'Domingo',
+                '1' => 'Lunes',
+                '2' => 'Martes',
+                '3' => 'Miércoles',
+                '4' => 'Jueves',
+                '5' => 'Viernes',
+                '6' => 'Sábado',
+                '7' => 'Domingo',
             ];
         @endphp
 
         @foreach ($dias as $valor => $nombre)
+        
             <div class="col-6 col-md-3 col-lg-2">
                 <div class="form-check">
                     {!! Form::checkbox('days[]', $valor, false, [
@@ -108,3 +112,4 @@
 <div id="camposPersonal"></div>
 
 </div>
+
