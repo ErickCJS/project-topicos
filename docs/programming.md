@@ -1,39 +1,89 @@
-# Interfaz de Programaciones
+# Programaciones de recorridos
 
-La ruta autenticada `GET /admin/programming` (`programming.index`) usa
-`ProgrammingController@index` para mostrar la vista. No consulta modelos ni
-guarda información en el servidor.
+## Estructura y datos reales
 
-## Alcance
+`ProgrammingController` sigue el flujo Laravel/Blade, Eloquent, AJAX y transacciones
+utilizado por `StaffGroupsController`. Los catálogos de grupos, personal, zonas y
+turnos proceden de la base de datos. JavaScript solo controla las interacciones y
+presenta las respuestas del servidor; no crea catálogos ni recorridos simulados.
 
-- Listado con filtros por fechas, zona y turno, búsqueda y paginación.
-- Exportación de las filas filtradas a Excel/PDF, impresión y selección de columnas.
-  PDF e impresión usan encabezado SGRS JLO, verde institucional, fecha de emisión
-  de Lima, resumen de estados y filtros aplicados. Ambos respetan las columnas
-  visibles y presentan fechas en formato día/mes/año. El PDF incorpora numeración
-  de páginas y repite la cabecera de la tabla; la impresión solicita A4 horizontal.
-- Modal de creación por rango de fechas y días de trabajo; selección de grupo
-  con búsqueda por nombre, zona o turno y personal editable.
-- Disponibilidad simulada, con errores, sugerencias y estado correcto.
-- Detalle, edición de una ocurrencia, eliminación, historial y finalización
-  locales. Todos los cambios se pierden al recargar.
-- Programación masiva pendiente de especificación; el botón muestra un aviso.
+Se reutilizan `StaffGroup`, sus relaciones `days`, `helpers`, `driver`, `vehicle`,
+`zone` y `shift`. Se conservan las convenciones de staff_group: días ISO 1-7
+(lunes-domingo), conductor con `employee_type_id = 1` y ayudantes con tipo distinto
+al de conductor. Solo se aceptan grupos y empleados activos.
 
-Los catálogos y registros de ejemplo están en `public/js/programming.js`.
-Los estilos específicos se mantienen en `resources/css/programming.css` y su
-copia pública, reutilizando `admin-indexes.css` y `modal-theme.css`.
+Para disponer del módulo en otra máquina: actualizar el código y ejecutar
+`php artisan migrate`. No es necesario ni se ejecuta un seeder de Programaciones.
+Debe existir al menos un grupo real configurado en Grupos de Personal.
 
-## Revisión manual
+## Operaciones
 
-1. Entrar con sesión y abrir Programación → Programación.
-2. Filtrar por Zona Centro: deben aparecer dos registros iniciales.
-3. Crear una programación con Grupo A del 26 al 31 de octubre de 2026.
-   La validación debe mostrar vacaciones del conductor y contrato del ayudante;
-   Guardar permanece bloqueado.
-4. Cambiar el conductor a Carlos Guerrero y el segundo ayudante a Juan Martínez.
-   Validar: se habilita Guardar para tres días de trabajo.
-5. Cambiar un dato: Guardar se bloquea hasta revalidar.
-6. Guardar: aparecen las nuevas filas solo en la sesión actual del navegador.
-7. Revisar los estados en modo claro/oscuro y el desplazamiento en pantalla pequeña.
+- `GET /admin/programming`: vista o listado JSON con filtros por período, zona y
+  turno. Sin filtros muestra el día actual en la zona horaria de la aplicación.
+- `GET /admin/programming/groups/{id}`: configuración real del grupo seleccionado.
+- `POST /admin/programming/check`: validación de fechas, días y equipo; informa
+  disponibilidad, reemplazos y fechas omitidas.
+- `POST /admin/programming`: generación individual por rango de fechas.
+- `GET /admin/programming/{id}`: detalle persistido del recorrido diario.
+- `PUT /admin/programming/{id}`: modificación de una sola ocurrencia pendiente,
+  con validación previa y comprobación nuevamente al guardar.
+- `GET /admin/programming/{id}/history`: historial, usuario, fecha y valores
+  anteriores/posteriores, incluso cuando el recorrido fue eliminado lógicamente.
+- `POST /admin/programming/{id}/finish`: finalización del recorrido diario,
+  registrando usuario, fecha y canal web.
+- `DELETE /admin/programming/{id}`: eliminación lógica de un recorrido pendiente,
+  conservando historial y liberando las reservas de vehículo y personal.
 
-Pruebas de acceso: `php vendor/phpunit/phpunit/phpunit --filter ProgrammingInterfaceTest`.
+Todas las rutas utilizan el middleware `web` y `auth` del panel existente, y las
+mutaciones AJAX incluyen el token CSRF. No se introduce un sistema de roles nuevo.
+
+## Generación y disponibilidad
+
+Se recorren las fechas reales del calendario y se omiten los feriados activos.
+La identidad para evitar duplicados es grupo + fecha: repetir una generación
+conserva lo existente; añadir días semanales permite completar fechas faltantes.
+Cambiar la plantilla no modifica automáticamente recorridos ya generados.
+
+Cada conductor y ayudante necesita contrato activo no anulado que cubra cada
+fecha. Solo las vacaciones aprobadas bloquean disponibilidad. No se admite
+personal ni vehículo asignado en la misma fecha y turno; otro turno sí se permite.
+Los reemplazos sugeridos proceden de empleados reales del cargo correspondiente,
+con disponibilidad para todas las fechas nuevas de la operación.
+
+La capacidad del vehículo es el máximo de ocupantes, incluido un conductor. Las
+plazas opcionales pueden quedar vacías; las personas no pueden repetirse dentro
+del equipo. El formulario adapta las plazas de ayudantes a esa capacidad.
+
+Una inconsistencia bloquea el lote completo. Una validación satisfactoria genera
+un token de sesión válido por 15 minutos, asociado a los datos del formulario y
+la configuración del grupo. Cambiar los datos exige revalidar. Al guardar siempre
+se consultan otra vez los contratos, vacaciones y ocupaciones actuales.
+
+La operación usa transacciones, bloqueos de recursos y claves únicas para las
+reservas de grupo/vehículo y personal por fecha y turno. Los recorridos guardan
+copias de los nombres y horarios usados, y sus empleados asignados, para conservar
+el contexto histórico aunque luego cambie el grupo. No se puede editar ni
+eliminar un recorrido finalizado. El rango máximo por operación es de 366 días.
+
+## Interfaz y reportes
+
+Se conserva la línea gráfica, los modales, los estilos compartidos y las
+exportaciones a Excel/PDF e impresión. Los reportes usan los datos reales del
+listado filtrado, todas sus páginas y las columnas visibles. Al guardar se muestra
+el período generado para que los nuevos registros puedan revisarse.
+
+Programación masiva queda deshabilitada e identificada como siguiente avance,
+según el alcance del ingeniero. Los cruces se evalúan por la misma fecha y el
+mismo turno; reglas entre turnos diferentes con horarios superpuestos o que
+atraviesan medianoche requieren una definición adicional del equipo.
+
+## Verificación
+
+`php vendor/phpunit/phpunit/phpunit --filter Programming`
+
+Las pruebas requieren PDO SQLite habilitado y utilizan exclusivamente SQLite
+en memoria, con una comprobación explícita para evitar usar la base MySQL local.
+Cubren persistencia, catálogos reales, feriados, fechas duplicadas, ampliaciones,
+contratos, vacaciones de ambos cargos, sugerencias, cruces de personal/vehículo,
+capacidad, tokens de validación, cambios concurrentes de disponibilidad, edición,
+finalización, copias históricas y eliminación lógica con liberación de reservas.
