@@ -59,7 +59,7 @@ $(function () {
         order: [[0, 'asc']],
         pageLength: 10,
         columns: [
-            { data: 'date', render: (value, type) => type === 'display' ? formatDate(value) : value },
+            { data: 'date', render: (value, type) => ['display', 'export'].includes(type) ? formatDate(value) : value },
             { data: 'status', render: (value, type) => type === 'display' ? `<span class="programming-status ${value === 'Finalizado' ? 'text-success-emphasis bg-success-subtle' : 'text-info-emphasis bg-info-subtle'}">${escape(value)}</span>` : value },
             { data: 'groupId', render: id => escape(groupById(id).zone) },
             { data: 'groupId', render: (id, type) => type === 'display' ? `<span class="badge bg-warning-subtle text-warning-emphasis">${escape(groupById(id).shift)}</span>` : groupById(id).shift },
@@ -74,11 +74,27 @@ $(function () {
             emptyTable: 'No hay programaciones para mostrar', paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' }
         }
     });
-    const exportOptions = { columns: ':visible:not(:last-child)', orthogonal: 'export' };
+    const exportOptions = { columns: index => index !== 7 && table.column(index).visible(), orthogonal: 'export', modifier: { search: 'applied', order: 'applied', selected: null } };
+    function reportMetadata() {
+        const rows = table.rows({ search: 'applied' }).data().toArray();
+        const start = $('#filterStart').val(), end = $('#filterEnd').val();
+        const filters = [
+            `Período: ${start ? formatDate(start) : 'Sin inicio'} - ${end ? formatDate(end) : 'Sin fin'}`,
+            `Zona: ${$('#filterZone').val() || 'Todas'}`, `Turno: ${$('#filterShift').val() || 'Todos'}`
+        ];
+        if (table.search()) filters.push(`Búsqueda: ${table.search()}`);
+        return {
+            issued: new Intl.DateTimeFormat('es-PE', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Lima' }).format(new Date()),
+            count: rows.length, scheduled: rows.filter(row => row.status === 'Programado').length,
+            finished: rows.filter(row => row.status === 'Finalizado').length, filters
+        };
+    }
     new $.fn.dataTable.Buttons(table, { buttons: [
         { extend: 'excelHtml5', text: '<i class="bi bi-file-earmark-excel me-1"></i>Excel', title: 'Programaciones — datos de ejemplo', exportOptions },
-        { extend: 'pdfHtml5', text: '<i class="bi bi-file-earmark-pdf me-1"></i>PDF', title: 'Programaciones — datos de ejemplo', orientation: 'landscape', exportOptions },
-        { extend: 'print', text: '<i class="bi bi-printer me-1"></i>Imprimir', title: 'Programaciones — datos de ejemplo', exportOptions }
+        { extend: 'pdfHtml5', text: '<i class="bi bi-file-earmark-pdf me-1"></i>PDF', title: 'Programaciones', filename: 'SGRS-JLO-programaciones', orientation: 'landscape', pageSize: 'A4', exportOptions,
+            customize: doc => window.ProgrammingReports.customizePdf(doc, reportMetadata()) },
+        { extend: 'print', text: '<i class="bi bi-printer me-1"></i>Imprimir', title: 'Programaciones', exportOptions,
+            customize: win => window.ProgrammingReports.customizePrint(win, reportMetadata(), table.buttons.exportData(exportOptions)) }
     ] }).container().appendTo('#programmingExports');
     table.columns().every(function (index) {
         if (index === 7) return;
