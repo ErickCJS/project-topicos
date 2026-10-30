@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
 Route::get('programming', [ProgrammingController::class, 'index'])->name('programming.index');
+Route::get('programming/holidays', [ProgrammingController::class, 'holidays'])->name('programming.holidays');
 Route::get('programming/groups/{staffGroup}', [ProgrammingController::class, 'group'])->name('programming.group');
 Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
 Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
