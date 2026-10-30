@@ -8,8 +8,15 @@ $(function () {
     const csrf = $(form).find('[name="_token"]').val();
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const dateLabel = value => String(value || '').slice(0, 10).split('-').reverse().join('/');
+    function todayInLima() {
+        const parts = new Intl.DateTimeFormat('en', {timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+        const values = Object.fromEntries(parts.map(part => [part.type,part.value]));
+        return `${values.year}-${values.month}-${values.day}`;
+    }
     let editing = null, validationToken = null, revision = 0, groupRequest = null;
     let checking = false, saving = false;
+    let holidayRequest = null, holidayRevision = 0, holidaysReady = false;
+    let allowedGroupDays = [];
 
     function request(method, path, data = {}) {
         return $.ajax({url: base + path, method, data: method === 'GET' ? data : JSON.stringify(data),
@@ -88,8 +95,52 @@ $(function () {
             select.value = ids[index] || ''; container.appendChild(node);
         }
     }
+    function loadHolidays(selected = null) {
+        const chosen = selected || $('.programming-work-holiday:checked').map((i, el) => el.value).get();
+        const current = ++holidayRevision;
+        if (holidayRequest) holidayRequest.abort();
+        holidayRequest = null; holidaysReady = false;
+        const start = $('#programStart').val(), end = $('#programEnd').val();
+        const days = $(form).find('[name="workdays"]:checked').map((i, el) => el.value).get();
+        $('#programHolidayOptions').text('Seleccione un período válido y los días de trabajo.');
+        if (!start || !end || start < todayInLima() || end < start || !days.length) return;
+        $('#programHolidayOptions').text('Consultando feriados…');
+        holidayRequest = request('GET', '/holidays', {start_date:start,end_date:end,days}).done(result => {
+            if (current !== holidayRevision) return;
+            $('#programHolidayOptions').html(result.data.length ? result.data.map(holiday =>
+                `<div class="form-check mb-2"><input type="checkbox" class="form-check-input programming-work-holiday" id="workHoliday-${escape(holiday.date)}" value="${escape(holiday.date)}" ${chosen.includes(holiday.date) ? 'checked' : ''}><label class="form-check-label" for="workHoliday-${escape(holiday.date)}"><strong>${escape(dateLabel(holiday.date))}</strong> · ${holiday.names.map(escape).join(', ')} — Trabajar este día</label></div>`
+            ).join('') : 'No hay feriados activos en los días seleccionados.');
+            holidaysReady = true;
+            invalidate();
+        }).fail(xhr => {
+            if (current !== holidayRevision || xhr.statusText === 'abort') return;
+            $('#programHolidayOptions').text('No se pudieron consultar los feriados.');
+            $('#programHolidayOptions').append('<button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="retryProgrammingHolidays">Reintentar</button>');
+            errors(xhr);
+        }).always(() => {if (current === holidayRevision) holidayRequest = null;});
+    }
+    $('#programHolidayOptions').on('click', '#retryProgrammingHolidays', () => loadHolidays());
+    $('#programEnd').on('change', () => loadHolidays());
+    $(form).on('change', '[name="workdays"]', () => loadHolidays());
+    function syncEditingDay() {
+        document.getElementById('programStart').setCustomValidity('');
+        if (!editing || !$('#programStart').val()) return;
+        const weekday = new Date($('#programStart').val() + 'T00:00:00Z').getUTCDay() || 7;
+        form.querySelectorAll('[name="workdays"]').forEach(input => {input.checked = !input.disabled && Number(input.value) === weekday;});
+        if (allowedGroupDays.length && !allowedGroupDays.includes(weekday)) {
+            document.getElementById('programStart').setCustomValidity('La fecha no corresponde a los días de trabajo del grupo. Elija otra fecha o cambie de grupo.');
+        }
+    }
+    function applyGroupDays() {
+        form.querySelectorAll('[name="workdays"]').forEach(input => {
+            input.disabled = !allowedGroupDays.includes(Number(input.value));
+            if (input.disabled) input.checked = false;
+        });
+    }
     function loadGroup(id, row = null) {
         if (groupRequest) groupRequest.abort();
+        allowedGroupDays = []; applyGroupDays();
+        document.getElementById('programStart').setCustomValidity('');
         $('#programGroupSummary').prop('hidden',true); helpers(1);
         if (!id) {$('#programDriver').val('');return;}
         $('#validateProgramming').prop('disabled',true);
@@ -99,44 +150,62 @@ $(function () {
             $('#programDriver').val(row ? row.driver_id : group.driver_id);
             helpers(group.capacity,row ? row.helper_ids : group.helpers);
             const days = (row ? row.days : group.days).map(Number);
+            allowedGroupDays = group.days.map(Number);
+            applyGroupDays();
             form.querySelectorAll('[name="workdays"]').forEach(input => {input.checked = days.includes(Number(input.value));});
+            applyGroupDays();
+            const dayNames = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+            $('#programGroupDaysNote').text('Días del grupo: ' + allowedGroupDays.slice().sort((a,b) => a-b).map(day => dayNames[day-1]).join(', ') + '. Los demás días están bloqueados.');
+            syncEditingDay();
             invalidate();
+            loadHolidays(row ? row.work_holidays : []);
         }).fail(xhr => {if(xhr.statusText !== 'abort') errors(xhr);}).always(() => $('#validateProgramming').prop('disabled',false));
     }
     $('#programGroup').on('change',function(){loadGroup(this.value);});
     $('#programmingForm').on('input change','input,select,textarea',invalidate);
     $('#programStart').on('change',function(){
-        $('#programEnd').attr('min',this.value);
-        if(editing) $('#programEnd').val(this.value);
+        $('#programEnd').attr('min',this.value > todayInLima() ? this.value : todayInLima());
+        if(editing) {$('#programEnd').val(this.value);syncEditingDay();}
+        loadHolidays();
     });
     function openForm(row = null) {
         form.reset(); editing = row ? row.id : null;
-        $('#programEnd').removeAttr('min').prop('readOnly',Boolean(editing));
+        $('#programGroupDaysNote').text('Seleccione un grupo para habilitar sus días de trabajo.');
+        loadHolidays([]);
+        $('#programStart, #programEnd').attr('min',todayInLima());
+        $('#programEnd').prop('readOnly',Boolean(editing));
         $('#programmingFormTitle').text(editing ? 'Modificar programación' : 'Nueva programación');
         $('#programGroup').val(row ? row.group_id : '').trigger('change.select2');
-        if(row){$('#programStart').val(row.date);$('#programEnd').val(row.date).attr('min',row.date);$('#programNotes').val(row.notes);}
+        if(row){$('#programStart').val(row.date);$('#programEnd').val(row.date).attr('min',row.date > todayInLima() ? row.date : todayInLima());$('#programNotes').val(row.notes);}
         invalidate(); loadGroup($('#programGroup').val(),row); modal.show();
         status('info','Revise los datos del grupo y valide la disponibilidad antes de guardar.');
     }
     $('#newProgramming').on('click',() => openForm());
-    $('#programmingFormModal').on('hidden.bs.modal',() => {if(groupRequest) groupRequest.abort();invalidate();});
+    $('#programmingFormModal').on('hidden.bs.modal',() => {if(groupRequest) groupRequest.abort();holidayRevision++;if(holidayRequest) holidayRequest.abort();holidayRequest=null;holidaysReady=false;invalidate();});
     $('#bulkProgramming').prop('disabled',true).attr('title','Programación masiva: siguiente avance');
     function payload() {
         return {staff_group_id:$('#programGroup').val(),driver_id:$('#programDriver').val(),helpers:$('.programming-helper-select').map((i,el) => el.value).get().filter(Boolean),
-            start_date:$('#programStart').val(),end_date:$('#programEnd').val(),days:$(form).find('[name="workdays"]:checked').map((i,el) => el.value).get(),notes:$('#programNotes').val(),programming_id:editing};
+            start_date:$('#programStart').val(),end_date:$('#programEnd').val(),days:$(form).find('[name="workdays"]:checked').map((i,el) => el.value).get(),notes:$('#programNotes').val(),programming_id:editing,
+            work_holidays:$('.programming-work-holiday:checked').map((i,el) => el.value).get()};
     }
     function omitted(result) {
-        return [['Feriados omitidos',result.omitted_holidays],['Fechas ya programadas',result.omitted_duplicates]].filter(([,dates]) => dates.length).map(([label,dates]) => `<div class="mt-2">${label}: ${dates.slice(0,8).map(dateLabel).join(', ')}${dates.length > 8 ? ' y ' + (dates.length - 8) + ' más' : ''}.</div>`).join('');
+        return [['Feriados omitidos',result.omitted_holidays],['Feriados habilitados para trabajar',result.included_holidays || []],['Fechas ya programadas',result.omitted_duplicates]].filter(([,dates]) => dates.length).map(([label,dates]) => `<div class="mt-2">${label}: ${dates.slice(0,8).map(dateLabel).join(', ')}${dates.length > 8 ? ' y ' + (dates.length - 8) + ' más' : ''}.</div>`).join('');
     }
     $('#validateProgramming').on('click',function(){
         if(checking || saving) return;
         if(!$('#programGroup').val()){status('danger','Seleccione un grupo de personal.');return;}
         if(!form.reportValidity()) return;
+        if(!holidaysReady || holidayRequest){status('info','Espere la consulta de feriados o vuelva a intentarla antes de validar.');return;}
         invalidate(); const current = revision; checking = true; $(this).prop('disabled',true);
         request('POST','/check',payload()).done(result => {
             if(current !== revision) return;
-            if(!result.valid){
-                const issues = result.issues.map(issue => `<li>${escape(issue.person)}: ${escape(issue.reason)} (${issue.dates.slice(0,5).map(dateLabel).join(', ')}${issue.dates.length > 5 ? ' y más fechas' : ''}).${(result.suggestions[issue.employee_id] || []).length ? '<br>Sugerencias disponibles: ' + result.suggestions[issue.employee_id].map(p => escape(p.name)).join(', ') : ''}</li>`).join('');
+            if(!result.count && !result.issues.length){
+                const message = result.omitted_holidays.length && !result.omitted_duplicates.length
+                    ? '<strong>La fecha seleccionada es feriado y todavía no está habilitada.</strong><div>Marque “Trabajar este día” en Feriados del período y vuelva a validar la disponibilidad.</div>'
+                    : '<strong>No se puede guardar: no hay fechas nuevas para generar.</strong><div>Las fechas elegidas ya están programadas o corresponden a días omitidos. Cambie el período o los días de trabajo.</div>';
+                status('warning',message + omitted(result));
+            } else if(!result.valid){
+                const issues = result.issues.map(issue => `<li>${escape(issue.person)}: ${escape(issue.reason)} (${issue.dates.slice(0,5).map(dateLabel).join(', ')}${issue.dates.length > 5 ? ' y más fechas' : ''}).${(issue.routes || []).map(route => '<div class="small">Recorrido #' + escape(route.id) + ' · ' + escape(route.group) + ' · ' + escape(route.shift) + (route.holiday_authorized ? ' · Feriado habilitado' + (route.authorized_by ? ' por ' + escape(route.authorized_by) : '') : '') + '</div>').join('')}${(result.suggestions[issue.employee_id] || []).length ? '<br>Sugerencias disponibles: ' + result.suggestions[issue.employee_id].map(p => escape(p.name)).join(', ') : ''}</li>`).join('');
                 status('danger','<strong>Hay inconsistencias que corregir</strong><ul class="mt-2 mb-0">' + issues + '</ul>' + omitted(result));
             } else {
                 validationToken = result.validation_token;
@@ -156,10 +225,10 @@ $(function () {
             $('#filterStart').val(data.start_date); $('#filterEnd').val(data.end_date);
             $('#filterZone, #filterShift').val(''); table.search(''); table.ajax.reload();
             Swal.fire({icon:'success',title:'Proceso exitoso',text:result.message,confirmButtonText:'Entendido'});
-        }).fail(xhr => {invalidate();errors(xhr);}).always(() => {saving=false;$(form).find('input,select,textarea,button').prop('disabled',false);$('#saveProgramming').prop('disabled',true);});
+        }).fail(xhr => {invalidate();errors(xhr);}).always(() => {saving=false;$(form).find('input,select,textarea,button').prop('disabled',false);applyGroupDays();$('#saveProgramming').prop('disabled',true);});
     });
     function details(row) {
-        return [['Fecha',dateLabel(row.date)],['Estado',row.status],['Grupo',row.group],['Zona',row.zone],['Turno',row.shift + ' (' + row.hours + ')'],['Vehículo',row.vehicle + ' · ' + row.plate],['Conductor',row.driver],['Ayudantes',row.helpers.join(', ') || 'Sin ayudantes'],['Observaciones',row.notes || 'Sin observaciones'],['Finalización',row.finished_at || 'Pendiente']].map(([label,value]) => `<div class="col-12 col-md-6"><span class="programming-detail-label">${label}</span><span class="text-break">${escape(value)}</span></div>`).join('');
+        return [['Fecha',dateLabel(row.date)],['Estado',row.status],['Grupo',row.group],['Zona',row.zone],['Turno',row.shift + ' (' + row.hours + ')'],['Vehículo',row.vehicle + ' · ' + row.plate],['Conductor',row.driver],['Ayudantes',row.helpers.join(', ') || 'Sin ayudantes'],...(row.holiday_work ? [['Trabajo en feriado',row.holiday_work.names.join(', ') + ' · Autorizado el ' + dateLabel(row.holiday_work.authorized_at)]] : []),['Observaciones',row.notes || 'Sin observaciones'],['Finalización',row.finished_at || 'Pendiente']].map(([label,value]) => `<div class="col-12 col-md-6"><span class="programming-detail-label">${label}</span><span class="text-break">${escape(value)}</span></div>`).join('');
     }
     $('#programmingTable').on('click','[data-action]',async function(){
         const id = Number(this.closest('[data-id]').dataset.id), action = this.dataset.action;
@@ -173,7 +242,7 @@ $(function () {
             request('GET','/' + id + '/history').done(result => {
                 $('#programmingDetailTitle').text('Historial de cambios');
                 $('#programmingDetailBody').html(result.data.map(change => {
-                    const snapshot = value => value ? `<div class="small">${escape(dateLabel(value.date))} · ${escape(value.status)}<br>${escape(value.snapshot.zone)} / ${escape(value.snapshot.shift)} / ${escape(value.snapshot.vehicle)}<br>${escape(value.snapshot.driver)}; ${value.snapshot.helpers.map(escape).join(', ')}<br>${escape(value.notes || 'Sin observaciones')}</div>` : '<div class="small">Sin registro previo</div>';
+                    const snapshot = value => value ? `<div class="small">${escape(dateLabel(value.date))} · ${escape(value.status)}<br>${escape(value.snapshot.zone)} / ${escape(value.snapshot.shift)} / ${escape(value.snapshot.vehicle)}<br>${escape(value.snapshot.driver)}; ${value.snapshot.helpers.map(escape).join(', ')}${value.snapshot.holiday_work ? '<br>Trabajo en feriado autorizado: ' + value.snapshot.holiday_work.names.map(escape).join(', ') : ''}<br>${escape(value.notes || 'Sin observaciones')}</div>` : '<div class="small">Sin registro previo</div>';
                     return `<section class="mb-3 pb-3 border-bottom"><strong>${escape(change.action)}</strong><div class="small text-body-secondary mb-2">${escape(change.at)} · ${escape(change.user)}</div><div class="row g-3"><div class="col-md-6">Antes${snapshot(change.before)}</div><div class="col-md-6">Después${snapshot(change.after)}</div></div></section>`;
                 }).join('') || 'Sin cambios registrados.'); detail.show();
             }).fail(errors);return;

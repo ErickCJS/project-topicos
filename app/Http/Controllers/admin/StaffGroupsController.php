@@ -137,137 +137,83 @@ class StaffGroupsController extends Controller
      * Store a newly created resource in storage.
      */
 
-    private function validarGrupoPersonal(Request $request): array
+    private function validarGrupoPersonal(Request $request, ?StaffGroup $group = null): array
     {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:staff_groups,name'],
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('staff_groups', 'name')->ignore($group?->id)],
             'shift_id' => ['required', 'integer', 'exists:shifts,id'],
             'zone_id' => ['required', 'integer', 'exists:zones,id'],
             'vehicle_id' => ['required', 'integer', 'exists:vehicles,id'],
-            'state' => ['nullable', 'boolean'],
-
+            'state' => ['sometimes', 'boolean'],
             'days' => ['required', 'array', 'min:1'],
-            'days.*' => ['required', 'integer', 'between:1,7'],
-
-            'driver_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('employees', 'id')
-                    ->where('employee_type_id', 1),
-            ],
-
-            'helpers' => ['nullable', 'array'],
-            'helpers.*' => [
-                'nullable',
-                'integer',
-                Rule::exists('employees', 'id')
-                    ->whereNot('employee_type_id', 1),
-            ],
+            'days.*' => ['required', 'integer', 'distinct', 'between:1,7'],
+            'driver_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('employee_type_id', 1)->where('status', 'Activo')],
+            'helpers' => ['required', 'array', 'min:1'],
+            'helpers.*' => ['nullable', 'integer', 'distinct', Rule::exists('employees', 'id')->whereNot('employee_type_id', 1)->where('status', 'Activo')],
         ], [
             'name.unique' => 'Ya existe un grupo de personal con ese nombre.',
-            'name.required' => 'El nombre del grupo es obligatorio.',
-            'name.max' => 'El nombre no puede superar los 100 caracteres.',
+            'driver_id.required' => 'Debe seleccionar un conductor para el grupo.',
+            'driver_id.exists' => 'Seleccione un conductor activo con el cargo correspondiente.',
+            'helpers.*.exists' => 'Seleccione ayudantes activos con el cargo correspondiente.',
+            'helpers.required' => 'Debe seleccionar al menos un ayudante para el grupo.',
+            'helpers.min' => 'Debe seleccionar al menos un ayudante para el grupo.',
+            'helpers.*.distinct' => 'No puede seleccionar al mismo ayudante más de una vez.',
+            'days.required' => 'Seleccione al menos un día de trabajo.',
+            'days.min' => 'Seleccione al menos un día de trabajo.',
+            'days.*.distinct' => 'No puede repetir los días de trabajo.',
+        ], ['name' => 'nombre del grupo', 'shift_id' => 'turno', 'zone_id' => 'zona', 'vehicle_id' => 'vehículo', 'days' => 'días de trabajo', 'driver_id' => 'conductor', 'helpers' => 'ayudantes', 'state' => 'estado']);
 
-            'shift_id.required' => 'Debes seleccionar un turno.',
-            'shift_id.exists' => 'El turno seleccionado no existe.',
+        $data['helpers'] = array_values(array_filter($data['helpers'] ?? [], fn ($id) => $id !== null && $id !== ''));
+        if (! $data['helpers']) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['helpers' => 'Debe seleccionar al menos un ayudante para el grupo.']);
+        }
+        $data['state'] = (bool) ($data['state'] ?? $group?->state ?? true);
+        $vehicle = Vehicle::whereKey($data['vehicle_id'])->lockForUpdate()->firstOrFail();
+        Employee::whereIn('id', array_merge([$data['driver_id']], $data['helpers']))->orderBy('id')->lockForUpdate()->get();
+        if (1 + count($data['helpers']) > (int) $vehicle->occupats_capacity) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['helpers' => 'El conductor y los ayudantes superan la capacidad de ocupantes del vehículo.']);
+        }
+        $this->validarDisponibilidad($data, $group?->id);
 
-            'zone_id.required' => 'Debes seleccionar una zona.',
-            'zone_id.exists' => 'La zona seleccionada no existe.',
-
-            'vehicle_id.required' => 'Debes seleccionar un vehículo.',
-            'vehicle_id.exists' => 'El vehículo seleccionado no existe.',
-
-            'state.required' => 'Debes indicar el estado del grupo.',
-            'state.boolean' => 'El estado seleccionado no es válido.',
-
-            'days.required' => 'Selecciona al menos un día de trabajo.',
-            'days.min' => 'Selecciona al menos un día de trabajo.',
-            'days.*.integer' => 'Uno de los días seleccionados no es válido.',
-            'days.*.between' => 'Los días deben estar comprendidos entre 1 y 7.',
-
-            'driver_id.exists' => 'El empleado seleccionado no es un conductor válido.',
-
-            'helpers.*.integer' => 'Uno de los ayudantes seleccionados no es válido.',
-            'helpers.*.exists' => 'Uno de los empleados seleccionados no es un ayudante válido.',
-        ], [
-            'name' => 'nombre del grupo',
-            'shift_id' => 'turno',
-            'zone_id' => 'zona',
-            'vehicle_id' => 'vehículo',
-            'state' => 'estado',
-            'days' => 'días de trabajo',
-            'driver_id' => 'conductor',
-            'helpers' => 'ayudantes',
-        ]);
+        return $data;
     }
 
-    private function validarDisponibilidad(
-        array $datos,
-        ?int $grupoId = null
-    ): void {
-        //validemos que en ese turno esa zona y ese vehiculo no este siendo utilizado en ese día de trabajo
-
-        $conflicto = StaffGroup::where('shift_id', $datos['shift_id'])
-            ->where('zone_id', $datos['zone_id'])
-            ->where('vehicle_id', $datos['vehicle_id'])
-            ->when($grupoId, fn($query) => $query->where('id', '!=', $grupoId))
-            ->whereHas('days', function ($query) use ($datos) {
-                $query->whereIn('day', $datos['days']);
-            })
-            ->exists();
-
-        if ($conflicto) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'días' => 'El vehículo ya está asignado a ese turno y zona en uno o más de los días seleccionados.',
-            ]);
+    private function validarDisponibilidad(array $data, ?int $groupId = null): void
+    {
+        if (! $data['state']) {
+            return;
+        }
+        $groups = StaffGroup::with('helpers')->where('state', true)
+            ->where('shift_id', $data['shift_id'])
+            ->when($groupId, fn ($query) => $query->whereKeyNot($groupId))
+            ->whereHas('days', fn ($query) => $query->whereIn('day', $data['days']))->get();
+        foreach ($groups as $other) {
+            if ((int) $other->vehicle_id === (int) $data['vehicle_id']) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['vehicle_id' => 'El vehículo ya está asignado al grupo '.$other->name.' en el mismo turno y uno de los días seleccionados.']);
+            }
+            if ((int) $other->driver_id === (int) $data['driver_id']) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['driver_id' => 'El conductor ya está asignado al grupo '.$other->name.' en el mismo turno y uno de los días seleccionados.']);
+            }
+            if ($other->helpers->pluck('id')->intersect($data['helpers'])->isNotEmpty()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['helpers' => 'Un ayudante ya está asignado al grupo '.$other->name.' en el mismo turno y uno de los días seleccionados.']);
+            }
         }
     }
 
     public function store(Request $request)
     {
-        //necesitamos validar en caso es mismo carro en su mismo horario pero diferentes dias ok
-        // mismo carro, turno, zona pero horario iguak enotnces no 
-        $validate = $this->validarGrupoPersonal($request);
-        $this->validarDisponibilidad($validate);
-        try {
-            DB::transaction(function () use ($validate) {
+        DB::transaction(function () use ($request) {
+            $data = $this->validarGrupoPersonal($request);
+            $group = StaffGroup::create(collect($data)->except(['days', 'helpers'])->all());
+            foreach ($data['days'] as $day) {
+                $group->days()->create(['day' => $day]);
+            }
+            $group->helpers()->sync($data['helpers']);
+        }, 3);
 
-                // Registrar grupo
-                $group = StaffGroup::create([
-                    'name' => $validate['name'],
-                    'shift_id' => $validate['shift_id'],
-                    'zone_id' => $validate['zone_id'],
-                    'vehicle_id' => $validate['vehicle_id'],
-                    'driver_id' => $validate['driver_id'] ?? null,
-                ]);
-
-                // Registrar días de trabajo
-                foreach ($validate['days'] as $day) {
-                    $group->days()->create([
-                        'day' => $day,
-                    ]);
-                }
-
-                // Registrar ayudantes
-                $helpers = array_values(array_unique(array_filter(
-                    $validate['helpers'] ?? [],
-                    fn($id) => $id !== null && $id !== ''
-                )));
-
-                $group->helpers()->sync($helpers);
-            });
-
-            return response()->json([
-                'message' => 'Grupo de personal registrado correctamente.',
-            ], 201);
-        } catch (\Throwable $th) {
-            report($th);
-
-            return response()->json([
-                'message' => 'El grupo de personal no se pudo registrar.',
-            ], 500);
-        }
+        return response()->json(['message' => 'Grupo de personal registrado correctamente.'], 201);
     }
+
     /**
      * Display the specified resource.
      */
@@ -321,98 +267,18 @@ class StaffGroupsController extends Controller
 
     public function update(Request $request, string $id)
     {
-        $staffgroup = StaffGroup::findOrFail($id);
-
-        // Validar los datos del formulario
-        $datos = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('staff_groups', 'name')->ignore($staffgroup->id),
-            ],
-            'shift_id' => ['required', 'integer', 'exists:shifts,id'],
-            'zone_id' => ['required', 'integer', 'exists:zones,id'],
-            'vehicle_id' => ['required', 'integer', 'exists:vehicles,id'],
-            'state' => ['sometimes', 'boolean'],
-
-            'days' => ['required', 'array', 'min:1'],
-            'days.*' => ['required', 'integer', 'distinct', 'between:1,7'],
-
-            'driver_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('employees', 'id')
-                    ->where('employee_type_id', 1),
-            ],
-
-            'helpers' => ['nullable', 'array'],
-            'helpers.*' => [
-                'nullable',
-                'integer',
-                'distinct',
-                Rule::exists('employees', 'id')
-                    ->whereNot('employee_type_id', 1),
-            ],
-        ], [
-            'name.required' => 'El nombre del grupo es obligatorio.',
-            'name.max' => 'El nombre no puede superar los 100 caracteres.',
-            'name.unique' => 'Ya existe un grupo de personal con ese nombre.',
-
-            'shift_id.required' => 'Debes seleccionar un turno.',
-            'shift_id.exists' => 'El turno seleccionado no existe.',
-
-            'zone_id.required' => 'Debes seleccionar una zona.',
-            'zone_id.exists' => 'La zona seleccionada no existe.',
-
-            'vehicle_id.required' => 'Debes seleccionar un vehículo.',
-            'vehicle_id.exists' => 'El vehículo seleccionado no existe.',
-
-            'days.required' => 'Selecciona al menos un día de trabajo.',
-            'days.min' => 'Selecciona al menos un día de trabajo.',
-            'days.*.distinct' => 'No puedes seleccionar un día más de una vez.',
-            'days.*.between' => 'Los días deben estar comprendidos entre 1 y 7.',
-
-            'driver_id.exists' => 'El empleado seleccionado no es un conductor válido.',
-            'helpers.*.distinct' => 'No puedes seleccionar al mismo ayudante más de una vez.',
-            'helpers.*.exists' => 'Uno de los empleados seleccionados no es un ayudante válido.',
-        ]);
-
-        // Comprobar conflictos de turno, zona, vehículo y días,
-        // excluyendo el propio grupo que se está editando.
-        $this->validarDisponibilidad($datos, $staffgroup->id);
-
-        DB::transaction(function () use ($datos, $staffgroup) {
-            $staffgroup->update([
-                'name' => $datos['name'],
-                'shift_id' => $datos['shift_id'],
-                'zone_id' => $datos['zone_id'],
-                'vehicle_id' => $datos['vehicle_id'],
-                'driver_id' => $datos['driver_id'] ?? null,
-                'state' => (int) $datos['state'],
-            ]);
-
-            // Reemplazar los días de trabajo.
-            $staffgroup->days()->delete();
-
-            foreach ($datos['days'] as $day) {
-                $staffgroup->days()->create([
-                    'day' => $day,
-                ]);
+        DB::transaction(function () use ($request, $id) {
+            $group = StaffGroup::whereKey($id)->lockForUpdate()->firstOrFail();
+            $data = $this->validarGrupoPersonal($request, $group);
+            $group->update(collect($data)->except(['days', 'helpers'])->all());
+            $group->days()->delete();
+            foreach ($data['days'] as $day) {
+                $group->days()->create(['day' => $day]);
             }
+            $group->helpers()->sync($data['helpers']);
+        }, 3);
 
-            // Sincronizar los ayudantes.
-            $helpers = array_values(array_unique(array_filter(
-                $datos['helpers'] ?? [],
-                fn($id) => $id !== null && $id !== ''
-            )));
-
-            $staffgroup->helpers()->sync($helpers);
-        });
-
-        return response()->json([
-            'message' => 'Grupo de personal actualizado correctamente.',
-        ]);
+        return response()->json(['message' => 'Grupo de personal actualizado correctamente.']);
     }
 
     /**
@@ -442,7 +308,7 @@ class StaffGroupsController extends Controller
         ]);
 
         // Buscar grupos que ocupan personal, excluyendo el grupo editado.
-        $grupos = StaffGroup::with('helpers:id')
+        $grupos = StaffGroup::with('helpers:id')->where('state', true)
             ->where('shift_id', $datos['turnos'])
             ->when(
                 !empty($datos['id_staff']),
@@ -466,21 +332,13 @@ class StaffGroupsController extends Controller
             ->unique()
             ->values();
 
-        // Conductores disponibles.
-        $conductores = Employee::where('employee_type_id', 1)
-            ->whereNotIn('id', $conductoresOcupados)
-            ->selectRaw(
-                "id, CONCAT(dni, ' — ', CONCAT_WS(' ', first_name, last_name)) AS nombre_completo"
-            )
-            ->pluck('nombre_completo', 'id');
-
-        // Ayudantes disponibles.
-        $ayudantes = Employee::where('employee_type_id', '!=', 1)
-            ->whereNotIn('id', $ayudantesOcupados)
-            ->selectRaw(
-                "id, CONCAT(dni, ' — ', CONCAT_WS(' ', first_name, last_name)) AS nombre_completo"
-            )
-            ->pluck('nombre_completo', 'id');
+        // Same availability and active-person rules used when saving.
+        $conductores = Employee::where('employee_type_id', 1)->where('status', 'Activo')
+            ->whereNotIn('id', $conductoresOcupados)->get()
+            ->mapWithKeys(fn ($person) => [$person->id => $person->dni.' — '.trim($person->first_name.' '.$person->last_name)]);
+        $ayudantes = Employee::where('employee_type_id', '!=', 1)->where('status', 'Activo')
+            ->whereNotIn('id', $ayudantesOcupados)->get()
+            ->mapWithKeys(fn ($person) => [$person->id => $person->dni.' — '.trim($person->first_name.' '.$person->last_name)]);
 
         return response()->json([
             'conductores' => $conductores,

@@ -8,8 +8,8 @@
             @csrf
             <div class="modal-body">
                 <div class="row g-3">
-                    <div class="col-12 col-md-4"><label class="form-label" for="programStart">Fecha de inicio *</label><input type="date" class="form-control" id="programStart" required></div>
-                    <div class="col-12 col-md-4"><label class="form-label" for="programEnd">Fecha de fin *</label><input type="date" class="form-control" id="programEnd" required></div>
+                    <div class="col-12 col-md-4"><label class="form-label" for="programStart">Fecha de inicio *</label><input type="date" class="form-control" id="programStart" min="{{ today('America/Lima')->toDateString() }}" required><div class="form-text">Seleccione hoy o una fecha futura.</div></div>
+                    <div class="col-12 col-md-4"><label class="form-label" for="programEnd">Fecha de fin *</label><input type="date" class="form-control" id="programEnd" min="{{ today('America/Lima')->toDateString() }}" required></div>
                     <div class="col-12 col-md-4 d-flex align-items-end"><button type="button" class="btn btn-outline-success w-100" id="validateProgramming"><i class="bi bi-check2 me-1"></i>Validar disponibilidad</button></div>
                     <div class="col-12"><label class="form-label" for="programGroup">Grupo de personal *</label><select class="form-select" id="programGroup" required><option value="">Seleccione un grupo</option>@foreach($groups as $group)<option value="{{ $group->id }}">{{ $group->name }} · {{ $group->zone->name }} · {{ $group->shift->name }}</option>@endforeach</select><div class="form-text">Busque por nombre, zona o turno.</div></div>
                 </div>
@@ -22,7 +22,12 @@
                         @foreach(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as $day)
                             <div class="form-check"><input class="form-check-input" type="checkbox" name="workdays" value="{{ $loop->iteration }}" id="programDay{{ $loop->index }}"><label class="form-check-label" for="programDay{{ $loop->index }}">{{ $day }}</label></div>
                         @endforeach
-                    </div></fieldset>
+                    </div><div class="form-text" id="programGroupDaysNote">Seleccione un grupo para habilitar sus días de trabajo.</div></fieldset>
+                    <fieldset class="col-12">
+                        <legend class="form-label">Feriados del período</legend>
+                        <div class="form-text mb-2">Se omiten por defecto. Marque “Trabajar este día” para incluir una fecha en esta programación, sin modificar el calendario de feriados.</div>
+                        <div id="programHolidayOptions" class="border rounded p-3" aria-live="polite">Seleccione el período y los días de trabajo.</div>
+                    </fieldset>
                     <div class="col-12"><label class="form-label" for="programNotes">Observaciones</label><textarea class="form-control" id="programNotes" rows="3" maxlength="1000" placeholder="Observaciones adicionales..."></textarea></div>
                 </div>
             </div>

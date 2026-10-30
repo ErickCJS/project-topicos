@@ -21,6 +21,8 @@ Debe existir al menos un grupo real configurado en Grupos de Personal.
 - `GET /admin/programming`: vista o listado JSON con filtros por período, zona y
   turno. Sin filtros muestra el día actual en la zona horaria de la aplicación.
 - `GET /admin/programming/groups/{id}`: configuración real del grupo seleccionado.
+- `GET /admin/programming/holidays`: feriados activos del período que coinciden
+  con los días de trabajo elegidos, consultados desde la base de datos.
 - `POST /admin/programming/check`: validación de fechas, días y equipo; informa
   disponibilidad, reemplazos y fechas omitidas.
 - `POST /admin/programming`: generación individual por rango de fechas.
@@ -39,10 +41,36 @@ mutaciones AJAX incluyen el token CSRF. No se introduce un sistema de roles nuev
 
 ## Generación y disponibilidad
 
-Se recorren las fechas reales del calendario y se omiten los feriados activos.
+Se recorren las fechas reales del calendario. Los feriados activos se omiten por
+defecto; el responsable puede marcar fechas específicas con “Trabajar este día”.
+Las excepciones solo afectan a esa programación y exigen la misma validación de
+contratos, vacaciones, capacidad y cruces. La selección queda asociada al token de
+validación y se comprueba otra vez al guardar. Se conserva en el snapshot de cada
+recorrido la fecha, el nombre del feriado, quién autorizó y cuándo; se muestra en
+detalle e historial sin modificar el catálogo global. Repetir la generación con
+un feriado habilitado permite completar esa fecha si antes se había omitido.
+Al editar un recorrido y cambiar su fecha, se selecciona automáticamente el día
+semanal correspondiente y se consultan sus feriados. Un feriado sin habilitar se
+informa sin autorizar el guardado; al habilitarlo se revalidan las reservas de
+grupo, vehículo y personal, excluyendo únicamente el recorrido que se edita.
+En edición, las reservas de la fecha destino se comprueban incluso si todavía
+no se marcó el feriado. Los avisos identifican el recorrido existente y, si hay
+autorización registrada, quién habilitó el trabajo en ese feriado. Una fecha ya
+programada tiene prioridad sobre el aviso de feriado pendiente de habilitar.
+La creación y modificación exigen una fecha inicial igual o posterior a hoy en
+America/Lima, tanto en el formulario como al validar y guardar en el servidor.
+Los filtros del listado permiten fechas pasadas para consultar el historial.
 La identidad para evitar duplicados es grupo + fecha: repetir una generación
 conserva lo existente; añadir días semanales permite completar fechas faltantes.
+Solo se admiten los días semanales configurados en el grupo. El formulario los
+precarga y bloquea los demás; el servidor comprueba esta restricción al validar
+y guardar. Para agregar otro día primero debe actualizarse el grupo. La edición
+de un recorrido también exige una fecha cuyo día esté permitido por ese grupo;
+habilitar un feriado no permite saltarse esa configuración.
 Cambiar la plantilla no modifica automáticamente recorridos ya generados.
+Si todas las fechas están programadas u omitidas, la validación no habilita el
+guardado ni emite un token. El servidor también rechaza guardar una operación
+sin fechas nuevas; el formulario muestra una advertencia con las fechas omitidas.
 
 Cada conductor y ayudante necesita contrato activo no anulado que cubra cada
 fecha. Solo las vacaciones aprobadas bloquean disponibilidad. No se admite
