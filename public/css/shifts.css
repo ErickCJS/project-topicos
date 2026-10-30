@@ -8,7 +8,6 @@
 .shifts-module .shift-actions { display: inline-flex; justify-content: center; align-items: center; gap: .4rem; }
 .shifts-module .shift-actions .shift-action-btn { display: inline-grid; place-items: center; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 6px; }
 .shifts-module .shift-action-btn i { line-height: 1; }
-.shifts-module .shift-action-btn.btn-outline-primary { --bs-btn-color: var(--sgrs-modal-primary); --bs-btn-border-color: var(--sgrs-modal-primary); --bs-btn-hover-bg: var(--sgrs-modal-primary); --bs-btn-hover-border-color: var(--sgrs-modal-primary); --bs-btn-hover-color: var(--sidebar-bg, #fff); --bs-btn-active-bg: var(--sgrs-modal-primary); --bs-btn-active-border-color: var(--sgrs-modal-primary); }
 .shifts-module .shift-action-btn.btn-outline-danger { --bs-btn-color: var(--sgrs-modal-danger); --bs-btn-border-color: var(--sgrs-modal-danger); --bs-btn-hover-bg: var(--sgrs-modal-danger); --bs-btn-hover-border-color: var(--sgrs-modal-danger); --bs-btn-hover-color: var(--sidebar-bg, #fff); }
 .shifts-module .shift-time { display: inline-block; min-width: 65px; padding: .35rem .55rem; border-radius: 6px; font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
 .shifts-module .shift-next-day { display: block; margin-top: .2rem; color: var(--bs-secondary-color); font-size: .72rem; }
