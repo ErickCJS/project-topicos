@@ -1,0 +1,23 @@
+/* Turnos: same surfaces, semantic colors and controls as the RSU admin panel. */
+.shifts-module .btn { min-height: 36px; padding: .45rem .85rem; border-radius: 6px; font-size: .86rem; font-weight: 600; box-shadow: none; }
+.shifts-module > div .btn-success { --bs-btn-bg: #176542; --bs-btn-border-color: #176542; --bs-btn-hover-bg: #105235; --bs-btn-hover-border-color: #105235; --bs-btn-active-bg: #105235; --bs-btn-active-border-color: #105235; }
+.shifts-module .table { --bs-table-color: var(--sidebar-text); --bs-table-bg: transparent; --bs-table-border-color: var(--sidebar-border); --bs-table-striped-bg: rgba(127, 140, 130, .04); --bs-table-hover-bg: var(--sidebar-hover); margin-bottom: 0; font-size: .9rem; }
+.shifts-module .table th, .shifts-module .table td { vertical-align: middle; padding: .7rem .8rem; white-space: nowrap; }
+.shifts-module .table th { color: var(--sidebar-muted); font-size: .76rem; font-weight: 600; }
+.shifts-module .table td.shift-description { min-width: 170px; max-width: 280px; white-space: normal; overflow-wrap: anywhere; color: var(--bs-secondary-color); font-size: .84rem; }
+.shifts-module .shift-actions { display: inline-flex; justify-content: center; align-items: center; gap: .4rem; }
+.shifts-module .shift-actions .shift-action-btn { display: inline-grid; place-items: center; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 6px; }
+.shifts-module .shift-action-btn i { line-height: 1; }
+.shifts-module .shift-action-btn.btn-outline-primary { --bs-btn-color: var(--sgrs-modal-primary); --bs-btn-border-color: var(--sgrs-modal-primary); --bs-btn-hover-bg: var(--sgrs-modal-primary); --bs-btn-hover-border-color: var(--sgrs-modal-primary); --bs-btn-hover-color: var(--sidebar-bg, #fff); --bs-btn-active-bg: var(--sgrs-modal-primary); --bs-btn-active-border-color: var(--sgrs-modal-primary); }
+.shifts-module .shift-action-btn.btn-outline-danger { --bs-btn-color: var(--sgrs-modal-danger); --bs-btn-border-color: var(--sgrs-modal-danger); --bs-btn-hover-bg: var(--sgrs-modal-danger); --bs-btn-hover-border-color: var(--sgrs-modal-danger); --bs-btn-hover-color: var(--sidebar-bg, #fff); }
+.shifts-module .shift-time { display: inline-block; min-width: 65px; padding: .35rem .55rem; border-radius: 6px; font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
+.shifts-module .shift-next-day { display: block; margin-top: .2rem; color: var(--bs-secondary-color); font-size: .72rem; }
+.shifts-module .shift-modal-heading { display: flex; align-items: center; gap: .7rem; }
+.shifts-module .shift-modal-icon { display: inline-grid; width: 34px; height: 34px; place-items: center; color: var(--sgrs-modal-primary); background: var(--sgrs-modal-subtle); border: 1px solid var(--sgrs-modal-border); border-radius: 6px; }
+.shifts-module .shift-form-note { display: flex; align-items: flex-start; padding: .85rem 1rem; border: 1px solid var(--sgrs-modal-border); border-radius: 6px; background: var(--sgrs-modal-subtle); color: var(--sgrs-modal-muted); font-size: .84rem; line-height: 1.5; }
+.shifts-module .shift-detail-label { display: block; margin-bottom: .3rem; color: var(--sgrs-modal-muted); font-size: .76rem; }
+.shifts-module .shift-detail-value { color: var(--sgrs-modal-text); font-weight: 600; overflow-wrap: anywhere; white-space: pre-wrap; }
+.shifts-module #shiftFormContent > form { display: flex; flex-direction: column; }
+html.dark .shifts-module .modal .btn-success,
+html[data-bs-theme="dark"] .shifts-module .modal .btn-success { color: #141613 !important; }
+@media (max-width: 575.98px) { .shifts-module .table { min-width: 900px; } }
