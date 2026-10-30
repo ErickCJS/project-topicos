@@ -6,7 +6,10 @@
     <div class="attendances-module">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
             <h4 class="mb-0">Listado de Asistencias</h4>
-            <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
+            <a href="{{ route('employee.login') }}" target="_blank" rel="noopener" class="btn btn-outline-primary ms-auto">
+                <i class="bi bi-box-arrow-up-right me-1"></i>Marcación de asistencia
+            </a>
+            <button type="button" class="btn btn-success" id="btnNuevo">
                 <i class="bi bi-plus-circle me-1"></i>Agregar nueva asistencia
             </button>
         </div>

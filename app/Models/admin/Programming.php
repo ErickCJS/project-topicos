@@ -4,6 +4,7 @@ namespace App\Models\admin;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Programming extends Model
@@ -26,6 +27,11 @@ class Programming extends Model
     public function employees()
     {
         return $this->belongsToMany(Employee::class, 'programming_employees')->withPivot('role');
+    }
+
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
     }
 
     public function changes()
