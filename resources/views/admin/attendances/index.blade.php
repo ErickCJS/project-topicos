@@ -6,6 +6,9 @@
     <div class="attendances-module">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
             <h4 class="mb-0">Listado de Asistencias</h4>
+            <a href="{{ route('attendances.worker') }}" class="btn btn-outline-primary ms-auto">
+                <i class="bi bi-person-check me-1"></i>Interfaz de trabajadores
+            </a>
             <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
                 <i class="bi bi-plus-circle me-1"></i>Agregar nueva asistencia
             </button>
@@ -76,6 +79,31 @@ $(function () {
         $('#formModalLabel').text(titulo);
         $('#formModal .modal-body').html(contenido);
         formModal.show();
+        actualizarEmpleado();
+        cargarHistorial();
+    }
+
+    function actualizarEmpleado() {
+        const select = document.querySelector('#formModal #employee_id');
+        const info = document.querySelector('#formModal #employee-info');
+        if (select && info) info.textContent = select.selectedOptions[0]?.text || '';
+    }
+
+    function cargarHistorial() {
+        const employeeId = $('#formModal #employee_id').val();
+        const date = $('#formModal #attendance-date').val();
+        const history = document.querySelector('#formModal #attendance-day-history');
+        if (!history) return;
+        if (!employeeId || !date) { history.textContent = 'Seleccione un empleado y una fecha.'; return; }
+        $.get("{{ route('attendances.history') }}", { employee_id: employeeId, date: date }).done(function (rows) {
+            history.textContent = '';
+            if (!rows.length) { history.textContent = 'Sin marcaciones en esta fecha.'; return; }
+            rows.forEach(function (item) {
+                const line = document.createElement('div');
+                line.textContent = [item.time, item.type, item.shift, item.status].join(' · ');
+                history.appendChild(line);
+            });
+        }).fail(function () { history.textContent = 'No se pudo cargar el historial.'; });
     }
 
     function mostrar_alerta(esExito, mensaje) {
@@ -137,6 +165,15 @@ $(function () {
             mostrar_error(error, 'No se pudo cargar el formulario de asistencia.');
         });
     });
+
+    $('#formModal').on('input', '#employee-search', function () {
+        const filter = this.value.toLocaleLowerCase();
+        $('#formModal #employee_id option').each(function (index) {
+            if (index) this.hidden = !this.text.toLocaleLowerCase().includes(filter);
+        });
+    });
+    $('#formModal').on('change', '#employee_id', function () { actualizarEmpleado(); cargarHistorial(); });
+    $('#formModal').on('change', '#attendance-date', cargarHistorial);
 
     $(document).on('click', '.btnVer', function () {
         $.get($(this).data('url'), function (response) {
