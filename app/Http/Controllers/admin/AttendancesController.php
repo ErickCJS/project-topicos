@@ -11,9 +11,6 @@ use Yajra\DataTables\Facades\DataTables;
 
 class AttendancesController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
         if ($request->ajax()) {
@@ -21,12 +18,7 @@ class AttendancesController extends Controller
                 ->join('employees', 'attendances.employee_id', '=', 'employees.id')
                 ->join('shifts', 'attendances.shift_id', '=', 'shifts.id')
                 ->select([
-                    'attendances.id',
-                    'attendances.date',
-                    'attendances.time',
-                    'attendances.type',
-                    'attendances.status',
-                    'attendances.notes',
+                    'attendances.*',
                     'employees.dni',
                     'employees.first_name',
                     'employees.last_name',
@@ -34,17 +26,17 @@ class AttendancesController extends Controller
                 ]);
 
             return DataTables::eloquent($attendances)
-                ->addColumn('employee_name', function ($attendance) {
-                    return trim($attendance->first_name.' '.$attendance->last_name);
-                })
-                ->addColumn('date_time', function ($attendance) {
-                    return $attendance->date->format('d/m/Y').' '.substr($attendance->time, 0, 5);
-                })
-                ->addColumn('actions', function ($attendance) {
+                ->addColumn('employee_name', fn ($row) =>
+                    trim($row->first_name.' '.$row->last_name)
+                )
+                ->addColumn('date_time', fn ($row) =>
+                    $row->date->format('d/m/Y').' '.substr($row->time, 0, 5)
+                )
+                ->addColumn('actions', function ($row) {
                     return '<div class="attendance-actions">'
-                        .'<button type="button" class="btn btn-outline-primary btn-sm attendance-action-btn btnVer" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.show', $attendance->id)).'" title="Ver" aria-label="Ver asistencia"><i class="bi bi-eye" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-outline-warning btn-sm attendance-action-btn btnEditar" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.edit', $attendance->id)).'" title="Editar" aria-label="Editar asistencia"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-outline-danger btn-sm attendance-action-btn btnEliminar" data-id="'.$attendance->id.'" data-url="'.e(route('attendances.destroy', $attendance->id)).'" title="Eliminar" aria-label="Eliminar asistencia"><i class="bi bi-trash" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-info btn-sm btnVer" data-url="'.e(route('attendances.show', $row->id)).'" title="Ver" aria-label="Ver asistencia"><i class="bi bi-eye"></i></button> '
+                        .'<button type="button" class="btn btn-warning btn-sm btnEditar" data-url="'.e(route('attendances.edit', $row->id)).'" title="Editar" aria-label="Editar asistencia"><i class="bi bi-pencil-square"></i></button> '
+                        .'<button type="button" class="btn btn-danger btn-sm btnEliminar" data-url="'.e(route('attendances.destroy', $row->id)).'" title="Eliminar" aria-label="Eliminar asistencia"><i class="bi bi-trash"></i></button>'
                         .'</div>';
                 })
                 ->rawColumns(['actions'])
@@ -54,31 +46,16 @@ class AttendancesController extends Controller
         return view('admin.attendances.index');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        return view('admin.attendances.create');
+        return view('admin.attendances.create', $this->formData());
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'dni' => ['required', 'digits:8'],
-            'password' => ['required', 'string', 'min:8'],
-        ], [
-            'dni.required' => 'El DNI es obligatorio.',
-            'dni.digits' => 'El DNI debe tener exactamente 8 dígitos.',
-            'password.required' => 'La contraseña es obligatoria.',
-            'password.string' => 'La contraseña debe ser texto.',
-            'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
-        ]);
+        $data = $this->validatedData($request);
 
-        $attendance = Attendance::create();
+        $attendance = Attendance::create($data);
 
         return response()->json([
             'mensaje' => 'Asistencia registrada correctamente.',
@@ -86,77 +63,101 @@ class AttendancesController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Attendance $attendance)
     {
         $employee = DB::table('employees')
             ->where('id', $attendance->employee_id)
             ->first(['id', 'dni', 'first_name', 'last_name']);
+
         $shift = DB::table('shifts')
             ->where('id', $attendance->shift_id)
             ->first(['id', 'name', 'start_time', 'end_time']);
 
-        return view('admin.attendances.show', compact('attendance', 'employee', 'shift'));
+        return view('admin.attendances.show', compact(
+            'attendance', 'employee', 'shift'
+        ));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Attendance $attendance)
     {
-        return view('admin.attendances.edit');
+        return view(
+            'admin.attendances.edit',
+            $this->formData() + compact('attendance')
+        );
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Attendance $attendance)
     {
         $attendance->update($this->validatedData($request));
 
-        return response()->json(['mensaje' => 'Asistencia actualizada correctamente.']);
+        return response()->json([
+            'mensaje' => 'Asistencia actualizada correctamente.',
+        ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Attendance $attendance)
     {
         $attendance->delete();
 
-        return response()->json(['mensaje' => 'Asistencia eliminada correctamente.']);
+        return response()->json([
+            'mensaje' => 'Asistencia eliminada correctamente.',
+        ]);
+    }
+
+    private function formData(): array
+    {
+        return [
+            'employees' => DB::table('employees')
+                ->select('id', 'dni', 'first_name', 'last_name')
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get(),
+
+            'shifts' => DB::table('shifts')
+                ->select('id', 'name', 'start_time', 'end_time')
+                ->orderBy('name')
+                ->get(),
+        ];
     }
 
     private function validatedData(Request $request): array
     {
         return $request->validate([
-            'employee_id' => ['required', 'integer', 'exists:employees,id'],
-            'shift_id' => ['required', 'integer', 'exists:shifts,id'],
-            'date' => ['required', 'date_format:Y-m-d'],
-            'time' => ['required', 'date_format:H:i'],
-            'type' => ['required', Rule::in(Attendance::TYPES)],
-            'status' => ['required', Rule::in(Attendance::STATUSES)],
-            'notes' => ['nullable', 'string'],
+            'employee_id' => [
+                'required', 'integer', 'exists:employees,id',
+            ],
+            'shift_id' => [
+                'required', 'integer', 'exists:shifts,id',
+            ],
+            'date' => [
+                'required', 'date_format:Y-m-d',
+            ],
+            'time' => [
+                'required', 'date_format:H:i',
+            ],
+            'type' => [
+                'required', Rule::in(Attendance::TYPES),
+            ],
+            'status' => [
+                'required', Rule::in(Attendance::STATUSES),
+            ],
+            'notes' => [
+                'nullable', 'string',
+            ],
         ], [
             'employee_id.required' => 'Seleccione un empleado.',
-            'employee_id.integer' => 'El empleado seleccionado no es válido.',
             'employee_id.exists' => 'El empleado seleccionado no existe.',
             'shift_id.required' => 'Seleccione un turno.',
-            'shift_id.integer' => 'El turno seleccionado no es válido.',
             'shift_id.exists' => 'El turno seleccionado no existe.',
             'date.required' => 'Ingrese la fecha de asistencia.',
             'date.date_format' => 'La fecha de asistencia no es válida.',
             'time.required' => 'Ingrese la hora de asistencia.',
             'time.date_format' => 'La hora de asistencia no es válida.',
             'type.required' => 'Seleccione el tipo de marcación.',
-            'type.in' => 'El tipo de marcación seleccionado no es válido.',
-            'status.required' => 'Seleccione el estado de la asistencia.',
+            'type.in' => 'El tipo de marcación no es válido.',
+            'status.required' => 'Seleccione el estado.',
             'status.in' => 'El estado seleccionado no es válido.',
             'notes.string' => 'Las observaciones deben ser texto.',
         ]);
     }
-
-  
 }

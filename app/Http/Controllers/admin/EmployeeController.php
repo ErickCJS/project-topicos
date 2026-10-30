@@ -88,7 +88,7 @@ class EmployeeController extends Controller
             'email' => ['required', 'email', 'max:150', 'unique:employees,email'],
             'password' => ['required', 'string', 'min:8'],
             'direccion' => ['required', 'string', 'max:255'],
-            'foto' => ['required', 'image', 'max:5120'],
+            'foto' => ['nullable', 'image', 'max:5120'],
             'telefono' => ['nullable', 'regex:/^[0-9]{9}$/'],
             'licencia' => $requiereLicencia ? ['required', new ValidarLicenciaA3c($request->input('dni'))] : ['nullable'],
         ], [
@@ -126,7 +126,7 @@ class EmployeeController extends Controller
             'licencia.required' => 'Ingrese el número de licencia para este tipo de personal.',
         ]);
 
-        $foto = $request->file('foto')->store('employees', 'public');
+        $foto = $request->hasFile('foto') ? $request->file('foto')->store('employees', 'public') : null;
 
         try {
             Employee::create([
@@ -144,7 +144,9 @@ class EmployeeController extends Controller
                 'license' => $data['licencia'] ?? null,
             ]);
         } catch (Throwable $exception) {
-            Storage::disk('public')->delete($foto);
+            if ($foto) {
+                Storage::disk('public')->delete($foto);
+            }
 
             throw $exception;
         }
@@ -291,6 +293,13 @@ class EmployeeController extends Controller
             ]);
         }
 
+        if ($employee->attendances()->exists() || $employee->vacations()->exists()) {
+            $employee->update(['status' => 'Inactivo']);
+
+            return response()->json([
+                'mensaje' => 'El empleado fue marcado como inactivo porque tiene asistencias o vacaciones registradas.',
+            ]);
+        }
         $foto = $employee->profile_photo_path;
         $employee->delete();
 

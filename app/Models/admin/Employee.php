@@ -30,6 +30,11 @@ class Employee extends Model
         return $this->hasMany(Vacation::class);
     }
 
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
     public function hasVigenteContract(): bool
     {
         return $this->contracts()
