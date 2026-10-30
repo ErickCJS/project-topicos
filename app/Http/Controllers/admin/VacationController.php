@@ -216,7 +216,7 @@ class VacationController extends Controller
             ], 422);
         }
 
-        $available = $service->annualBalance((int) $data['employee_id'], (int) $data['year'], $excludingId);
+        $available = $service->requestableBalance((int) $data['employee_id'], (int) $data['year'], $excludingId);
 
         return response()->json([
             'annual_days' => Vacation::ANNUAL_DAYS,
