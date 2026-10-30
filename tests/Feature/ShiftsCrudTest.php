@@ -102,6 +102,45 @@ class ShiftsCrudTest extends TestCase
         $this->assertDatabaseCount('shifts', 1);
     }
 
+    public function test_overlapping_daytime_hours_are_rejected_on_create_and_update(): void
+    {
+        Shift::create($this->data(['name' => 'Mañana', 'start_time' => '06:00', 'end_time' => '14:00']));
+        foreach ([['05:00', '07:00'], ['13:00', '15:00'], ['07:00', '13:00'], ['05:00', '15:00'], ['06:00', '14:00']] as [$start, $end]) {
+            $this->postJson(route('shifts.store'), $this->data(['start_time' => $start, 'end_time' => $end]))
+                ->assertUnprocessable()->assertJsonValidationErrors('start_time');
+        }
+        $other = Shift::create($this->data(['start_time' => '14:00', 'end_time' => '22:00']));
+        $this->putJson(route('shifts.update', $other), $this->data(['start_time' => '13:00', 'end_time' => '22:00']))
+            ->assertUnprocessable()->assertJsonValidationErrors('start_time');
+        $this->assertSame('14:00', $other->fresh()->start_time);
+    }
+
+    public function test_night_shift_conflicts_are_detected_on_both_sides_of_midnight(): void
+    {
+        Shift::create($this->data(['name' => 'Noche', 'start_time' => '22:00', 'end_time' => '06:00']));
+        foreach ([['23:00', '02:00'], ['21:00', '23:00'], ['05:00', '07:00'], ['00:00', '01:00'], ['05:00', '23:00']] as [$start, $end]) {
+            $this->postJson(route('shifts.store'), $this->data(['start_time' => $start, 'end_time' => $end]))
+                ->assertUnprocessable()->assertJsonValidationErrors('start_time');
+        }
+        $this->assertDatabaseCount('shifts', 1);
+    }
+
+    public function test_adjacent_shifts_and_editing_own_hours_are_allowed(): void
+    {
+        foreach ([['Mañana', '06:00', '14:00'], ['Tarde', '14:00', '22:00'], ['Noche', '22:00', '06:00']] as [$name, $start, $end]) {
+            $this->postJson(route('shifts.store'), $this->data(['name' => $name, 'start_time' => $start, 'end_time' => $end]))->assertCreated();
+        }
+        $shift = Shift::where('name', 'Noche')->firstOrFail();
+        $this->putJson(route('shifts.update', $shift), $this->data(['name' => 'Noche', 'start_time' => '22:00', 'end_time' => '06:00', 'description' => 'Turno nocturno']))->assertOk();
+        $this->assertDatabaseCount('shifts', 3);
+    }
+
+    public function test_shifts_can_meet_at_midnight_without_overlapping(): void
+    {
+        Shift::create($this->data(['name' => 'Hasta medianoche', 'start_time' => '16:00', 'end_time' => '00:00']));
+        $this->postJson(route('shifts.store'), $this->data(['name' => 'Madrugada', 'start_time' => '00:00', 'end_time' => '06:00']))->assertCreated();
+    }
+
     private function data(array $overrides = []): array
     {
         return array_merge([

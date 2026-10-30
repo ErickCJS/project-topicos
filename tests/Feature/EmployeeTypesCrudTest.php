@@ -57,17 +57,17 @@ class EmployeeTypesCrudTest extends TestCase
         $actions = (string) $response->json('data.0.actions');
 
         $this->assertStringNotContainsString('fas fa-', $actions);
-        $this->assertStringContainsString('btn btn-info btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-primary btn-sm', $actions);
         $this->assertStringContainsString('bi bi-eye', $actions);
         $this->assertStringContainsString('title="Ver"', $actions);
         $this->assertStringContainsString('aria-label="Ver tipo de personal"', $actions);
         $this->assertStringContainsString(route('employee-types.show', $type), $actions);
-        $this->assertStringContainsString('btn btn-warning btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-warning btn-sm', $actions);
         $this->assertStringContainsString('bi bi-pencil-square', $actions);
         $this->assertStringContainsString('title="Editar"', $actions);
         $this->assertStringContainsString('aria-label="Editar tipo de personal"', $actions);
         $this->assertStringContainsString(route('employee-types.edit', $type), $actions);
-        $this->assertStringContainsString('btn btn-danger btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-danger btn-sm', $actions);
         $this->assertStringContainsString('bi bi-trash', $actions);
         $this->assertStringContainsString('title="Eliminar"', $actions);
         $this->assertStringContainsString('aria-label="Eliminar tipo de personal"', $actions);
@@ -83,7 +83,7 @@ class EmployeeTypesCrudTest extends TestCase
         $this->get(route('employee-types.show', $type))
             ->assertOk()
             ->assertSee('Detalle del tipo de personal')
-            ->assertSee('Información de solo lectura')
+            ->assertSee('Nombre')
             ->assertSee('Operador')
             ->assertSee('Personal operativo')
             ->assertSee($type->created_at->format('d/m/Y H:i:s'))
@@ -169,6 +169,42 @@ class EmployeeTypesCrudTest extends TestCase
         $this->assertDatabaseHas('employee_types', ['id' => $type->id]);
     }
 
+    public function test_base_employee_types_cannot_be_deleted(): void
+    {
+        foreach (['Conductor', 'Ayudante'] as $name) {
+            $type = $this->createEmployeeType([
+                'name' => $name,
+            ]);
+
+            $this->deleteJson(route('employee-types.destroy', $type))
+                ->assertStatus(409)
+                ->assertJson([
+                    'message' => 'Conductor y Ayudante son tipos de personal permanentes y no pueden eliminarse.',
+                ]);
+
+            $this->assertDatabaseHas('employee_types', [
+                'id' => $type->id,
+                'name' => $name,
+            ]);
+        }
+    }
+
+    public function test_custom_employee_type_without_employees_can_be_deleted(): void
+    {
+        $type = $this->createEmployeeType([
+            'name' => 'Supervisor',
+        ]);
+
+        $this->deleteJson(route('employee-types.destroy', $type))
+            ->assertOk()
+            ->assertJson([
+                'message' => 'Tipo de personal eliminado correctamente',
+            ]);
+
+        $this->assertDatabaseMissing('employee_types', [
+            'id' => $type->id,
+        ]);
+    }
     private function createEmployeeType(array $overrides = []): EmployeeType
     {
         return EmployeeType::create($this->validData($overrides));

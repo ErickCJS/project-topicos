@@ -45,7 +45,7 @@ class ShiftController extends Controller
 
     public function store(Request $request)
     {
-        Shift::create($this->validatedData($request));
+        DB::transaction(fn () => Shift::create($this->validatedData($request)));
 
         return response()->json([
             'message' => 'Turno registrado correctamente.',
@@ -64,7 +64,7 @@ class ShiftController extends Controller
 
     public function update(Request $request, Shift $shift)
     {
-        $shift->update($this->validatedData($request, $shift));
+        DB::transaction(fn () => $shift->update($this->validatedData($request, $shift)));
 
         return response()->json([
             'message' => 'Turno actualizado correctamente.',
@@ -76,9 +76,9 @@ class ShiftController extends Controller
         try {
             DB::transaction(function () use ($shift) {
                 $locked = Shift::whereKey($shift->id)->lockForUpdate()->firstOrFail();
-                if (StaffGroup::where('shift_id', $shift->id)->exists()
+                if ($locked->attendances()->exists() || StaffGroup::where('shift_id', $shift->id)->exists()
                     || Programming::withTrashed()->where('shift_id', $shift->id)->exists()) {
-                    throw ValidationException::withMessages(['shift' => 'Este turno está utilizado en grupos de personal o recorridos y no se puede eliminar.']);
+                    throw ValidationException::withMessages(['shift' => 'Este turno está utilizado en asistencias, grupos de personal o recorridos y no se puede eliminar.']);
                 }
                 $locked->delete();
             });
@@ -96,7 +96,8 @@ class ShiftController extends Controller
 
     private function validatedData(Request $request, ?Shift $shift = null): array
     {
-        return $request->validate([
+        $existingShifts = Shift::orderBy('id')->lockForUpdate()->get();
+        $data = $request->validate([
             'name' => [
                 'required',
                 'string',
@@ -119,5 +120,38 @@ class ShiftController extends Controller
             'description.string' => 'La descripción debe ser texto.',
             'description.max' => 'La descripción no debe superar los 1000 caracteres.',
         ]);
+
+        $requestedIntervals = $this->timeIntervals($data['start_time'], $data['end_time']);
+        foreach ($existingShifts as $existing) {
+            if ($existing->id === $shift?->id) {
+                continue;
+            }
+            foreach ($requestedIntervals as [$start, $end]) {
+                foreach ($this->timeIntervals($existing->start_time, $existing->end_time) as [$otherStart, $otherEnd]) {
+                    if ($start < $otherEnd && $otherStart < $end) {
+                        throw ValidationException::withMessages([
+                            'start_time' => 'El horario se cruza con el turno '.$existing->name.' ('
+                                .substr($existing->start_time, 0, 5).' - '.substr($existing->end_time, 0, 5).').',
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return $data;
+    }
+
+    private function timeIntervals(string $startTime, string $endTime): array
+    {
+        $seconds = static function (string $time): int {
+            $parts = array_map('intval', explode(':', $time));
+
+            return $parts[0] * 3600 + $parts[1] * 60 + ($parts[2] ?? 0);
+        };
+        $start = $seconds($startTime);
+        $end = $seconds($endTime);
+
+        // Overnight shifts occupy both the end and the beginning of the day.
+        return $start < $end ? [[$start, $end]] : [[$start, 86400], [0, $end]];
     }
 }
