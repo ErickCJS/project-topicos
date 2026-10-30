@@ -11,6 +11,13 @@ class ShiftsCrudTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function beforeRefreshingDatabase(): void
+    {
+        if (config('database.default') !== 'sqlite' || config('database.connections.sqlite.database') !== ':memory:') {
+            throw new \RuntimeException('Las pruebas de Turnos requieren SQLite en memoria.');
+        }
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -34,6 +41,7 @@ class ShiftsCrudTest extends TestCase
             'name' => 'Noche',
             'start_time' => '22:00',
             'end_time' => '06:00',
+            'description' => 'Recolección nocturna',
         ]));
         $response->assertCreated()->assertJsonPath('message', 'Turno registrado correctamente.');
 
@@ -43,16 +51,18 @@ class ShiftsCrudTest extends TestCase
             'name' => 'Noche',
             'start_time' => '22:00',
             'end_time' => '06:00',
+            'description' => 'Recolección nocturna',
         ]);
-        $this->get(route('shifts.show', $shift))->assertOk()->assertSee('Noche')->assertSee('22:00');
+        $this->get(route('shifts.show', $shift))->assertOk()->assertSee('Noche')->assertSee('22:00')->assertSee('Recolección nocturna')->assertSee('Finaliza al día siguiente');
         $this->get(route('shifts.edit', $shift))->assertOk()->assertSee('Noche');
 
         $this->putJson(route('shifts.update', $shift), $this->data([
             'name' => 'Turno actualizado',
             'start_time' => '06:00',
             'end_time' => '14:00',
+            'description' => 'Horario actualizado',
         ]))->assertOk();
-        $this->assertDatabaseHas('shifts', ['id' => $shift->id, 'name' => 'Turno actualizado']);
+        $this->assertDatabaseHas('shifts', ['id' => $shift->id, 'name' => 'Turno actualizado', 'description' => 'Horario actualizado']);
 
         $this->deleteJson(route('shifts.destroy', $shift))
             ->assertOk()
@@ -99,5 +109,23 @@ class ShiftsCrudTest extends TestCase
             'start_time' => '08:00',
             'end_time' => '16:00',
         ], $overrides);
+    }
+
+    public function test_description_is_optional_and_has_a_length_limit(): void
+    {
+        $this->postJson(route('shifts.store'), $this->data(['description' => null]))->assertCreated();
+        $shift = Shift::firstOrFail();
+        $this->assertNull($shift->description);
+        $this->putJson(route('shifts.update', $shift), $this->data(['description' => str_repeat('a', 1001)]))
+            ->assertUnprocessable()->assertJsonValidationErrors('description');
+        $this->assertNull($shift->fresh()->description);
+    }
+
+    public function test_edit_form_uses_hour_and_minute_values_even_when_database_contains_seconds(): void
+    {
+        $shift = Shift::create($this->data(['start_time' => '22:00:00', 'end_time' => '06:00:00']));
+        $this->get(route('shifts.edit', $shift))->assertOk()
+            ->assertSee('value="22:00"', false)->assertSee('value="06:00"', false)
+            ->assertDontSee('value="22:00:00"', false);
     }
 }

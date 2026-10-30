@@ -102,6 +102,13 @@ class ProgrammingBackendTest extends TestCase
         $this->postJson(route('programming.store'), $this->data())->assertUnauthorized();
     }
 
+    public function test_a_shift_used_by_a_staff_group_cannot_be_deleted(): void
+    {
+        $this->deleteJson(route('shifts.destroy', $this->group->shift_id))
+            ->assertUnprocessable()->assertJsonValidationErrors('shift');
+        $this->assertDatabaseHas('shifts', ['id' => $this->group->shift_id]);
+    }
+
     public function test_calendar_holidays_duplicates_and_extra_weekdays(): void
     {
         Holiday::create(['name' => 'Feriado local', 'date' => '2026-11-04', 'state' => true]);
@@ -243,8 +250,8 @@ class ProgrammingBackendTest extends TestCase
         $this->deleteJson(route('programming.destroy', $row))->assertOk();
         $this->assertSoftDeleted($row);
         $this->assertDatabaseCount('programming_employees', 0);
-        $this->getJson(route('programming.history',$row->id))->assertOk()->assertJsonPath('data.1.action','Eliminación');
-        $this->generate(['end_date' => '2026-11-02'])->assertJsonPath('created',1);
-        $this->assertSame(1,Programming::count());
+        $this->getJson(route('programming.history', $row->id))->assertOk()->assertJsonPath('data.1.action', 'Eliminación');
+        $this->generate(['end_date' => '2026-11-02'])->assertJsonPath('created', 1);
+        $this->assertSame(1, Programming::count());
     }
 }

@@ -10,5 +10,6 @@ class Shift extends Model
         'name',
         'start_time',
         'end_time',
+        'description',
     ];
 }
