@@ -87,6 +87,160 @@ class AttendancesCrudTest extends TestCase
             ->assertJsonPath('data.0.shift_name', 'Mañana');
     }
 
+    public function test_authenticated_user_can_query_daily_attendance_history(): void
+    {
+        $this->createAttendance();
+
+        $this->getJson(route('attendances.history', [
+            'employee_id' => $this->employeeId,
+            'date' => '2026-10-16',
+        ]))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.time', '08:30')
+            ->assertJsonPath('0.type', 'Entrada')
+            ->assertJsonPath('0.status', 'Presente')
+            ->assertJsonPath('0.shift', 'Mañana');
+    }
+
+    public function test_daily_attendance_history_validates_employee_and_date(): void
+    {
+        $this->getJson(route('attendances.history', [
+            'employee_id' => 999999,
+            'date' => '16/10/2026',
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['employee_id', 'date']);
+    }
+
+    public function test_daily_attendance_history_is_separated_by_employee(): void
+    {
+        $otherEmployeeId = $this->createOtherEmployee();
+        $this->createAttendance();
+        $this->createAttendance(['employee_id' => $otherEmployeeId, 'time' => '09:15']);
+
+        $this->getJson(route('attendances.history', [
+            'employee_id' => $this->employeeId,
+            'date' => '2026-10-16',
+        ]))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.time', '08:30');
+    }
+
+    public function test_datatables_can_search_employee_last_name(): void
+    {
+        $otherEmployeeId = $this->createOtherEmployee();
+        $this->createAttendance();
+        $this->createAttendance(['employee_id' => $otherEmployeeId]);
+
+        $columns = [
+            ['data' => 'dni', 'name' => 'employees.dni', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'employee_name', 'name' => 'employee_name', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'date_time', 'name' => 'attendances.date', 'searchable' => 'false', 'orderable' => 'true'],
+            ['data' => 'type', 'name' => 'attendances.type', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'status', 'name' => 'attendances.status', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'shift_name', 'name' => 'shifts.name', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'notes', 'name' => 'attendances.notes', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'actions', 'name' => 'actions', 'searchable' => 'false', 'orderable' => 'false'],
+        ];
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('attendances.index', [
+                'draw' => 1, 'start' => 0, 'length' => 10,
+                'columns' => $columns,
+                'search' => ['value' => 'Gomez', 'regex' => 'false'],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.employee_name', 'Luis Gomez');
+    }
+
+    public function test_datatables_can_search_employee_full_name(): void
+    {
+        $otherEmployeeId = $this->createOtherEmployee();
+        $this->createAttendance();
+        $this->createAttendance(['employee_id' => $otherEmployeeId]);
+
+        $columns = [
+            ['data' => 'dni', 'name' => 'employees.dni', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'employee_name', 'name' => 'employee_name', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'date_time', 'name' => 'attendances.date', 'searchable' => 'false', 'orderable' => 'true'],
+            ['data' => 'type', 'name' => 'attendances.type', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'status', 'name' => 'attendances.status', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'shift_name', 'name' => 'shifts.name', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'notes', 'name' => 'attendances.notes', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'actions', 'name' => 'actions', 'searchable' => 'false', 'orderable' => 'false'],
+        ];
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('attendances.index', [
+                'draw' => 1,
+                'start' => 0,
+                'length' => 10,
+                'columns' => $columns,
+                'search' => ['value' => 'Luis Gomez', 'regex' => 'false'],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.employee_name', 'Luis Gomez');
+    }
+
+    public function test_datatables_can_order_employees_by_last_name(): void
+    {
+        $otherEmployeeId = $this->createOtherEmployee();
+
+        $anaAttendance = $this->createAttendance();
+        $luisAttendance = $this->createAttendance([
+            'employee_id' => $otherEmployeeId,
+        ]);
+
+        $columns = [
+            ['data' => 'dni', 'name' => 'employees.dni', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'employee_name', 'name' => 'employee_name', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'date_time', 'name' => 'attendances.date', 'searchable' => 'false', 'orderable' => 'true'],
+            ['data' => 'type', 'name' => 'attendances.type', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'status', 'name' => 'attendances.status', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'shift_name', 'name' => 'shifts.name', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'notes', 'name' => 'attendances.notes', 'searchable' => 'true', 'orderable' => 'true'],
+            ['data' => 'actions', 'name' => 'actions', 'searchable' => 'false', 'orderable' => 'false'],
+        ];
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('attendances.index', [
+                'draw' => 1,
+                'start' => 0,
+                'length' => 10,
+                'columns' => $columns,
+                'order' => [
+                    ['column' => 1, 'dir' => 'asc'],
+                ],
+                'search' => ['value' => '', 'regex' => 'false'],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 2)
+            ->assertJsonPath('data.0.id', $luisAttendance->id)
+            ->assertJsonPath('data.1.id', $anaAttendance->id);
+    }
+
+    public function test_daily_attendance_history_excludes_other_dates(): void
+    {
+        $this->createAttendance();
+
+        $this->createAttendance([
+            'date' => '2026-10-17',
+            'time' => '09:15',
+        ]);
+
+        $this->getJson(route('attendances.history', [
+            'employee_id' => $this->employeeId,
+            'date' => '2026-10-16',
+        ]))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.time', '08:30');
+    }
+
     public function test_authenticated_user_can_store_a_valid_attendance(): void
     {
         $this->postJson(route('attendances.store'), $this->validData())
@@ -224,15 +378,15 @@ class AttendancesCrudTest extends TestCase
         $response->assertOk();
         $actions = (string) $response->json('data.0.actions');
 
-        $this->assertStringContainsString('btn btn-info btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-primary btn-sm', $actions);
         $this->assertStringContainsString('bi bi-eye', $actions);
         $this->assertStringContainsString('title="Ver"', $actions);
         $this->assertStringContainsString('aria-label="Ver asistencia"', $actions);
-        $this->assertStringContainsString('btn btn-warning btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-warning btn-sm', $actions);
         $this->assertStringContainsString('bi bi-pencil-square', $actions);
         $this->assertStringContainsString('title="Editar"', $actions);
         $this->assertStringContainsString('aria-label="Editar asistencia"', $actions);
-        $this->assertStringContainsString('btn btn-danger btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-danger btn-sm', $actions);
         $this->assertStringContainsString('bi bi-trash', $actions);
         $this->assertStringContainsString('title="Eliminar"', $actions);
         $this->assertStringContainsString('aria-label="Eliminar asistencia"', $actions);
@@ -257,6 +411,7 @@ class AttendancesCrudTest extends TestCase
             route('attendances.create'),
             route('attendances.show', $attendance),
             route('attendances.edit', $attendance),
+            route('attendances.history', ['employee_id' => $this->employeeId, 'date' => '2026-10-16']),
         ] as $url) {
             $this->getJson($url)->assertUnauthorized();
         }
@@ -269,6 +424,22 @@ class AttendancesCrudTest extends TestCase
     private function createAttendance(array $overrides = []): Attendance
     {
         return Attendance::create($this->validData($overrides));
+    }
+
+    private function createOtherEmployee(): int
+    {
+        return DB::table('employees')->insertGetId([
+            'employee_type_id' => DB::table('employee_types')->value('id'),
+            'dni' => '87654321',
+            'first_name' => 'Luis',
+            'last_name' => 'Gomez',
+            'birthdate' => '1991-01-01',
+            'email' => 'luis@example.test',
+            'password' => 'password-hash-no-exponer',
+            'status' => 'Activo',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     private function validData(array $overrides = []): array

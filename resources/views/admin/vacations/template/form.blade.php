@@ -55,19 +55,29 @@
         <div class="invalid-feedback d-none" data-error-for="end_date"></div>
     </div>
 
-    <div class="col-12 col-md-6">
-        <label for="scheduled_days_preview" class="form-label">Días calendario</label>
-        <input type="text" name="scheduled_days_preview" id="scheduled_days_preview" class="form-control"
-            value="{{ $editing ? $vacation->scheduled_days : '' }}" readonly tabindex="-1">
-        <div class="form-text">Incluye la fecha de inicio, la fecha de término, sábados, domingos y feriados.</div>
+    <div class="col-12 col-md-4">
+        <div class="vacation-balance-card h-100">
+            <span>Días disponibles</span>
+            <strong><span data-vacation-available>—</span> días</strong>
+        </div>
     </div>
 
-    <div class="col-12 col-md-6">
+    <div class="col-12 col-md-4">
         <div class="vacation-balance-card h-100">
-            <span>Saldo proyectado</span>
-            <strong><span data-vacation-balance>—</span> días</strong>
-            <small>Se valida nuevamente en el servidor antes de guardar.</small>
+            <span>Días solicitados</span>
+            <strong><span data-vacation-days>—</span> días</strong>
         </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="vacation-balance-card h-100">
+            <span data-vacation-result-label>Saldo restante</span>
+            <strong><span data-vacation-balance>—</span> días</strong>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="alert alert-danger d-none mb-0" data-vacation-excess role="alert"></div>
     </div>
 </div>
 

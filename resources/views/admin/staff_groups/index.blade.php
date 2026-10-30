@@ -85,6 +85,8 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
+<link rel="stylesheet" href="{{ asset('css/staff_group.css') }}">
+
 @stop
 
 @section('js')
@@ -95,10 +97,6 @@ $(function () {
     const formModalElement = document.getElementById('formModal');
     const formModal = bootstrap.Modal.getOrCreateInstance(formModalElement);
 
-    const routes = {
-        index: @json(route('staffgroups.index', [], false)),
-        create: @json(route('staffgroups.create', [], false))
-    };
 
     /*
      * Mostrar alertas utilizando las funciones que ya tiene tu proyecto.
@@ -143,17 +141,27 @@ $(function () {
     /*
      * Abrir formulario de creación o edición.
      */
-    function abrirModal(url, titulo) {
+    function abrirModal(url, titulo, esEdicion = false) {
         $.get(url, function (response) {
             $('#formModalLabel').text(titulo);
             $('#formModal .modal-body').html(response);
+
+            // Indicar si estamos creando o editando
+            $('#formModal').data('es-edicion', esEdicion);
+
             inicializarSelect2();
             formModal.show();
+
+            if (esEdicion) {
+                $('#formModal').find('#vehicle_id').trigger('change');
+            }
         }).fail(function (error) {
-            mostrarAlerta(false, mensajeError(error, 'No se pudo abrir el formulario.'));
+            mostrarAlerta(
+                false,
+                mensajeError(error, 'No se pudo abrir el formulario.')
+            );
         });
     }
-
        /*
      * Inicializar DataTables.
      *
@@ -166,152 +174,25 @@ $(function () {
         searchDelay: 350,
         responsive: false,
         autoWidth: false,
-
         ajax: {
-            url: routes.index,
-            type: 'GET',
-            error: function (xhr) {
-                mostrarAlerta(
-                    false,
-                    mensajeError(xhr, 'No se pudieron cargar los grupos de personal.')
-                );
-            }
+            url: "{{ route('staffgroups.index') }}",
         },
-
         columns: [
-            {
-                data: 'name',
-                name: 'name',
-                defaultContent: ''
-            },
-            {
-                data: 'shift_name',
-                name: 'shift_name',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return data || '';
+            { data: 'name' },
+            { data: 'shift_name' },
+            { data: 'zone_name' },
+            { data: 'vehicle_name' },
+            { data: 'driver' },
+            { data: 'helpers' },
 
-                    return `<span class="staff-badge staff-badge-shift">
-                        ${escapeHtml(data || 'Sin turno')}
-                    </span>`;
-                }
-            },
-            {
-                data: 'zone_name',
-                name: 'zone_name',
-                defaultContent: ''
-            },
-            {
-                data: 'vehicle_code',
-                name: 'vehicle_code',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return data || '';
-
-                    return `<span class="staff-vehicle">
-                        ${escapeHtml(data || 'Sin vehículo')}
-                    </span>`;
-                }
-            },
-            {
-                data: 'driver_name',
-                name: 'driver_name',
-                defaultContent: 'Sin conductor'
-            },
-            {
-                data: 'helpers',
-                name: 'helpers',
-                orderable: false,
-                searchable: false,
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return '';
-
-                    let helpers = data;
-
-                    if (typeof helpers === 'string') {
-                        try {
-                            helpers = JSON.parse(helpers);
-                        } catch (error) {
-                            helpers = [];
-                        }
-                    }
-
-                    if (!Array.isArray(helpers) || helpers.length === 0) {
-                        return '<span class="text-muted">Sin ayudantes</span>';
-                    }
-
-                    return `<div class="staff-helper-list">
-                        ${helpers.map(helper => `
-                            <span class="staff-helper">${escapeHtml(
-                                typeof helper === 'string'
-                                    ? helper
-                                    : helper.name
-                            )}</span>
-                        `).join('')}
-                    </div>`;
-                }
-            },
-            {
-                data: 'days',
-                name: 'days',
-                orderable: false,
-                searchable: false,
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return '';
-
-                    let days = data;
-
-                    if (typeof days === 'string') {
-                        try {
-                            days = JSON.parse(days);
-                        } catch (error) {
-                            days = [];
-                        }
-                    }
-
-                    return renderDias(days);
-                }
-            },
-            {
-                data: 'status',
-                name: 'status',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display') return data || '';
-
-                    const status = String(data || 'Inactivo');
-                    const activo = ['activo', 'active', '1'].includes(
-                        status.toLowerCase()
-                    );
-
-                    return `<span class="staff-badge ${activo
-                        ? 'staff-badge-status'
-                        : 'bg-secondary text-white'}">
-                        ${escapeHtml(status)}
-                    </span>`;
-                }
-            },
-            {
-                data: 'created_at',
-                name: 'created_at',
-                defaultContent: '',
-                render: function (data, type) {
-                    if (type !== 'display' || !data) return data || '';
-
-                    return `<span class="staff-created-at">
-                        ${escapeHtml(data)}
-                    </span>`;
-                }
-            },
+            { data: 'days'},
+            { data: 'state' },
+            { data: 'created_at' },
             {
                 data: 'actions',
                 name: 'actions',
                 orderable: false,
-                searchable: false,
-                className: 'text-center',
-                defaultContent: ''
+                searchable: false
             }
         ],
 
@@ -355,14 +236,10 @@ $(function () {
      * El backend debe generar un botón .btnEditar con data-url.
      */
     $(document).on('click', '.btnEditar', function () {
-        const url = $(this).data('url');
+        const id = $(this).data('id');
+        const url = "{{ route('staffgroups.edit', ':id') }}".replace(':id', id);
 
-        if (!url) {
-            mostrarAlerta(false, 'No se especificó la URL de edición.');
-            return;
-        }
-
-        abrirModal(url, 'Editar Grupo de Personal');
+        abrirModal(url, 'Editar Grupo de Personal', 1);
     });
 
     /*
@@ -396,7 +273,6 @@ $(function () {
             success: function (response) {
                 formModal.hide();
                 refrescarTabla();
-
                 mostrarAlerta(
                     true,
                     response.message || 'Grupo de personal guardado correctamente.'
@@ -430,8 +306,9 @@ $(function () {
      */
     $(document).on('click', '.btnEliminar', function (event) {
         event.preventDefault();
+        const id = $(this).data('id');
 
-        const url = $(this).data('url');
+        const url = "{{route('staffgroups.destroy', ':id')}}".replace(':id', id);
 
         if (!url) {
             mostrarAlerta(false, 'No se especificó la URL de eliminación.');
@@ -475,6 +352,16 @@ $(function () {
             });
         });
     });
+
+
+    $(document).on('click', '.btnVer', function () {
+        const id = $(this).data('id');
+        const url = "{{ route('staffgroups.show', ':id') }}".replace(':id', id);
+
+        abrirModal(url, 'Detalle del grupo de personal');
+    });
+
+
 
     /*
      * Limpiar el formulario cuando se cierra el modal.
@@ -528,9 +415,14 @@ $(function () {
 
         // Campo del conductor
         $contenedor.append(`
-            <div class="mb-3">
-                <label for="driver_id" class="form-label">Conductor *</label>
-                <select name="driver_id" id="driver_id" class="form-select" required>
+        <hr>
+            <div class="">
+                Estos datos son para configuración no son obigatorios
+            <div>
+            
+            <div class="mb-3 ">
+                <label for="driver_id" class="form-label">Conductor</label>
+                <select name="driver_id" id="driver_id" class="form-select" >
                     <option value="">Seleccione un conductor</option>
                 </select>
             </div>
@@ -540,8 +432,8 @@ $(function () {
         for (let i = 1; i <= cantidadAyudantes; i++) {
             $contenedor.append(`
                 <div class="mb-3">
-                    <label for="helpers_${i}" class="form-label">Ayudante ${i} *</label>
-                    <select name="helpers[]" id="helpers_${i}" class="form-select" required>
+                    <label for="helpers_${i}" class="form-label">Ayudante ${i}</label>
+                    <select name="helpers[]" id="helpers_${i}" class="form-select" >
                         <option value="">Seleccione un ayudante</option>
                     </select>
                 </div>
@@ -551,6 +443,119 @@ $(function () {
         inicializarSelect2($contenedor);
     }
 
+    $(document).on('change', '#shift_id, #zone_id, #vehicle_id, [name="days[]"]', function () {
+        const shift = $('#shift_id').val();
+        const zone = $('#zone_id').val();
+        const vehicle = $('#vehicle_id').val();
+
+        const days = $('[name="days[]"]:checked').map(function () {
+            return this.value;
+        }).get();
+
+        if (shift && zone && vehicle && days.length > 0) {
+            $('#camposPersonal').removeClass('d-none');
+            
+            const $form = $('#formModal').find('form');
+
+            const data = {
+                turnos: shift,
+                zona: zone,
+                vehiculo: vehicle,
+                dias: days,
+                id_staff: $form.attr('data-id') || null
+            };
+
+            $.get({
+                url: "{{ route('staffgroups.helpers') }}",
+                data: data,
+
+                success: function (response) {
+
+
+                    const conductorActual = String(
+                        $form.attr('data-current-driver') || ''
+                    );
+
+                    const ayudantesActuales = JSON.parse(
+                        $form.attr('data-current-helpers') || '[]'
+                    ).map(String);
+
+                    // Cargar conductores
+                    const $driver = $('#driver_id');
+
+                    $driver.empty().append(
+                        new Option('Seleccione un conductor', '')
+                    );
+
+                    $.each(response.conductores, function (id, nombre) {
+                        $driver.append(new Option(nombre, id));
+                    });
+
+                    // Seleccionar conductor actual
+                    if (conductorActual) {
+                        $driver.val(conductorActual);
+                    }
+
+                    $driver.trigger('change.select2');
+
+                    // Cargar ayudantes
+                    $('[name="helpers[]"]').each(function (index) {
+                        const $select = $(this);
+                        const ayudanteActual = ayudantesActuales[index] || '';
+
+                        $select.empty().append(
+                            new Option('Seleccione un ayudante', '')
+                        );
+
+                        $.each(response.ayudantes, function (id, nombre) {
+                            $select.append(new Option(nombre, id));
+                        });
+
+                        if (ayudanteActual) {
+                            $select.val(ayudanteActual);
+                        }
+
+                        $select.trigger('change.select2');
+                    });
+
+                    $('[name="helpers[]"]').first().trigger('change');
+
+                },
+
+                error: function (xhr) {
+                    console.error(xhr.responseJSON ?? xhr.responseText);
+                }
+            });
+
+            return;
+        }
+
+        $('#camposPersonal').addClass('d-none');
+    });
+
+
+    $(document).on('change', '[name="helpers[]"]', function () {
+        const seleccionados = $('[name="helpers[]"]').map(function () {
+            return $(this).val();
+        }).get().filter(Boolean);
+
+        $('[name="helpers[]"]').each(function () {
+            const selectActual = this;
+            const valorActual = $(selectActual).val();
+
+            $(selectActual).find('option').each(function () {
+                const valor = this.value;
+
+                if (!valor) return;
+
+                // Ocultar si está seleccionado en otro select
+                const ocupadoEnOtro = seleccionados.includes(valor) && valor !== valorActual;
+
+                $(this).prop('disabled', ocupadoEnOtro);
+            });
+        });
+    });
 });
 </script>
+
 @stop

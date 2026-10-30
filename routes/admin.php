@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\admin\AdminController;
+use App\Http\Controllers\admin\ProgrammingController;
 use App\Http\Controllers\admin\AttendancesController;
 use App\Http\Controllers\admin\BrandController;
 use App\Http\Controllers\admin\BrandModelController;
@@ -18,6 +19,15 @@ use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
+Route::get('programming', [ProgrammingController::class, 'index'])->name('programming.index');
+Route::get('programming/groups/{staffGroup}', [ProgrammingController::class, 'group'])->name('programming.group');
+Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
+Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
+Route::get('programming/{id}/history', [ProgrammingController::class, 'history'])->name('programming.history');
+Route::post('programming/{programming}/finish', [ProgrammingController::class, 'finish'])->name('programming.finish');
+Route::get('programming/{programming}', [ProgrammingController::class, 'show'])->name('programming.show');
+Route::put('programming/{programming}', [ProgrammingController::class, 'update'])->name('programming.update');
+Route::delete('programming/{programming}', [ProgrammingController::class, 'destroy'])->name('programming.destroy');
 Route::resource('contracts', ContractController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update'])->names('contracts');
 Route::patch('contracts/{id}/cancel', [ContractController::class, 'cancel'])->name('contracts.cancel');
 Route::get('vacations/check', [VacationController::class, 'check'])->name('vacations.check');
@@ -37,6 +47,7 @@ Route::resource('vehiclescolor', ColorController::class)
     ->only(['index', 'store', 'show', 'edit', 'update', 'destroy'])
     ->names('vehiclescolor');
 
+Route::get('attendances/history', [AttendancesController::class, 'history'])->name('attendances.history');
 Route::resource('attendances', AttendancesController::class)->names('attendances');
 Route::get('holidays/resumen', [HolidaysController::class, 'resumenFeriados'])
     ->name('holidays.resumen');
@@ -50,7 +61,11 @@ Route::resource('shifts', ShiftController::class)->names('shifts');
 
 Route::resource('staffgroups', StaffGroupsController::class)->names('staffgroups');
 
-
+Route::get('zones/departments/{department}/provinces', [ZoneController::class, 'provinces'])->name('zones.provinces');
+Route::get('zones/provinces/{province}/districts', [ZoneController::class, 'districts'])->name('zones.districts');
+Route::get('zones/perimeters', [ZoneController::class, 'perimeters'])->name('zones.perimeters');
+Route::resource('zones', ZoneController::class)->names('zones');
+Route::get('/helpers', [StaffGroupsController::class ,'helpers'])->name('staffgroups.helpers');
 
 Route::get('retornar_vista_imagenes/{id_product}', [VehiclesController::class, 'retornar_vista_imagenes'])->name('vehicles.photo.retornar_vista_imagenes');
 Route::post('subirimagenes/{id_products}', [VehiclesController::class, 'subirimagenes'])->name('vehicles.photo.subirimagenes');

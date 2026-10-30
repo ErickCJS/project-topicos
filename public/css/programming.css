@@ -1,0 +1,26 @@
+.programming-module { color: var(--bs-body-color); }
+.programming-module .form-label { font-size: .84rem; font-weight: 600; }
+.programming-module .btn { border-radius: 6px; font-size: .86rem; }
+.programming-module > div .btn-success { --bs-btn-bg: #176542; --bs-btn-border-color: #176542; --bs-btn-hover-bg: #105235; --bs-btn-hover-border-color: #105235; }
+.programming-module .table { --bs-table-bg: transparent; --bs-table-border-color: var(--sidebar-border); --bs-table-striped-bg: rgba(127, 140, 130, .04); --bs-table-hover-bg: var(--sidebar-hover); --bs-table-color: var(--sidebar-text); font-size: .88rem; }
+.programming-module .table th { color: var(--sidebar-muted); font-size: .76rem; font-weight: 600; }
+.programming-module .table th, .programming-module .table td { padding: .7rem .8rem; white-space: nowrap; }
+.programming-module .programming-status { display: inline-block; padding: .4rem .65rem; border-radius: 6px; font-size: .75rem; font-weight: 600; }
+.programming-module .programming-vehicle { display: block; padding: .35rem .7rem; border: 1px solid var(--bs-border-color); border-radius: 6px; }
+.programming-module .programming-vehicle small { display: block; color: var(--bs-secondary-color); }
+.programming-module .programming-helper { display: block; font-size: .8rem; }
+.programming-module .programming-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; padding: 1rem; background: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color); border-radius: 6px; }
+.programming-module .programming-summary[hidden] { display: none; }
+.programming-module .programming-summary small, .programming-module .programming-detail-label { display: block; margin-bottom: .25rem; color: var(--bs-secondary-color); font-size: .75rem; }
+.programming-module .programming-summary strong { font-size: .85rem; }
+.programming-module .programming-modal-icon { display: inline-grid; place-items: center; width: 34px; height: 34px; color: var(--sgrs-modal-primary); background: var(--sgrs-modal-subtle); border: 1px solid var(--sgrs-modal-border); border-radius: 6px; }
+.programming-module #programmingForm { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.programming-module #programmingForm > .modal-body { overflow-y: auto; }
+.programming-module #programmingColumns { min-width: 180px; }
+.programming-module .select2-container--bootstrap-5 .select2-selection--single { display: flex; align-items: center; height: 40px; padding: .375rem .75rem; }
+.programming-module .select2-container--bootstrap-5 .select2-selection__rendered { flex: 1; min-width: 0; padding: 0; overflow: hidden; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.programming-module .select2-container--bootstrap-5 .select2-selection__clear { order: 2; flex: 0 0 auto; margin-left: .5rem; padding: 0 .25rem; color: var(--sgrs-modal-muted); background: transparent; border: 0; }
+.programming-module .dt-buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+.programming-module .dt-buttons .btn { margin: 0; }
+@media (max-width: 767.98px) { .programming-module .programming-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 575.98px) { .programming-module .programming-summary { grid-template-columns: 1fr; } }

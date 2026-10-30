@@ -8,7 +8,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
     </div>
     <div class="modal-body vacation-modal-body">
-        @include('admin.vacations.partials.form')
+        @include('admin.vacations.template.form')
     </div>
     <div class="modal-footer vacation-modal-footer">
         <button type="submit" class="btn btn-success"><i class="bi bi-floppy me-1"></i>Guardar</button>
