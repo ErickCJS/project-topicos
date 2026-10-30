@@ -51,10 +51,10 @@ class EmployeeController extends Controller
                     return '<span class="badge '.$class.'">'.e($employee->status).'</span>';
                 })
                 ->addColumn('actions', function (Employee $employee) {
-                    return '<div class="employee-actions">'
-                        .'<button type="button" class="btn btn-outline-primary btn-sm employee-action-btn btnVerEmpleado" data-url="'.e(route('personal.employees.show', $employee)).'" title="Ver" aria-label="Ver empleado"><i class="bi bi-eye" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-outline-warning btn-sm employee-action-btn btnEditarEmpleado" data-url="'.e(route('personal.employees.edit', $employee)).'" title="Editar" aria-label="Editar empleado"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-outline-danger btn-sm employee-action-btn btnEliminarEmpleado" data-url="'.e(route('personal.employees.destroy', $employee)).'" title="Eliminar" aria-label="Eliminar empleado"><i class="bi bi-trash" aria-hidden="true"></i></button>'
+                    return '<div class="employee-actions table-action-buttons">'
+                        .'<button type="button" class="btn btn-outline-primary btn-sm employee-action-btn table-action-button btnVerEmpleado" data-url="'.e(route('personal.employees.show', $employee)).'" title="Ver" aria-label="Ver empleado"><i class="bi bi-eye" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-warning btn-sm employee-action-btn table-action-button btnEditarEmpleado" data-url="'.e(route('personal.employees.edit', $employee)).'" title="Editar" aria-label="Editar empleado"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-danger btn-sm employee-action-btn table-action-button btnEliminarEmpleado" data-url="'.e(route('personal.employees.destroy', $employee)).'" title="Eliminar" aria-label="Eliminar empleado"><i class="bi bi-trash" aria-hidden="true"></i></button>'
                         .'</div>';
                 })
                 ->rawColumns(['photo', 'status', 'actions'])

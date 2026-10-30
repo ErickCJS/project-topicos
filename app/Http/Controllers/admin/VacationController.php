@@ -59,16 +59,16 @@ class VacationController extends Controller
                 })
                 ->addColumn('actions', function (Vacation $vacation) {
                     $actions = '<div class="vacation-actions">'
-                        .'<button type="button" class="btn btn-info btn-sm vacation-action-btn btnVer" data-url="'.e(route('vacations.show', $vacation)).'" title="Ver" aria-label="Ver vacación"><i class="bi bi-eye" aria-hidden="true"></i></button>';
+                        .'<button type="button" class="btn btn-outline-primary btn-sm vacation-action-btn btnVer" data-url="'.e(route('vacations.show', $vacation)).'" title="Ver" aria-label="Ver vacación"><i class="bi bi-eye" aria-hidden="true"></i></button>';
 
                     if ($vacation->isPending() || ($vacation->isApproved() && $vacation->isHistorical())) {
-                        $actions .= '<button type="button" class="btn btn-warning btn-sm vacation-action-btn btnEditar" data-url="'.e(route('vacations.edit', $vacation)).'" title="Editar" aria-label="Editar vacación"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+                        $actions .= '<button type="button" class="btn btn-outline-warning btn-sm vacation-action-btn btnEditar" data-url="'.e(route('vacations.edit', $vacation)).'" title="Editar" aria-label="Editar vacación"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
                     }
 
                     if ($vacation->isPending()) {
-                        $actions .= '<button type="button" class="btn btn-danger btn-sm vacation-action-btn btnEliminar" data-url="'.e(route('vacations.destroy', $vacation)).'" title="Eliminar" aria-label="Eliminar vacación"><i class="bi bi-trash" aria-hidden="true"></i></button>'
-                            .'<button type="button" class="btn btn-success btn-sm vacation-action-btn btnAprobar" data-url="'.e(route('vacations.approve', $vacation)).'" title="Aprobar" aria-label="Aprobar vacación"><i class="bi bi-check-circle" aria-hidden="true"></i></button>'
-                            .'<button type="button" class="btn btn-secondary btn-sm vacation-action-btn btnRechazar" data-url="'.e(route('vacations.reject', $vacation)).'" title="Rechazar" aria-label="Rechazar vacación"><i class="bi bi-x-circle" aria-hidden="true"></i></button>';
+                        $actions .= '<button type="button" class="btn btn-outline-danger btn-sm vacation-action-btn btnEliminar" data-url="'.e(route('vacations.destroy', $vacation)).'" title="Eliminar" aria-label="Eliminar vacación"><i class="bi bi-trash" aria-hidden="true"></i></button>'
+                            .'<button type="button" class="btn btn-outline-success btn-sm vacation-action-btn btnAprobar" data-url="'.e(route('vacations.approve', $vacation)).'" title="Aprobar" aria-label="Aprobar vacación"><i class="bi bi-check-circle" aria-hidden="true"></i></button>'
+                            .'<button type="button" class="btn btn-outline-secondary btn-sm vacation-action-btn btnRechazar" data-url="'.e(route('vacations.reject', $vacation)).'" title="Rechazar" aria-label="Rechazar vacación"><i class="bi bi-x-circle" aria-hidden="true"></i></button>';
                     }
 
                     return $actions.'</div>';

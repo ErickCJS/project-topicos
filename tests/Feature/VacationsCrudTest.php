@@ -376,11 +376,11 @@ class VacationsCrudTest extends TestCase
             ->assertJsonPath('data.0.status', '<span class="badge text-bg-warning">Pendiente</span>')
             ->assertJsonPath('data.0.period', '01/07/2026 - 10/07/2026');
         $actions = (string) $listing->json('data.0.actions');
-        $this->assertStringContainsString('btn btn-info btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-primary btn-sm', $actions);
         $this->assertStringContainsString('bi bi-eye', $actions);
-        $this->assertStringContainsString('btn btn-warning btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-warning btn-sm', $actions);
         $this->assertStringContainsString('bi bi-pencil-square', $actions);
-        $this->assertStringContainsString('btn btn-danger btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-danger btn-sm', $actions);
         $this->assertStringContainsString('bi bi-trash', $actions);
         $this->assertStringContainsString('btnAprobar', $actions);
         $this->assertStringContainsString('btnRechazar', $actions);
