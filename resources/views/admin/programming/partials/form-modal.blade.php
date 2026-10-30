@@ -22,7 +22,7 @@
                         @foreach(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as $day)
                             <div class="form-check"><input class="form-check-input" type="checkbox" name="workdays" value="{{ $loop->iteration }}" id="programDay{{ $loop->index }}"><label class="form-check-label" for="programDay{{ $loop->index }}">{{ $day }}</label></div>
                         @endforeach
-                    </div></fieldset>
+                    </div><div class="form-text" id="programGroupDaysNote">Seleccione un grupo para habilitar sus días de trabajo.</div></fieldset>
                     <fieldset class="col-12">
                         <legend class="form-label">Feriados del período</legend>
                         <div class="form-text mb-2">Se omiten por defecto. Marque “Trabajar este día” para incluir una fecha en esta programación, sin modificar el calendario de feriados.</div>

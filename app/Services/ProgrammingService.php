@@ -22,6 +22,10 @@ class ProgrammingService
         if (! $group->state) {
             $this->reject('El grupo seleccionado está inactivo.');
         }
+        $allowedDays = $group->days->pluck('day')->map(fn ($day) => (int) $day)->all();
+        if (array_diff(array_map('intval', $data['days']), $allowedDays)) {
+            throw ValidationException::withMessages(['days' => 'Solo puede programar los días de trabajo configurados en el grupo. Modifique el grupo si necesita otros días.']);
+        }
         if ($editing && $editing->status !== 'Programado') {
             $this->reject('Solo se puede modificar una programación pendiente.');
         }

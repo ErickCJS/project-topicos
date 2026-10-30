@@ -16,6 +16,7 @@ $(function () {
     let editing = null, validationToken = null, revision = 0, groupRequest = null;
     let checking = false, saving = false;
     let holidayRequest = null, holidayRevision = 0, holidaysReady = false;
+    let allowedGroupDays = [];
 
     function request(method, path, data = {}) {
         return $.ajax({url: base + path, method, data: method === 'GET' ? data : JSON.stringify(data),
@@ -122,12 +123,24 @@ $(function () {
     $('#programEnd').on('change', () => loadHolidays());
     $(form).on('change', '[name="workdays"]', () => loadHolidays());
     function syncEditingDay() {
+        document.getElementById('programStart').setCustomValidity('');
         if (!editing || !$('#programStart').val()) return;
         const weekday = new Date($('#programStart').val() + 'T00:00:00Z').getUTCDay() || 7;
-        form.querySelectorAll('[name="workdays"]').forEach(input => {input.checked = Number(input.value) === weekday;});
+        form.querySelectorAll('[name="workdays"]').forEach(input => {input.checked = !input.disabled && Number(input.value) === weekday;});
+        if (allowedGroupDays.length && !allowedGroupDays.includes(weekday)) {
+            document.getElementById('programStart').setCustomValidity('La fecha no corresponde a los días de trabajo del grupo. Elija otra fecha o cambie de grupo.');
+        }
+    }
+    function applyGroupDays() {
+        form.querySelectorAll('[name="workdays"]').forEach(input => {
+            input.disabled = !allowedGroupDays.includes(Number(input.value));
+            if (input.disabled) input.checked = false;
+        });
     }
     function loadGroup(id, row = null) {
         if (groupRequest) groupRequest.abort();
+        allowedGroupDays = []; applyGroupDays();
+        document.getElementById('programStart').setCustomValidity('');
         $('#programGroupSummary').prop('hidden',true); helpers(1);
         if (!id) {$('#programDriver').val('');return;}
         $('#validateProgramming').prop('disabled',true);
@@ -137,7 +150,12 @@ $(function () {
             $('#programDriver').val(row ? row.driver_id : group.driver_id);
             helpers(group.capacity,row ? row.helper_ids : group.helpers);
             const days = (row ? row.days : group.days).map(Number);
+            allowedGroupDays = group.days.map(Number);
+            applyGroupDays();
             form.querySelectorAll('[name="workdays"]').forEach(input => {input.checked = days.includes(Number(input.value));});
+            applyGroupDays();
+            const dayNames = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+            $('#programGroupDaysNote').text('Días del grupo: ' + allowedGroupDays.slice().sort((a,b) => a-b).map(day => dayNames[day-1]).join(', ') + '. Los demás días están bloqueados.');
             syncEditingDay();
             invalidate();
             loadHolidays(row ? row.work_holidays : []);
@@ -152,6 +170,7 @@ $(function () {
     });
     function openForm(row = null) {
         form.reset(); editing = row ? row.id : null;
+        $('#programGroupDaysNote').text('Seleccione un grupo para habilitar sus días de trabajo.');
         loadHolidays([]);
         $('#programStart, #programEnd').attr('min',todayInLima());
         $('#programEnd').prop('readOnly',Boolean(editing));
@@ -206,7 +225,7 @@ $(function () {
             $('#filterStart').val(data.start_date); $('#filterEnd').val(data.end_date);
             $('#filterZone, #filterShift').val(''); table.search(''); table.ajax.reload();
             Swal.fire({icon:'success',title:'Proceso exitoso',text:result.message,confirmButtonText:'Entendido'});
-        }).fail(xhr => {invalidate();errors(xhr);}).always(() => {saving=false;$(form).find('input,select,textarea,button').prop('disabled',false);$('#saveProgramming').prop('disabled',true);});
+        }).fail(xhr => {invalidate();errors(xhr);}).always(() => {saving=false;$(form).find('input,select,textarea,button').prop('disabled',false);applyGroupDays();$('#saveProgramming').prop('disabled',true);});
     });
     function details(row) {
         return [['Fecha',dateLabel(row.date)],['Estado',row.status],['Grupo',row.group],['Zona',row.zone],['Turno',row.shift + ' (' + row.hours + ')'],['Vehículo',row.vehicle + ' · ' + row.plate],['Conductor',row.driver],['Ayudantes',row.helpers.join(', ') || 'Sin ayudantes'],...(row.holiday_work ? [['Trabajo en feriado',row.holiday_work.names.join(', ') + ' · Autorizado el ' + dateLabel(row.holiday_work.authorized_at)]] : []),['Observaciones',row.notes || 'Sin observaciones'],['Finalización',row.finished_at || 'Pendiente']].map(([label,value]) => `<div class="col-12 col-md-6"><span class="programming-detail-label">${label}</span><span class="text-break">${escape(value)}</span></div>`).join('');

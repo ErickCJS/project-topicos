@@ -73,6 +73,11 @@ class ProgrammingBackendTest extends TestCase
             'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'days' => [1, 3, 5, 7], 'notes' => 'Recorrido real', 'programming_id' => null], $changes);
     }
 
+    private function copyWorkingDaysTo(StaffGroup $group): void
+    {
+        $group->days()->createMany($this->group->days()->get()->map(fn ($day) => ['day' => $day->day])->all());
+    }
+
     private function groupData(array $changes = []): array
     {
         return array_replace(['name' => 'Nuevo equipo', 'shift_id' => $this->group->shift_id,
@@ -232,6 +237,45 @@ class ProgrammingBackendTest extends TestCase
         $this->assertDatabaseHas('shifts', ['id' => $this->group->shift_id]);
     }
 
+    public function test_programming_only_generates_the_groups_configured_monday_and_tuesday(): void
+    {
+        $this->group->days()->delete();
+        $this->group->days()->createMany([['day' => 1], ['day' => 2]]);
+        $data = $this->data(['start_date' => '2026-11-07', 'end_date' => '2026-11-14', 'days' => [1, 2]]);
+        $this->postJson(route('programming.store'), $this->checked($data))->assertCreated()->assertJsonPath('created', 2);
+        $this->assertSame(['2026-11-09', '2026-11-10'], Programming::orderBy('date')->get()->map(fn ($row) => $row->date->toDateString())->all());
+        $this->postJson(route('programming.check'), array_replace($data, ['days' => [1, 2, 3, 4, 5, 6, 7]]))
+            ->assertUnprocessable()->assertJsonValidationErrors('days');
+        $this->assertDatabaseCount('programmings', 2);
+    }
+
+    public function test_days_outside_group_are_rejected_on_edit_and_direct_save_even_for_authorized_holidays(): void
+    {
+        $this->group->days()->delete();
+        $this->group->days()->createMany([['day' => 1], ['day' => 2]]);
+        $this->generate(['end_date' => '2026-11-02', 'days' => [1]]);
+        $row = Programming::firstOrFail();
+        Holiday::create(['name' => 'Feriado domingo', 'date' => '2026-11-01', 'state' => true]);
+        $edit = $this->data(['programming_id' => $row->id, 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7], 'work_holidays' => ['2026-11-01']]);
+        $this->putJson(route('programming.update', $row), $edit)->assertUnprocessable();
+        try {
+            app(\App\Services\ProgrammingService::class)->save($edit, auth()->id(), $row);
+            $this->fail('No se deben permitir días fuera de la configuración del grupo.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('days', $exception->errors());
+        }
+        $this->assertSame('2026-11-02', $row->fresh()->date->toDateString());
+        $this->assertDatabaseCount('programmings', 1);
+    }
+
+    public function test_group_days_are_rechecked_when_saving_after_validation(): void
+    {
+        $checked = $this->checked($this->data());
+        $this->group->days()->where('day', 7)->delete();
+        $this->postJson(route('programming.store'), $checked)->assertUnprocessable()->assertJsonValidationErrors('days');
+        $this->assertDatabaseCount('programmings', 0);
+    }
+
     public function test_calendar_holidays_duplicates_and_extra_weekdays(): void
     {
         Holiday::create(['name' => 'Feriado local', 'date' => '2026-11-04', 'state' => true]);
@@ -241,6 +285,8 @@ class ProgrammingBackendTest extends TestCase
         $this->postJson(route('programming.check'), $this->data())->assertOk()->assertJsonPath('valid', false)
             ->assertJsonPath('count', 0)->assertJsonPath('validation_token', null)->assertJsonCount(3, 'omitted_duplicates');
         $this->postJson(route('programming.store'), $this->data())->assertUnprocessable();
+        $this->postJson(route('programming.check'), $this->data(['days' => [1, 2, 3, 5, 7]]))->assertUnprocessable()->assertJsonValidationErrors('days');
+        $this->group->days()->create(['day' => 2]);
         $this->generate(['days' => [1, 2, 3, 5, 7]])->assertJsonPath('created', 1);
         $this->assertDatabaseCount('programmings', 4);
         $this->assertDatabaseHas('programmings', ['date' => '2026-11-03']);
@@ -345,7 +391,7 @@ class ProgrammingBackendTest extends TestCase
         $this->postJson(route('programming.check'), $data)->assertOk()->assertJsonPath('valid', false)->assertJsonPath('issues.0.reason', 'Sin contrato vigente');
         $this->helper->contracts()->update(['end_date' => null]);
         $this->postJson(route('programming.store'), $this->checked($data))->assertCreated();
-        $other = $this->group->replicate(); $other->name = 'Otro grupo'; $other->save();
+        $other = $this->group->replicate(); $other->name = 'Otro grupo'; $other->save(); $this->copyWorkingDaysTo($other);
         $this->postJson(route('programming.check'), array_replace($data, ['staff_group_id' => $other->id]))->assertOk()->assertJsonPath('valid', false);
     }
 
@@ -414,7 +460,7 @@ class ProgrammingBackendTest extends TestCase
         $row = Programming::firstOrFail();
         $edit = $this->data(['programming_id' => $row->id, 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7], 'work_holidays' => ['2026-11-01']]);
         $checked = $this->checked($edit);
-        $other = $this->group->replicate(); $other->name = 'Otro recorrido feriado'; $other->save();
+        $other = $this->group->replicate(); $other->name = 'Otro recorrido feriado'; $other->save(); $this->copyWorkingDaysTo($other);
         app(\App\Services\ProgrammingService::class)->save(array_replace($edit, ['programming_id' => null, 'staff_group_id' => $other->id]), auth()->id());
         $this->putJson(route('programming.update', $row), $checked)->assertUnprocessable();
         $check = $this->postJson(route('programming.check'), $edit)->assertOk()->assertJsonPath('valid', false);
@@ -450,7 +496,7 @@ class ProgrammingBackendTest extends TestCase
         Holiday::create(['name' => 'Todos los Santos', 'date' => '2026-11-01', 'state' => true]);
         $this->generate(['end_date' => '2026-11-02']);
         $row = Programming::firstOrFail();
-        $other = $this->group->replicate(); $other->name = 'Otro recorrido autorizado'; $other->save();
+        $other = $this->group->replicate(); $other->name = 'Otro recorrido autorizado'; $other->save(); $this->copyWorkingDaysTo($other);
         $this->generate(['staff_group_id' => $other->id, 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7], 'work_holidays' => ['2026-11-01']]);
         $edit = $this->data(['programming_id' => $row->id, 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7]]);
         $check = $this->postJson(route('programming.check'), $edit)->assertOk()->assertJsonPath('valid', false)
@@ -469,7 +515,7 @@ class ProgrammingBackendTest extends TestCase
         $row = Programming::firstOrFail();
         $driver = $this->employee(1); $helper = $this->employee(2);
         $vehicle = $this->group->vehicle->replicate(); $vehicle->plate = 'HOL-001'; $vehicle->code = 'HOL-1'; $vehicle->save();
-        $other = $this->group->replicate(); $other->name = 'Recursos diferentes'; $other->vehicle_id = $vehicle->id; $other->driver_id = $driver->id; $other->save();
+        $other = $this->group->replicate(); $other->name = 'Recursos diferentes'; $other->vehicle_id = $vehicle->id; $other->driver_id = $driver->id; $other->save(); $this->copyWorkingDaysTo($other);
         $this->generate(['staff_group_id' => $other->id, 'driver_id' => $driver->id, 'helpers' => [$helper->id], 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7], 'work_holidays' => ['2026-11-01']]);
         $edit = $this->data(['programming_id' => $row->id, 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7]]);
         $this->postJson(route('programming.check'), $edit)->assertOk()->assertJsonPath('valid', false)
@@ -569,7 +615,7 @@ class ProgrammingBackendTest extends TestCase
         $this->generate();
         $other = $this->group->replicate();
         $other->name = 'Otro equipo';
-        $other->save();
+        $other->save(); $this->copyWorkingDaysTo($other);
         $this->postJson(route('programming.check'), $this->data(['staff_group_id' => $other->id]))->assertOk()->assertJsonPath('valid', false);
         $shift = Shift::create(['name' => 'Otro turno', 'start_time' => '14:00', 'end_time' => '22:00']);
         $other->update(['shift_id' => $shift->id]);
@@ -606,7 +652,7 @@ class ProgrammingBackendTest extends TestCase
         $other->name = 'Otro vehículo';
         $other->vehicle_id = $vehicle->id;
         $other->driver_id = $otherDriver->id;
-        $other->save();
+        $other->save(); $this->copyWorkingDaysTo($other);
         $response = $this->postJson(route('programming.check'), $this->data(['staff_group_id' => $other->id, 'driver_id' => $otherDriver->id]))
             ->assertOk()->assertJsonPath('valid', false);
         $this->assertSame($this->helper->id, $response->json('issues.0.employee_id'));
@@ -620,7 +666,7 @@ class ProgrammingBackendTest extends TestCase
         $otherHelper = $this->employee(2);
         $other = $this->group->replicate();
         $other->name = 'Otro personal';
-        $other->save();
+        $other->save(); $this->copyWorkingDaysTo($other);
         $response = $this->postJson(route('programming.check'), $this->data(['staff_group_id' => $other->id, 'driver_id' => $otherDriver->id, 'helpers' => [$otherHelper->id]]))
             ->assertOk()->assertJsonPath('valid', false);
         $this->assertSame('Vehículo asignado en la misma fecha y turno', $response->json('issues.0.reason'));
