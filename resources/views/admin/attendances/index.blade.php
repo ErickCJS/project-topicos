@@ -108,7 +108,7 @@ $(function () {
         order: [[2, 'desc']],
         columns: [
             { data: 'dni', name: 'employees.dni' },
-            { data: 'employee_name', name: 'employees.first_name' },
+            { data: 'employee_name', name: 'employee_name' },
             { data: 'date_time', name: 'attendances.date', searchable: false },
             { data: 'type', name: 'attendances.type' },
             { data: 'status', name: 'attendances.status' },
@@ -133,9 +133,55 @@ $(function () {
         table.ajax.reload(null, false);
     }
 
+    function cargarHistorial() {
+        const employeeId = $('#formModal #attendance_employee_id').val();
+        const date = $('#formModal #attendance_date').val();
+        const history = document.querySelector('#formModal #attendance-day-history');
+
+        if (!history) return;
+        if (!employeeId || !date) {
+            history.textContent = 'Seleccione un empleado y una fecha para consultar sus marcaciones.';
+            return;
+        }
+
+        history.textContent = 'Cargando historial...';
+        $.get("{{ route('attendances.history') }}", { employee_id: employeeId, date: date })
+            .done(function (rows) {
+                history.textContent = '';
+                if (!rows.length) {
+                    history.textContent = 'Sin marcaciones en esta fecha.';
+                    return;
+                }
+                rows.forEach(function (row) {
+                    const line = document.createElement('div');
+                    line.textContent = [row.time, row.type, row.status, row.shift || 'Sin turno'].join(' · ');
+                    history.appendChild(line);
+                });
+            })
+            .fail(function () {
+                history.textContent = 'No se pudo cargar el historial.';
+            });
+    }
+
+    function inicializarEmpleado() {
+        const employeeSelect = $('#formModal select[name="employee_id"]');
+        if (!employeeSelect.length || employeeSelect.hasClass('select2-hidden-accessible')) return;
+        employeeSelect.select2({
+            width: '100%',
+            dropdownParent: $('#formModal'),
+            placeholder: 'Buscar por DNI, nombres o apellidos',
+            language: {
+                noResults: function () { return 'No se encontraron empleados'; },
+                searching: function () { return 'Buscando...'; }
+            }
+        });
+    }
+
     $('#btnNuevo').on('click', function () {
         $.get("{{ route('attendances.create') }}", function (response) {
             mostrar_modal('Nueva Asistencia', response);
+            inicializarEmpleado();
+            cargarHistorial();
         }).fail(function (error) {
             mostrar_error(error, 'No se pudo cargar el formulario de asistencia.');
         });
@@ -153,10 +199,14 @@ $(function () {
     $(document).on('click', '.btnEditar', function () {
         $.get($(this).data('url'), function (response) {
             mostrar_modal('Editar Asistencia', response);
+            inicializarEmpleado();
+            cargarHistorial();
         }).fail(function (error) {
             mostrar_error(error, 'No se pudo cargar el formulario de asistencia.');
         });
     });
+
+    $('#formModal').on('change', '#attendance_employee_id, #attendance_date', cargarHistorial);
 
     $(document).on('submit', '#formModal form', function (event) {
         event.preventDefault();

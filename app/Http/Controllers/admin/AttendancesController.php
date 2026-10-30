@@ -26,6 +26,22 @@ class AttendancesController extends Controller
                 ]);
 
             return DataTables::eloquent($attendances)
+                ->filterColumn('employee_name', function ($query, $keyword) {
+    $terms = preg_split('/\s+/', trim($keyword), -1, PREG_SPLIT_NO_EMPTY) ?: [$keyword];
+
+    $query->where(function ($nameQuery) use ($terms) {
+        foreach ($terms as $term) {
+            $nameQuery->where(function ($termQuery) use ($term) {
+                $termQuery->where('employees.first_name', 'like', '%'.$term.'%')
+                    ->orWhere('employees.last_name', 'like', '%'.$term.'%');
+            });
+        }
+    });
+})
+->orderColumn('employee_name', function ($query, $order) {
+    $query->orderBy('employees.last_name', $order)
+        ->orderBy('employees.first_name', $order);
+})
                 ->addColumn('employee_name', fn ($row) =>
                     trim($row->first_name.' '.$row->last_name)
                 )
@@ -102,6 +118,27 @@ class AttendancesController extends Controller
         return response()->json([
             'mensaje' => 'Asistencia eliminada correctamente.',
         ]);
+    }
+
+    public function history(Request $request)
+    {
+        $data = $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'date' => ['required', 'date_format:Y-m-d'],
+        ]);
+
+        $rows = Attendance::with('shift')
+            ->where('employee_id', $data['employee_id'])
+            ->whereDate('date', $data['date'])
+            ->orderBy('time')
+            ->get();
+
+        return response()->json($rows->map(fn ($attendance) => [
+            'time' => substr($attendance->time, 0, 5),
+            'type' => $attendance->type,
+            'status' => $attendance->status,
+            'shift' => $attendance->shift?->name,
+        ]));
     }
 
     private function formData(): array

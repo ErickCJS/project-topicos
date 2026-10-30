@@ -72,4 +72,12 @@
         <textarea name="notes" id="attendance_notes" class="form-control" rows="3"
             placeholder="Ingrese alguna observación...">{{ old('notes', $editing ? $attendance->notes : '') }}</textarea>
     </div>
+    <div class="col-12">
+        <div class="border-top pt-3 mt-1">
+            <h6 class="mb-2">Historial del día</h6>
+            <div id="attendance-day-history" class="small text-muted" aria-live="polite">
+                Seleccione un empleado y una fecha para consultar sus marcaciones.
+            </div>
+        </div>
+    </div>
 </div>

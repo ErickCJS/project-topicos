@@ -47,6 +47,7 @@ Route::resource('vehiclescolor', ColorController::class)
     ->only(['index', 'store', 'show', 'edit', 'update', 'destroy'])
     ->names('vehiclescolor');
 
+Route::get('attendances/history', [AttendancesController::class, 'history'])->name('attendances.history');
 Route::resource('attendances', AttendancesController::class)->names('attendances');
 Route::get('holidays/resumen', [HolidaysController::class, 'resumenFeriados'])
     ->name('holidays.resumen');
