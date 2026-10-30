@@ -8,6 +8,10 @@ guarda información en el servidor.
 
 - Listado con filtros por fechas, zona y turno, búsqueda y paginación.
 - Exportación de las filas filtradas a Excel/PDF, impresión y selección de columnas.
+  PDF e impresión usan encabezado SGRS JLO, verde institucional, fecha de emisión
+  de Lima, resumen de estados y filtros aplicados. Ambos respetan las columnas
+  visibles y presentan fechas en formato día/mes/año. El PDF incorpora numeración
+  de páginas y repite la cabecera de la tabla; la impresión solicita A4 horizontal.
 - Modal de creación por rango de fechas y días de trabajo; selección de grupo
   con búsqueda por nombre, zona o turno y personal editable.
 - Disponibilidad simulada, con errores, sugerencias y estado correcto.

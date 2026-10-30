@@ -57,5 +57,6 @@
 @stop
 
 @section('js')
+<script src="{{ asset('js/programming-reports.js') }}"></script>
 <script src="{{ asset('js/programming.js') }}"></script>
 @stop
