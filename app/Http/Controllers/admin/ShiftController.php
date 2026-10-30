@@ -76,9 +76,9 @@ class ShiftController extends Controller
         try {
             DB::transaction(function () use ($shift) {
                 $locked = Shift::whereKey($shift->id)->lockForUpdate()->firstOrFail();
-                if (StaffGroup::where('shift_id', $shift->id)->exists()
+                if ($locked->attendances()->exists() || StaffGroup::where('shift_id', $shift->id)->exists()
                     || Programming::withTrashed()->where('shift_id', $shift->id)->exists()) {
-                    throw ValidationException::withMessages(['shift' => 'Este turno está utilizado en grupos de personal o recorridos y no se puede eliminar.']);
+                    throw ValidationException::withMessages(['shift' => 'Este turno está utilizado en asistencias, grupos de personal o recorridos y no se puede eliminar.']);
                 }
                 $locked->delete();
             });

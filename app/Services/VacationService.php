@@ -20,6 +20,8 @@ class VacationService
             $this->assertNotPast($start);
             $this->lockAnnualRecords($employee->id, (int) $data['year']);
 
+            $this->assertAvailable($employee->id, (int) $data['year'], $start, $end, $days);
+
             $vacation = Vacation::create([
                 'employee_id' => $employee->id,
                 'year' => (int) $data['year'],
@@ -74,9 +76,7 @@ class VacationService
             if ($newYear !== $oldYear) {
                 $this->lockAnnualRecords($employee->id, $newYear);
             }
-            if ($vacation->isApproved()) {
-                $this->assertAvailable($employee->id, $newYear, $start, $end, $days, $vacation->id);
-            }
+            $this->assertAvailable($employee->id, $newYear, $start, $end, $days, $vacation->id);
 
             $vacation->update([
                 'year' => $newYear,
@@ -195,6 +195,19 @@ class VacationService
         return max(0, Vacation::ANNUAL_DAYS - (int) $query->sum('scheduled_days'));
     }
 
+    public function requestableBalance(int $employeeId, int $year, ?int $excludingId = null): int
+    {
+        $query = Vacation::query()
+            ->where('employee_id', $employeeId)
+            ->where('year', $year)
+            ->whereIn('status', ['Aprobada', 'Pendiente']);
+
+        if ($excludingId !== null) {
+            $query->where('id', '!=', $excludingId);
+        }
+
+        return max(0, Vacation::ANNUAL_DAYS - (int) $query->sum('scheduled_days'));
+    }
     private function period(array $data): array
     {
         $start = CarbonImmutable::createFromFormat('!Y-m-d', $data['start_date']);
@@ -281,7 +294,7 @@ class VacationService
     ): void {
         $annual = Vacation::query()->where('employee_id', $employeeId)
             ->where('year', $year)
-            ->where('status', 'Aprobada');
+            ->whereIn('status', ['Aprobada', 'Pendiente']);
         if ($excludingId !== null) {
             $annual->where('id', '!=', $excludingId);
         }

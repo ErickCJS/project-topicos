@@ -32,8 +32,8 @@ $(function () {
         $('#saveProgramming').prop('disabled', true);
         status('info','Los datos han cambiado. Valide la disponibilidad nuevamente.');
     }
-    function button(action, icon, label, style = 'outline-secondary') {
-        return `<button type="button" class="btn btn-${style} btn-sm" data-action="${action}" title="${label}" aria-label="${label}"><i class="bi bi-${icon}" aria-hidden="true"></i></button>`;
+    function button(action, icon, label, style = 'outline-primary') {
+        return `<button type="button" class="btn btn-${style} table-action-button" data-action="${action}" title="${label}" aria-label="${label}"><i class="bi bi-${icon}" aria-hidden="true"></i></button>`;
     }
     const table = $('#programmingTable').DataTable({
         processing:true, order:[[0,'asc']], pageLength:10,
@@ -49,7 +49,7 @@ $(function () {
             {data:'vehicle',render:(v,t,row) => t === 'display' ? `<span class="programming-vehicle">${escape(v)}<small>${escape(row.plate)}</small></span>` : `${v} ${row.plate}`},
             {data:'driver',render:$.fn.dataTable.render.text()},
             {data:'helpers',render:(v,t) => t === 'display' ? v.map(name => `<span class="programming-helper">${escape(name)}</span>`).join('') : v.join(', ')},
-            {data:null,orderable:false,searchable:false,render:row => `<div class="programming-actions" data-id="${row.id}">${button('detail','eye','Ver detalle','outline-primary')}${row.status === 'Programado' ? button('edit','pencil-square','Modificar programación','outline-warning') + button('delete','trash','Eliminar programación','outline-danger') : ''}${button('history','clock-history','Historial de cambios')}${row.status === 'Programado' ? button('finish','check-circle','Finalizar programación','outline-success') : ''}</div>`}
+            {data:null,orderable:false,searchable:false,render:row => `<div class="programming-actions table-action-buttons" data-id="${row.id}">${button('detail','eye','Ver detalle')}${row.status === 'Programado' ? button('edit','pencil-square','Modificar programación','outline-warning') + button('delete','trash','Eliminar programación','outline-danger') : ''}${button('history','clock-history','Historial de cambios','outline-secondary')}${row.status === 'Programado' ? button('finish','check-circle','Finalizar programación','outline-success') : ''}</div>`}
         ],
         language:{search:'Buscar:',lengthMenu:'Mostrar _MENU_ registros',info:'Mostrando _START_ a _END_ de _TOTAL_ registros',infoEmpty:'Sin registros',infoFiltered:'(filtrado de _MAX_ registros)',zeroRecords:'No se encontraron programaciones',emptyTable:'No hay programaciones para las fechas seleccionadas',paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}
     });

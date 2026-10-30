@@ -17,7 +17,6 @@
 .vacations-module .vacation-detail-card { height: 100%; padding: 1rem !important; background: var(--bs-tertiary-bg) !important; border: 1px solid var(--bs-border-color) !important; border-radius: .6rem; }
 .vacations-module .vacation-detail-value { display: block; margin-top: .3rem; color: var(--bs-body-color); font-weight: 600; }
 .vacations-module .invalid-feedback:not(.d-none) { display: block; }
-
 /* admin/zones/index.blade.php */
 .zones-module #zonesTable { width: 100% !important; }
 .zones-module #zonesTable th,
@@ -102,6 +101,7 @@
     .zones-module #zonesTable { min-width: 980px; }
     .zones-module .zone-modal-body { padding: 1rem; }
 }
+
 
 .vacations-module .table {
     --bs-table-color: var(--sidebar-text, #26352d);
@@ -2886,6 +2886,36 @@ html[data-bs-theme="dark"] .vehicle-types-module .vehicle-type-modal .modal-cont
         line-height: 1;
     }
 
+    /* Shared action controls for the Personal and Programación tables. */
+    .employees-module .table-action-buttons,
+    .programming-module .table-action-buttons {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        white-space: nowrap;
+    }
+
+    .employees-module .table-action-buttons .table-action-button,
+    .programming-module .table-action-buttons .table-action-button {
+        display: inline-flex;
+        width: 36px;
+        min-width: 36px;
+        height: 31px;
+        flex: 0 0 36px;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border-width: 1px;
+        border-style: solid;
+        border-radius: .25rem;
+    }
+
+    .employees-module .table-action-buttons .table-action-button i,
+    .programming-module .table-action-buttons .table-action-button i {
+        line-height: 1;
+    }
+
     .vehicles-module #vehicleLogoModal .vehicle-logo-modal-body {
         display: grid;
         min-height: 320px;
@@ -3118,32 +3148,6 @@ html[data-bs-theme="dark"] .vehicles-module .vehicle-modal .modal-content {
         transform: scale(1.5);
     }
 
-    .employees-module .employee-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: .4rem;
-        white-space: nowrap;
-    }
-
-    .employees-module .employee-action-btn {
-        display: inline-flex;
-        width: 36px;
-        min-width: 36px;
-        height: 31px;
-        flex: 0 0 36px;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        border-width: 1px;
-        border-style: solid;
-        border-radius: .25rem;
-    }
-
-    .employees-module .employee-action-btn i {
-        line-height: 1;
-    }
-
     html.dark .employees-module #employeeFormModal .modal-content,
 html.dark .employees-module #employeeShowModal .modal-content,
 html[data-bs-theme="dark"] .employees-module #employeeFormModal .modal-content,
@@ -3295,3 +3299,135 @@ html[data-bs-theme="dark"] :is(.attendances-module, .brands-module, .colors-modu
     .holiday-filter-actions { grid-column: auto; flex-direction: column; }
     .holiday-filter-actions .btn { width: 100%; border-radius: .25rem !important; }
 }
+
+/* Shared outline controls for administrative table actions. */
+
+:is(
+    .contracts-module .contract-actions > .btn,
+    .vacations-module .vacation-actions > .btn,
+    .attendances-module .attendance-actions > .btn,
+    .zones-module .zone-actions > .btn,
+    .holidays-module .holidays-actions > .btn,
+    .staff-groups-module .staffgroup-actions > .btn,
+    .shifts-module .shift-actions > .btn,
+    .employees-module .table-action-buttons > .table-action-button,
+    .programming-module .table-action-buttons > .table-action-button
+) {
+    display: inline-flex;
+    width: 36px;
+    min-width: 36px;
+    height: 31px;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: .25rem;
+    box-shadow: none;
+    font-size: .875rem;
+}
+
+:is(
+    .contracts-module .contract-actions,
+    .vacations-module .vacation-actions,
+    .attendances-module .attendance-actions,
+    .zones-module .zone-actions,
+    .holidays-module .holidays-actions,
+    .staff-groups-module .staffgroup-actions,
+    .shifts-module .shift-actions,
+    .employees-module .table-action-buttons,
+    .programming-module .table-action-buttons
+) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    white-space: nowrap;
+}
+
+/* VER: azul */
+:is(
+    .contracts-module .contract-actions > .btn-outline-primary,
+    .vacations-module .vacation-actions > .btn-outline-primary,
+    .attendances-module .attendance-actions > .btn-outline-primary,
+    .zones-module .zone-actions > .btn-outline-primary,
+    .holidays-module .holidays-actions > .btn-outline-primary,
+    .staff-groups-module .staffgroup-actions > .btn-outline-primary,
+    .shifts-module .shift-actions > .btn-outline-primary,
+    .employees-module .table-action-buttons > .btn-outline-primary,
+    .programming-module .table-action-buttons > .btn-outline-primary
+) {
+    --bs-btn-color: var(--bs-primary);
+    --bs-btn-border-color: var(--bs-primary);
+}
+
+/* EDITAR: amarillo */
+:is(
+    .contracts-module .contract-actions > .btn-outline-warning,
+    .vacations-module .vacation-actions > .btn-outline-warning,
+    .attendances-module .attendance-actions > .btn-outline-warning,
+    .zones-module .zone-actions > .btn-outline-warning,
+    .holidays-module .holidays-actions > .btn-outline-warning,
+    .staff-groups-module .staffgroup-actions > .btn-outline-warning,
+    .shifts-module .shift-actions > .btn-outline-warning,
+    .employees-module .table-action-buttons > .btn-outline-warning,
+    .programming-module .table-action-buttons > .btn-outline-warning
+) {
+    --bs-btn-color: var(--bs-warning);
+    --bs-btn-border-color: var(--bs-warning);
+}
+
+/* ELIMINAR: rojo */
+:is(
+    .contracts-module .contract-actions > .btn-outline-danger,
+    .vacations-module .vacation-actions > .btn-outline-danger,
+    .attendances-module .attendance-actions > .btn-outline-danger,
+    .zones-module .zone-actions > .btn-outline-danger,
+    .holidays-module .holidays-actions > .btn-outline-danger,
+    .staff-groups-module .staffgroup-actions > .btn-outline-danger,
+    .shifts-module .shift-actions > .btn-outline-danger,
+    .employees-module .table-action-buttons > .btn-outline-danger,
+    .programming-module .table-action-buttons > .btn-outline-danger
+) {
+    --bs-btn-color: var(--bs-danger);
+    --bs-btn-border-color: var(--bs-danger);
+}
+
+/* ACCIONES POSITIVAS: verde */
+:is(
+    .vacations-module .vacation-actions > .btn-outline-success,
+    .staff-groups-module .staffgroup-actions > .btn-outline-success,
+    .programming-module .table-action-buttons > .btn-outline-success
+) {
+    --bs-btn-color: var(--bs-success);
+    --bs-btn-border-color: var(--bs-success);
+}
+
+/* ACCIONES SECUNDARIAS: gris */
+:is(
+    .vacations-module .vacation-actions > .btn-outline-secondary,
+    .programming-module .table-action-buttons > .btn-outline-secondary
+) {
+    --bs-btn-color: var(--bs-secondary);
+    --bs-btn-border-color: var(--bs-secondary);
+}
+
+
+
+:is(
+    .contracts-module .contract-actions > .btn,
+    .vacations-module .vacation-actions > .btn,
+    .attendances-module .attendance-actions > .btn,
+    .zones-module .zone-actions > .btn,
+    .holidays-module .holidays-actions > .btn,
+    .staff-groups-module .staffgroup-actions > .btn,
+    .shifts-module .shift-actions > .btn,
+    .employees-module .table-action-buttons > .table-action-button,
+    .programming-module .table-action-buttons > .table-action-button
+):focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.holidays-module .holidays-actions .me-2 { margin-right: 0 !important; }

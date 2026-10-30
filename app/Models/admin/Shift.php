@@ -3,6 +3,7 @@
 namespace App\Models\admin;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Shift extends Model
 {
@@ -12,4 +13,9 @@ class Shift extends Model
         'end_time',
         'description',
     ];
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
 }

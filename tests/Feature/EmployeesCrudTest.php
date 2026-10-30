@@ -80,17 +80,17 @@ class EmployeesCrudTest extends TestCase
 
         $actions = (string) $response->json('data.0.actions');
 
-        $this->assertStringContainsString('btn btn-info btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-primary btn-sm', $actions);
         $this->assertStringContainsString('bi bi-eye', $actions);
         $this->assertStringContainsString('title="Ver"', $actions);
         $this->assertStringContainsString('aria-label="Ver empleado"', $actions);
         $this->assertStringContainsString(route('personal.employees.show', $employee), $actions);
-        $this->assertStringContainsString('btn btn-warning btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-warning btn-sm', $actions);
         $this->assertStringContainsString('bi bi-pencil-square', $actions);
         $this->assertStringContainsString('title="Editar"', $actions);
         $this->assertStringContainsString('aria-label="Editar empleado"', $actions);
         $this->assertStringContainsString(route('personal.employees.edit', $employee), $actions);
-        $this->assertStringContainsString('btn btn-danger btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-danger btn-sm', $actions);
         $this->assertStringContainsString('bi bi-trash', $actions);
         $this->assertStringContainsString('title="Eliminar"', $actions);
         $this->assertStringContainsString('aria-label="Eliminar empleado"', $actions);
@@ -116,6 +116,21 @@ class EmployeesCrudTest extends TestCase
         Storage::disk('public')->assertExists($employee->profile_photo_path);
     }
 
+    public function test_employee_can_be_registered_without_a_photo(): void
+    {
+        $data = $this->validStoreData();
+        unset($data['foto']);
+
+        $this->postJson(route('personal.employees.store'), $data)
+            ->assertOk()
+            ->assertJson([
+                'mensaje' => 'Personal registrado correctamente.',
+            ]);
+
+        $employee = Employee::sole();
+
+        $this->assertNull($employee->profile_photo_path);
+    }
     public function test_employee_validation_preserves_uniqueness_age_and_required_rules(): void
     {
         $this->createEmployee();
@@ -182,7 +197,7 @@ class EmployeesCrudTest extends TestCase
         $this->get(route('personal.employees.show', $employee))
             ->assertOk()
             ->assertSee('Ficha del personal')
-            ->assertSee('Información del empleado en modo de solo lectura')
+            ->assertSee('Fecha de nacimiento')
             ->assertSee('Ana Pérez')
             ->assertSee('ana@example.test')
             ->assertSee(asset('storage/'.$originalPhoto), false)

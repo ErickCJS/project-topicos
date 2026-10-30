@@ -149,9 +149,13 @@ $(function () {
 
         const startInput = form.find('[name="start_date"]');
         const endInput = form.find('[name="end_date"]');
+        const yearInput = form.find('[name="year"]');
+        const submit = form.find('[type="submit"]');
+
         const isHistorical = startInput.attr('data-historical') === '1';
         const isEditing = Boolean(form.data('vacation-id'));
         const originalStart = startInput.attr('data-original-start') || '';
+
         const now = new Date();
         const today = [
             now.getFullYear(),
@@ -159,17 +163,12 @@ $(function () {
             String(now.getDate()).padStart(2, '0')
         ].join('-');
 
-        // Crear: no permitir fechas anteriores a hoy.
-        // Editar: conservar la fecha original si el período ya comenzó.
-        // Regularizar históricos: permitir fechas anteriores.
         const minimumStart = isHistorical ? '' :
             (isEditing && originalStart && originalStart < today ? originalStart : today);
 
         startInput.attr('min', minimumStart);
 
         const start = startInput.val() || '';
-
-        // La fecha de término nunca puede ser anterior al inicio.
         endInput.attr('min', start || minimumStart);
 
         if (endInput.val() && start && endInput.val() < start) {
@@ -179,26 +178,72 @@ $(function () {
         const end = endInput.val() || '';
         const days = inclusiveDays(start, end);
         const employeeId = form.find('[name="employee_id"]').val();
-        const yearInput = form.find('[name="year"]');
-        if (/^\d{4}-/.test(start) && !yearInput.prop('readonly')) yearInput.val(start.slice(0, 4));
+
+        if (/^\d{4}-/.test(start) && !yearInput.prop('readonly')) {
+            yearInput.val(start.slice(0, 4));
+        }
+
         const year = yearInput.val();
+        const validYear = /^\d{4}$/.test(String(year))
+            && Number(year) >= 1900
+            && Number(year) <= 2100;
 
         form.find('[data-vacation-days]').text(days || '—');
         form.find('[name="scheduled_days_preview"]').val(days || '');
+        form.find('[data-vacation-available]').text('—');
         form.find('[data-vacation-balance]').text('—');
+        form.find('[data-vacation-result-label]').text('Saldo restante');
+        form.find('[data-vacation-excess]').addClass('d-none').text('');
 
-        if (!employeeId || !year || !days) return;
-        if (balanceRequest) balanceRequest.abort();
+        submit.prop('disabled', true);
+
+        if (balanceRequest) {
+            balanceRequest.abort();
+            balanceRequest = null;
+        }
+
+        if (!employeeId || !validYear) return;
 
         balanceRequest = $.get(@json(route('vacations.balance')), {
             employee_id: employeeId,
             year: year,
             excluding_id: form.data('vacation-id') || ''
         }).done(function (response) {
-            form.find('[data-vacation-balance]').text(Math.max(0, response.available_days - days));
+            const available = Number(response.available_days);
+
+            if (!Number.isFinite(available)) return;
+
+            form.find('[data-vacation-available]').text(available);
+
+            if (!days) return;
+
+            const remaining = available - days;
+
+            if (remaining < 0) {
+                form.find('[data-vacation-result-label]').text('Días excedidos');
+                form.find('[data-vacation-balance]').text(Math.abs(remaining));
+                form.find('[data-vacation-excess]')
+                    .removeClass('d-none')
+                    .text(
+                        'La solicitud excede el saldo disponible por '
+                        + Math.abs(remaining)
+                        + ' día(s). Reduzca el período solicitado.'
+                    );
+                submit.prop('disabled', true);
+            } else {
+                form.find('[data-vacation-result-label]').text('Saldo restante');
+                form.find('[data-vacation-balance]').text(remaining);
+                submit.prop('disabled', !form[0].checkValidity());
+            }
+        }).fail(function (xhr, status) {
+            if (status === 'abort') return;
+
+            form.find('[data-vacation-excess]')
+                .removeClass('d-none')
+                .text('No se pudo consultar el saldo. Intente nuevamente.');
+            submit.prop('disabled', true);
         });
     }
-
     function openForm(url) {
         $.get(url).done(function (response) {
             $('#vacationFormContent').html(response);
@@ -318,7 +363,7 @@ $(function () {
                 showRequestError(xhr, 'No se pudo guardar la vacación.', form);
             },
             complete: function () {
-                submit.prop('disabled', false);
+                refreshCalculation();
             }
         });
     });

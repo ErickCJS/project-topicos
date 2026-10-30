@@ -51,10 +51,10 @@ class EmployeeController extends Controller
                     return '<span class="badge '.$class.'">'.e($employee->status).'</span>';
                 })
                 ->addColumn('actions', function (Employee $employee) {
-                    return '<div class="employee-actions">'
-                        .'<button type="button" class="btn btn-outline-primary btn-sm employee-action-btn btnVerEmpleado" data-url="'.e(route('personal.employees.show', $employee)).'" title="Ver" aria-label="Ver empleado"><i class="bi bi-eye" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-outline-warning btn-sm employee-action-btn btnEditarEmpleado" data-url="'.e(route('personal.employees.edit', $employee)).'" title="Editar" aria-label="Editar empleado"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-outline-danger btn-sm employee-action-btn btnEliminarEmpleado" data-url="'.e(route('personal.employees.destroy', $employee)).'" title="Eliminar" aria-label="Eliminar empleado"><i class="bi bi-trash" aria-hidden="true"></i></button>'
+                    return '<div class="employee-actions table-action-buttons">'
+                        .'<button type="button" class="btn btn-outline-primary btn-sm employee-action-btn table-action-button btnVerEmpleado" data-url="'.e(route('personal.employees.show', $employee)).'" title="Ver" aria-label="Ver empleado"><i class="bi bi-eye" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-warning btn-sm employee-action-btn table-action-button btnEditarEmpleado" data-url="'.e(route('personal.employees.edit', $employee)).'" title="Editar" aria-label="Editar empleado"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-danger btn-sm employee-action-btn table-action-button btnEliminarEmpleado" data-url="'.e(route('personal.employees.destroy', $employee)).'" title="Eliminar" aria-label="Eliminar empleado"><i class="bi bi-trash" aria-hidden="true"></i></button>'
                         .'</div>';
                 })
                 ->rawColumns(['photo', 'status', 'actions'])
@@ -88,7 +88,7 @@ class EmployeeController extends Controller
             'email' => ['required', 'email', 'max:150', 'unique:employees,email'],
             'password' => ['required', 'string', 'min:8'],
             'direccion' => ['required', 'string', 'max:255'],
-            'foto' => ['required', 'image', 'max:5120'],
+            'foto' => ['nullable', 'image', 'max:5120'],
             'telefono' => ['nullable', 'regex:/^[0-9]{9}$/'],
             'licencia' => $requiereLicencia ? ['required', new ValidarLicenciaA3c($request->input('dni'))] : ['nullable'],
         ], [
@@ -126,7 +126,7 @@ class EmployeeController extends Controller
             'licencia.required' => 'Ingrese el número de licencia para este tipo de personal.',
         ]);
 
-        $foto = $request->file('foto')->store('employees', 'public');
+        $foto = $request->hasFile('foto') ? $request->file('foto')->store('employees', 'public') : null;
 
         try {
             Employee::create([
@@ -144,7 +144,9 @@ class EmployeeController extends Controller
                 'license' => $data['licencia'] ?? null,
             ]);
         } catch (Throwable $exception) {
-            Storage::disk('public')->delete($foto);
+            if ($foto) {
+                Storage::disk('public')->delete($foto);
+            }
 
             throw $exception;
         }
@@ -291,6 +293,13 @@ class EmployeeController extends Controller
             ]);
         }
 
+        if ($employee->attendances()->exists() || $employee->vacations()->exists()) {
+            $employee->update(['status' => 'Inactivo']);
+
+            return response()->json([
+                'mensaje' => 'El empleado fue marcado como inactivo porque tiene asistencias o vacaciones registradas.',
+            ]);
+        }
         $foto = $employee->profile_photo_path;
         $employee->delete();
 
