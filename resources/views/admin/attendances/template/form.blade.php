@@ -1,14 +1,12 @@
 <div class="row g-3">
     <div class="col-12">
-        <label class="form-label" for="employee-search">Buscar empleado por DNI, nombre o apellido</label>
-        <input class="form-control mb-2" type="search" id="employee-search" placeholder="Escriba para filtrar">
-        <select class="form-select" name="employee_id" id="employee_id" required>
-            <option value="">Seleccione un empleado</option>
+        <label class="form-label" for="employee_id">Empleado</label>
+        <select class="form-select select2" name="employee_id" id="employee_id" data-placeholder="Buscar por DNI, nombre o apellido" required>
+            <option value=""></option>
             @foreach($employees as $employee)
                 <option value="{{ $employee->id }}" @selected((string) old('employee_id', $attendance->employee_id ?? '') === (string) $employee->id)>{{ $employee->dni }} - {{ $employee->first_name }} {{ $employee->last_name }}</option>
             @endforeach
         </select>
-        <small class="form-text text-muted" id="employee-info"></small>
     </div>
     <div class="col-md-6">
         <label class="form-label" for="shift_id">Turno</label>

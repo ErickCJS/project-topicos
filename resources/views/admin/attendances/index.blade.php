@@ -64,10 +64,13 @@
 @stop
 
 @section('css')
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 @stop
 
 @section('js')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(function () {
     const formModalElement = document.getElementById('formModal');
@@ -77,16 +80,20 @@ $(function () {
 
     function mostrar_modal(titulo, contenido) {
         $('#formModalLabel').text(titulo);
+        $('#formModal select.select2-hidden-accessible').select2('destroy');
         $('#formModal .modal-body').html(contenido);
+        $('#formModal select[name="employee_id"]').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: $('#formModal'),
+            placeholder: 'Buscar por DNI, nombre o apellido',
+            language: {
+                noResults: function () { return 'No se encontraron empleados'; },
+                searching: function () { return 'Buscando...'; }
+            }
+        });
         formModal.show();
-        actualizarEmpleado();
         cargarHistorial();
-    }
-
-    function actualizarEmpleado() {
-        const select = document.querySelector('#formModal #employee_id');
-        const info = document.querySelector('#formModal #employee-info');
-        if (select && info) info.textContent = select.selectedOptions[0]?.text || '';
     }
 
     function cargarHistorial() {
@@ -166,13 +173,7 @@ $(function () {
         });
     });
 
-    $('#formModal').on('input', '#employee-search', function () {
-        const filter = this.value.toLocaleLowerCase();
-        $('#formModal #employee_id option').each(function (index) {
-            if (index) this.hidden = !this.text.toLocaleLowerCase().includes(filter);
-        });
-    });
-    $('#formModal').on('change', '#employee_id', function () { actualizarEmpleado(); cargarHistorial(); });
+    $('#formModal').on('change', '#employee_id', cargarHistorial);
     $('#formModal').on('change', '#attendance-date', cargarHistorial);
 
     $(document).on('click', '.btnVer', function () {
