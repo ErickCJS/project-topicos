@@ -20,6 +20,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
 Route::get('programming', [ProgrammingController::class, 'index'])->name('programming.index');
+Route::get('programming/groups/{staffGroup}', [ProgrammingController::class, 'group'])->name('programming.group');
+Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
+Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
+Route::get('programming/{id}/history', [ProgrammingController::class, 'history'])->name('programming.history');
+Route::post('programming/{programming}/finish', [ProgrammingController::class, 'finish'])->name('programming.finish');
+Route::get('programming/{programming}', [ProgrammingController::class, 'show'])->name('programming.show');
+Route::put('programming/{programming}', [ProgrammingController::class, 'update'])->name('programming.update');
+Route::delete('programming/{programming}', [ProgrammingController::class, 'destroy'])->name('programming.destroy');
 Route::resource('contracts', ContractController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update'])->names('contracts');
 Route::patch('contracts/{id}/cancel', [ContractController::class, 'cancel'])->name('contracts.cancel');
 Route::get('vacations/check', [VacationController::class, 'check'])->name('vacations.check');

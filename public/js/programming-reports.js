@@ -25,7 +25,7 @@ window.ProgrammingReports = (() => {
         doc.pageOrientation = 'landscape';
         doc.pageMargins = [36, 34, 36, 42];
         doc.defaultStyle = { font: 'Roboto', fontSize: 9, color: ink, lineHeight: 1.2 };
-        doc.info = { title: 'Programaciones | SGRS JLO', author: 'SGRS JLO', subject: 'Reporte de programaciones - datos de ejemplo' };
+        doc.info = { title: 'Programaciones | SGRS JLO', author: 'SGRS JLO', subject: 'Reporte de recorridos de recolección' };
         doc.content = [
             { columns: [
                 { stack: [{ text: 'SGRS JLO', fontSize: 15, bold: true, color: green }, { text: 'Sistema de Gestión de Residuos Sólidos', fontSize: 8, color: muted, margin: [0, 4, 0, 0] }] },
@@ -45,7 +45,7 @@ window.ProgrammingReports = (() => {
                 paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 9, paddingBottom: () => 9
             } },
             ...(meta.count === 0 ? [{ text: 'No hay programaciones para los filtros seleccionados.', color: muted, margin: [0, 12, 0, 0] }] : []),
-            { text: 'Datos de ejemplo. Este reporte corresponde a una demostración de la interfaz.', color: muted, italics: true, fontSize: 8, margin: [0, 14, 0, 0] }
+            { text: 'Reporte de recorridos registrados en el Sistema de Gestión de Residuos Sólidos.', color: muted, italics: true, fontSize: 8, margin: [0, 14, 0, 0] }
         ];
         doc.footer = (page, pages) => ({ margin: [36, 12, 36, 0], columns: [
             { text: 'SGRS JLO  /  Programaciones', color: muted, fontSize: 8 },
@@ -93,7 +93,7 @@ window.ProgrammingReports = (() => {
             <div class="report-summary"><strong>${meta.count} registros en el reporte</strong><span>${meta.scheduled} programados / ${meta.finished} finalizados</span></div>
             <p class="report-filters">${meta.filters.map(html).join(' &nbsp; | &nbsp; ')}</p>
             <table><thead><tr>${data.header.map(cell => `<th scope="col">${html(cell)}</th>`).join('')}</tr></thead><tbody>${rows || `<tr><td colspan="${data.header.length}">No hay programaciones para los filtros seleccionados.</td></tr>`}</tbody></table>
-            <p class="report-note">Datos de ejemplo. Este reporte corresponde a una demostración de la interfaz.</p>
+            <p class="report-note">Reporte de recorridos registrados en el Sistema de Gestión de Residuos Sólidos.</p>
             <footer class="report-footer">SGRS JLO / Programaciones</footer>
         </main>`;
     }

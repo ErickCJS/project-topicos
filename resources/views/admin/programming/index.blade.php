@@ -10,7 +10,7 @@
 @stop
 
 @section('content')
-<div class="programming-module">
+<div class="programming-module" data-url="{{ route('programming.index') }}">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
         <h4 class="mb-0"><i class="bi bi-calendar-week me-2" aria-hidden="true"></i>Lista de Programaciones</h4>
         <div class="d-flex flex-wrap gap-2">
@@ -19,14 +19,16 @@
             <button type="button" class="btn btn-outline-secondary" id="bulkProgramming"><i class="bi bi-stack me-1"></i>Programación masiva</button>
         </div>
     </div>
-    <p class="small text-body-secondary mb-3"><i class="bi bi-info-circle me-1"></i>Vista de demostración con datos de ejemplo. Los cambios duran hasta recargar la página.</p>
+    @if($groups->isEmpty())
+        <div class="alert alert-info">No hay grupos de personal activos. Registre o active un grupo en <a href="{{ route('staffgroups.index') }}">Grupos de Personal</a> para generar recorridos.</div>
+    @endif
 
     <div class="card mb-3"><div class="card-body">
         <form id="programmingFilters" class="row g-3 align-items-end">
-            <div class="col-12 col-md-6 col-xl-2"><label for="filterStart" class="form-label">Fecha de inicio</label><input type="date" class="form-control" id="filterStart"></div>
-            <div class="col-12 col-md-6 col-xl-2"><label for="filterEnd" class="form-label">Fecha de fin</label><input type="date" class="form-control" id="filterEnd"></div>
-            <div class="col-12 col-md-6 col-xl-3"><label for="filterZone" class="form-label">Zona</label><select class="form-select" id="filterZone"><option value="">Todas las zonas</option><option>Zona Norte</option><option>Zona Centro</option><option>Zona Sur</option></select></div>
-            <div class="col-12 col-md-6 col-xl-3"><label for="filterShift" class="form-label">Turno</label><select class="form-select" id="filterShift"><option value="">Todos los turnos</option><option>Mañana</option><option>Tarde</option><option>Noche</option></select></div>
+            <div class="col-12 col-md-6 col-xl-2"><label for="filterStart" class="form-label">Fecha de inicio</label><input type="date" class="form-control" id="filterStart" value="{{ today()->toDateString() }}"></div>
+            <div class="col-12 col-md-6 col-xl-2"><label for="filterEnd" class="form-label">Fecha de fin</label><input type="date" class="form-control" id="filterEnd" value="{{ today()->toDateString() }}"></div>
+            <div class="col-12 col-md-6 col-xl-3"><label for="filterZone" class="form-label">Zona</label><select class="form-select" id="filterZone"><option value="">Todas las zonas</option>@foreach($zones as $zone)<option value="{{ $zone->id }}">{{ $zone->name }}</option>@endforeach</select></div>
+            <div class="col-12 col-md-6 col-xl-3"><label for="filterShift" class="form-label">Turno</label><select class="form-select" id="filterShift"><option value="">Todos los turnos</option>@foreach($shifts as $shift)<option value="{{ $shift->id }}">{{ $shift->name }}</option>@endforeach</select></div>
             <div class="col-12 col-xl-2"><button type="reset" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg me-1"></i>Limpiar</button></div>
             <div class="col-12 small text-danger d-none" id="filterError" role="alert">La fecha de fin debe ser igual o posterior a la de inicio.</div>
         </form>
