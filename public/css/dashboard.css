@@ -1,0 +1,497 @@
+.rsu-dashboard {
+    width: 100%;
+    min-width: 0;
+    max-width: inherit;
+    margin: 0 auto;
+    padding: 0 4px 24px;
+}
+
+.rsu-page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: inherit;
+    margin: 0 auto;
+    gap: 24px;
+}
+
+.rsu-page-heading h1 {
+    color: #122b45;
+    font-size: clamp(24px, 2.2vw, 32px);
+    font-weight: 700;
+    letter-spacing: -.7px;
+    margin: 5px 0 6px;
+}
+
+.rsu-page-heading p {
+    color: #718198;
+    font-size: 13px;
+    margin: 0;
+}
+
+.rsu-eyebrow {
+    color: #087db8;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+}
+
+.rsu-header-action {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 9px;
+    border-radius: 6px;
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+
+.rsu-header-action .fa-arrow-right {
+    margin-left: 3px;
+    font-size: 11px;
+}
+
+
+.rsu-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 285px));
+    justify-content: start;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.rsu-metric-card {
+    min-width: 0;
+    min-height: 100px;
+    padding: 17px 18px;
+    border: 1px solid #e4e9ef;
+    border-left-width: 3px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #202c3b;
+    position: relative;
+    background: #fff;
+}
+
+.metric-blue {
+    border-left-color: #1687bd;
+}
+
+.metric-green {
+    border-left-color: #35a16b;
+}
+
+.metric-red {
+    border-left-color: #d65b63;
+}
+
+.metric-yellow {
+    border-left-color: #d5a52b;
+}
+
+.rsu-metric-content {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+}
+
+.rsu-metric-content strong {
+    display: block;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.rsu-metric-content p {
+    color: #667487;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin: 7px 0 0;
+}
+
+.rsu-metric-icon {
+    flex: 0 0 auto;
+    font-size: 25px;
+    margin-left: 12px;
+}
+
+.metric-blue .rsu-metric-icon {
+    color: #1687bd;
+}
+
+.metric-green .rsu-metric-icon {
+    color: #35a16b;
+}
+
+.metric-red .rsu-metric-icon {
+    color: #d65b63;
+}
+
+.metric-yellow .rsu-metric-icon {
+    color: #b38715;
+}
+
+.rsu-filter-card {
+    background: #fff;
+    border: 1px solid #e4e9ef;
+    border-radius: 7px;
+    padding: 18px;
+    margin-bottom: 25px;
+}
+
+.rsu-filter-fields {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.rsu-filter-group {
+    flex: 0 1 280px;
+    min-width: min(240px, 100%);
+}
+
+.rsu-filter-group label {
+    display: block;
+    font-size: 12px;
+    color: #344a61;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.rsu-filter-group label i {
+    margin-right: 5px;
+}
+
+.rsu-filter-group .form-control {
+    width: 100%;
+    height: 42px;
+    font-size: 12px;
+    border-color: #dce4ec;
+    border-radius: 5px;
+    box-shadow: none;
+}
+
+.rsu-filter-group .form-control:focus {
+    border-color: #168fc8;
+    box-shadow: 0 0 0 3px rgba(22, 143, 200, .12);
+}
+
+.rsu-filter-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
+.rsu-btn-search {
+    min-height: 42px;
+    min-width: 122px;
+    background: #0789ce;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 5px;
+}
+
+.rsu-btn-search:hover,
+.rsu-btn-programming:hover,
+.rsu-btn-details:hover {
+    color: #fff;
+    filter: brightness(.94);
+}
+
+.rsu-btn-clear {
+    min-height: 42px;
+    min-width: 42px;
+    color: #68798a;
+    border: 1px solid #d7dfe7;
+    border-radius: 5px;
+}
+
+
+.rsu-section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 16px;
+}
+
+.rsu-section-heading h3 {
+    font-size: 19px;
+    font-weight: 700;
+    color: #1d344c;
+    margin: 0 0 5px;
+}
+
+.rsu-section-heading h3 i {
+    color: #0789ce;
+    margin-right: 5px;
+}
+
+.rsu-section-heading p {
+    font-size: 12px;
+    color: #7b899a;
+    margin: 0;
+}
+
+.rsu-btn-programming {
+    background: #0789ce;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: 5px;
+}
+
+
+.rsu-programming-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(285px, 320px));
+    justify-content: start;
+    gap: 16px;
+}
+
+.rsu-programming-card {
+    min-width: 0;
+    background: #fff;
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid #e5eaf0;
+}
+
+.rsu-zone-header {
+    padding: 10px 13px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.zone-complete {
+    background: #2eaa51;
+}
+
+.zone-incomplete {
+    background: #dc3545;
+}
+
+.rsu-zone-header i {
+    margin-right: 4px;
+}
+
+.rsu-programming-body {
+    padding: 14px 13px;
+}
+
+.rsu-programming-info {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    text-align: center;
+    gap: 8px;
+}
+
+.rsu-info-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.rsu-info-item>i {
+    font-size: 13px;
+    margin-bottom: 3px;
+}
+
+.rsu-info-item small {
+    font-size: 10px;
+    color: #8290a0;
+}
+
+.rsu-info-item strong {
+    font-size: 11px;
+    font-weight: 500;
+    color: #29425e;
+    overflow-wrap: anywhere;
+}
+
+
+/* ESTADOS */
+.rsu-status-container {
+    display: flex;
+    justify-content: center;
+    margin: 13px 0 11px;
+}
+
+.rsu-status {
+    display: inline-block;
+    padding: 6px 11px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.status-complete {
+    background: #2eaa51;
+}
+
+.status-incomplete {
+    background: #dc3545;
+}
+
+
+/* PRESENTES Y FALTANTES */
+.rsu-attendance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+}
+
+.rsu-attendance {
+    min-width: 0;
+    padding: 11px 7px;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rsu-attendance.present {
+    background: #2eaa51;
+}
+
+.rsu-attendance.missing {
+    background: #dc3545;
+}
+
+.rsu-attendance strong {
+    font-size: 13px;
+}
+
+.rsu-attendance span {
+    font-size: 10px;
+}
+
+
+/* BOTÓN DETALLES */
+.rsu-btn-details {
+    display: block;
+    text-align: center;
+    background: #0789ce;
+    color: #fff;
+    border-radius: 7px;
+    padding: 10px;
+    margin-top: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.rsu-btn-details:hover {
+    color: #fff;
+    text-decoration: none;
+    background: #0676b3;
+}
+
+
+/* ESTADO VACÍO */
+.rsu-empty-state {
+    background: #fff;
+    border: 1px dashed #cbd5df;
+    border-radius: 6px;
+    padding: 45px 15px;
+    text-align: center;
+    grid-column: 1 / -1;
+}
+
+.rsu-empty-state>i {
+    font-size: 40px;
+    color: #aab7c4;
+    margin-bottom: 12px;
+}
+
+.rsu-empty-state h4 {
+    color: #34495e;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.rsu-empty-state p {
+    color: #8391a2;
+    font-size: 12px;
+    margin-bottom: 17px;
+}
+
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+    .rsu-metrics {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+    }
+
+    .rsu-programming-grid {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 285px), 1fr));
+    }
+
+    .rsu-programming-card {
+        min-width: 0;
+    }
+
+    .rsu-page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .rsu-header-action {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .rsu-filter-actions {
+        flex: 1 1 100%;
+    }
+
+    .rsu-btn-search {
+        flex: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    .rsu-dashboard {
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    .rsu-metrics {
+        gap: 12px;
+    }
+
+    .rsu-metric-card {
+        min-width: 0;
+        min-height: 96px;
+        padding: 15px;
+    }
+
+    .rsu-filter-card {
+        padding: 15px;
+    }
+
+    .rsu-filter-group {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+
+    .rsu-section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\admin;
 use App\Http\Controllers\Controller;
 use App\Models\admin\Contract;
 use App\Models\admin\Employee;
+use App\Models\admin\Programming;
 use App\Services\ContractRules;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -114,6 +115,17 @@ class ContractController extends Controller
             Employee::whereKey($original->employee_id)->lockForUpdate()->firstOrFail();
             $contract = Contract::whereKey($original->id)->lockForUpdate()->firstOrFail();
             $this->assertOpen($contract);
+            if (DB::table('vacations')->where('employee_id', $contract->employee_id)->where('status', 'Aprobada')->whereDate('end_date', '>=', today())->exists()) {
+                throw ValidationException::withMessages(['contract' => 'No se puede anular el contrato mientras el trabajador tenga vacaciones aprobadas vigentes o futuras.']);
+            }
+            if (Programming::query()->where('status', 'Programado')
+                ->where(function ($query) use ($contract) {
+                    $query->where('driver_id', $contract->employee_id)
+                        ->orWhereHas('employees', fn ($employeeQuery) => $employeeQuery
+                            ->whereKey($contract->employee_id)->wherePivot('role', 'helper'));
+                })->exists()) {
+                throw ValidationException::withMessages(['contract' => 'No se puede anular el contrato mientras el trabajador participe en una programaci?n programada.']);
+            }
             $contract->forceFill(['cancelled_at' => now(), 'is_active' => false])->save();
         });
 

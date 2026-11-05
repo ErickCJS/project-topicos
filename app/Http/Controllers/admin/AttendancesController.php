@@ -70,6 +70,27 @@ class AttendancesController extends Controller
     public function store(Request $request)
     {
         $data = $this->validatedData($request);
+        $eligible = DB::table('employees')->where('employees.id', $data['employee_id'])
+            ->whereExists(function ($query) use ($data) {
+                $query->selectRaw('1')->from('contracts')
+                    ->whereColumn('contracts.employee_id', 'employees.id')
+                    ->where('contracts.is_active', true)->whereNull('contracts.cancelled_at')
+                    ->whereDate('contracts.start_date', '<=', $data['date'])
+                    ->where(function ($endDate) use ($data) {
+                        $endDate->whereNull('contracts.end_date')->orWhereDate('contracts.end_date', '>=', $data['date']);
+                    });
+            })
+            ->whereNotExists(function ($query) use ($data) {
+                $query->selectRaw('1')->from('vacations')
+                    ->whereColumn('vacations.employee_id', 'employees.id')
+                    ->where('vacations.status', 'Aprobada')
+                    ->whereDate('vacations.start_date', '<=', $data['date'])
+                    ->whereDate('vacations.end_date', '>=', $data['date']);
+            })->exists();
+        if (! $eligible) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['employee_id' => 'El empleado no tiene un contrato vigente para la fecha de asistencia o tiene vacaciones aprobadas.']);
+        }
+
 
         $attendance = Attendance::create($data);
 
@@ -104,7 +125,29 @@ class AttendancesController extends Controller
 
     public function update(Request $request, Attendance $attendance)
     {
-        $attendance->update($this->validatedData($request));
+        $data = $this->validatedData($request);
+        $eligible = DB::table('employees')->where('employees.id', $data['employee_id'])
+            ->whereExists(function ($query) use ($data) {
+                $query->selectRaw('1')->from('contracts')
+                    ->whereColumn('contracts.employee_id', 'employees.id')
+                    ->where('contracts.is_active', true)->whereNull('contracts.cancelled_at')
+                    ->whereDate('contracts.start_date', '<=', $data['date'])
+                    ->where(function ($endDate) use ($data) {
+                        $endDate->whereNull('contracts.end_date')->orWhereDate('contracts.end_date', '>=', $data['date']);
+                    });
+            })
+            ->whereNotExists(function ($query) use ($data) {
+                $query->selectRaw('1')->from('vacations')
+                    ->whereColumn('vacations.employee_id', 'employees.id')
+                    ->where('vacations.status', 'Aprobada')
+                    ->whereDate('vacations.start_date', '<=', $data['date'])
+                    ->whereDate('vacations.end_date', '>=', $data['date']);
+            })->exists();
+        if (! $eligible) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['employee_id' => 'El empleado no tiene un contrato vigente para la fecha de asistencia o tiene vacaciones aprobadas.']);
+        }
+
+        $attendance->update($data);
 
         return response()->json([
             'mensaje' => 'Asistencia actualizada correctamente.',
@@ -143,11 +186,32 @@ class AttendancesController extends Controller
 
     private function formData(): array
     {
+        $date = request()->input('date', today()->format('Y-m-d'));
+        if (! is_string($date) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || ! strtotime($date)) {
+            $date = today()->format('Y-m-d');
+        }
+
         return [
             'employees' => DB::table('employees')
-                ->select('id', 'dni', 'first_name', 'last_name')
-                ->orderBy('last_name')
-                ->orderBy('first_name')
+                ->select('employees.id', 'employees.dni', 'employees.first_name', 'employees.last_name')
+                ->whereExists(function ($query) use ($date) {
+                    $query->selectRaw('1')->from('contracts')
+                        ->whereColumn('contracts.employee_id', 'employees.id')
+                        ->where('contracts.is_active', true)->whereNull('contracts.cancelled_at')
+                        ->whereDate('contracts.start_date', '<=', $date)
+                        ->where(function ($endDate) use ($date) {
+                            $endDate->whereNull('contracts.end_date')->orWhereDate('contracts.end_date', '>=', $date);
+                        });
+                })
+                ->whereNotExists(function ($query) use ($date) {
+                    $query->selectRaw('1')->from('vacations')
+                        ->whereColumn('vacations.employee_id', 'employees.id')
+                        ->where('vacations.status', 'Aprobada')
+                        ->whereDate('vacations.start_date', '<=', $date)
+                        ->whereDate('vacations.end_date', '>=', $date);
+                })
+                ->orderBy('employees.last_name')
+                ->orderBy('employees.first_name')
                 ->get(),
 
             'shifts' => DB::table('shifts')
