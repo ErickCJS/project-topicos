@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\admin\AdminController;
+use App\Http\Controllers\admin\CambioController;
+use App\Http\Controllers\admin\MotivoController;
 use App\Http\Controllers\admin\ProgrammingController;
 use App\Http\Controllers\admin\AttendancesController;
 use App\Http\Controllers\admin\BrandController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\admin\HolidaysController;
 use App\Http\Controllers\admin\ContractController;
 use App\Http\Controllers\admin\EmployeeController;
 use App\Http\Controllers\admin\EmployeeTypeController;
+use App\Http\Controllers\admin\ReasonController;
 use App\Http\Controllers\admin\ShiftController;
 use App\Http\Controllers\admin\StaffGroupsController;
 use App\Http\Controllers\admin\VacationController;
@@ -58,6 +61,8 @@ Route::post('holidays/cargaferiado', [HolidaysController::class, 'cargaFeriado']
 Route::resource('holidays', HolidaysController::class)
     ->names('holidays');
 Route::resource('shifts', ShiftController::class)->names('shifts');
+Route::resource('reason', ReasonController::class)->names('reason');
+Route::resource('cambios', CambioController::class)->names('cambios');
 
 Route::resource('staffgroups', StaffGroupsController::class)->names('staffgroups');
 

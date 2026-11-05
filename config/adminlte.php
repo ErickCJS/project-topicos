@@ -867,7 +867,23 @@ return [
                     'icon' => 'bi bi-calendar-week',
                 ],
             ],
-        ]
+        ],
+        [
+            'text' => 'Gestión de cambios',
+            'icon' => 'bi bi-arrow-repeat',
+            'submenu' => [
+                [
+                    'text' => 'Motivos',
+                    'route' => 'reason.index',
+                    'icon' => 'bi bi-list-check',
+                ],
+                [
+                    'text' => 'Cambios',
+                    'route' => 'cambios.index',
+                    'icon' => 'bi bi-arrow-left-right',
+                ],
+            ],
+        ],
     ],
     /*
     |--------------------------------------------------------------------------
