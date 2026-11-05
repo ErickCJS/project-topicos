@@ -417,12 +417,12 @@ $(function () {
         $contenedor.append(`
         <hr>
             <div class="">
-                Estos datos son para configuración no son obigatorios
-            <div>
+                Seleccione un conductor y al menos un ayudante, sin superar la capacidad del vehículo.
+            </div>
             
             <div class="mb-3 ">
-                <label for="driver_id" class="form-label">Conductor</label>
-                <select name="driver_id" id="driver_id" class="form-select" >
+                <label for="driver_id" class="form-label">Conductor *</label>
+                <select name="driver_id" id="driver_id" class="form-select" required>
                     <option value="">Seleccione un conductor</option>
                 </select>
             </div>
@@ -432,8 +432,8 @@ $(function () {
         for (let i = 1; i <= cantidadAyudantes; i++) {
             $contenedor.append(`
                 <div class="mb-3">
-                    <label for="helpers_${i}" class="form-label">Ayudante ${i}</label>
-                    <select name="helpers[]" id="helpers_${i}" class="form-select" >
+                    <label for="helpers_${i}" class="form-label">Ayudante ${i}${i === 1 ? ' *' : ''}</label>
+                    <select name="helpers[]" id="helpers_${i}" class="form-select" ${i === 1 ? 'required' : ''}>
                         <option value="">Seleccione un ayudante</option>
                     </select>
                 </div>

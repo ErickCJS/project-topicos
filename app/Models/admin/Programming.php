@@ -34,11 +34,6 @@ class Programming extends Model
         return $this->belongsTo(Shift::class);
     }
 
-    public function vehicle(): BelongsTo
-    {
-        return $this->belongsTo(Vehicle::class);
-    }
-
     public function changes()
     {
         return $this->hasMany(ProgrammingChange::class);

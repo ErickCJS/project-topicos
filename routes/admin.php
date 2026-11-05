@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\admin\AdminController;
-use App\Http\Controllers\admin\ProgrammingChangeController;
+use App\Http\Controllers\admin\CambioController;
 use App\Http\Controllers\admin\MotivoController;
 use App\Http\Controllers\admin\ProgrammingController;
 use App\Http\Controllers\admin\AttendancesController;
@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
 Route::get('programming', [ProgrammingController::class, 'index'])->name('programming.index');
+Route::get('programming/holidays', [ProgrammingController::class, 'holidays'])->name('programming.holidays');
+Route::get('programming/people', [ProgrammingController::class, 'people'])->name('programming.people');
 Route::get('programming/groups/{staffGroup}', [ProgrammingController::class, 'group'])->name('programming.group');
 Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
 Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
@@ -62,10 +64,7 @@ Route::resource('holidays', HolidaysController::class)
     ->names('holidays');
 Route::resource('shifts', ShiftController::class)->names('shifts');
 Route::resource('reason', ReasonController::class)->names('reason');
-Route::get('cambios', [ProgrammingChangeController::class, 'index'])->name('cambios.index');
-Route::resource('programming-changes', ProgrammingChangeController::class)
-    ->only(['index', 'store', 'show', 'destroy'])
-    ->names('programming-changes');
+Route::resource('cambios', CambioController::class)->names('cambios');
 
 Route::resource('staffgroups', StaffGroupsController::class)->names('staffgroups');
 

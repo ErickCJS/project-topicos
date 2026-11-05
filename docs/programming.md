@@ -21,6 +21,10 @@ Debe existir al menos un grupo real configurado en Grupos de Personal.
 - `GET /admin/programming`: vista o listado JSON con filtros por período, zona y
   turno. Sin filtros muestra el día actual en la zona horaria de la aplicación.
 - `GET /admin/programming/groups/{id}`: configuración real del grupo seleccionado.
+- `GET /admin/programming/holidays`: feriados activos del período que coinciden
+  con los días de trabajo elegidos, consultados desde la base de datos.
+- `GET /admin/programming/people`: conductores y ayudantes disponibles para todas
+  las fechas nuevas de la operación; no necesita personal previamente elegido.
 - `POST /admin/programming/check`: validación de fechas, días y equipo; informa
   disponibilidad, reemplazos y fechas omitidas.
 - `POST /admin/programming`: generación individual por rango de fechas.
@@ -39,16 +43,52 @@ mutaciones AJAX incluyen el token CSRF. No se introduce un sistema de roles nuev
 
 ## Generación y disponibilidad
 
-Se recorren las fechas reales del calendario y se omiten los feriados activos.
+Se recorren las fechas reales del calendario. Los feriados activos se omiten por
+defecto; el responsable puede marcar fechas específicas con “Trabajar este día”.
+Las excepciones solo afectan a esa programación y exigen la misma validación de
+contratos, vacaciones, capacidad y cruces. La selección queda asociada al token de
+validación y se comprueba otra vez al guardar. Se conserva en el snapshot de cada
+recorrido la fecha, el nombre del feriado, quién autorizó y cuándo; se muestra en
+detalle e historial sin modificar el catálogo global. Repetir la generación con
+un feriado habilitado permite completar esa fecha si antes se había omitido.
+Al editar un recorrido y cambiar su fecha, se selecciona automáticamente el día
+semanal correspondiente y se consultan sus feriados. Un feriado sin habilitar se
+informa sin autorizar el guardado; al habilitarlo se revalidan las reservas de
+grupo, vehículo y personal, excluyendo únicamente el recorrido que se edita.
+En edición, las reservas de la fecha destino se comprueban incluso si todavía
+no se marcó el feriado. Los avisos identifican el recorrido existente y, si hay
+autorización registrada, quién habilitó el trabajo en ese feriado. Una fecha ya
+programada tiene prioridad sobre el aviso de feriado pendiente de habilitar.
+La creación y modificación exigen una fecha inicial igual o posterior a hoy en
+America/Lima, tanto en el formulario como al validar y guardar en el servidor.
+Los filtros del listado permiten fechas pasadas para consultar el historial.
 La identidad para evitar duplicados es grupo + fecha: repetir una generación
 conserva lo existente; añadir días semanales permite completar fechas faltantes.
+Los días semanales del grupo se precargan como selección inicial. Todos los días
+quedan habilitados para elegir una combinación distinta en cada programación,
+sin modificar el grupo. Al cambiar los días se vuelven a consultar feriados y
+personal disponible y se exige validar nuevamente antes de guardar. Al editar
+un recorrido se selecciona el día correspondiente a la fecha elegida, aunque
+no forme parte de los días del grupo. Los feriados requieren autorización explícita.
 Cambiar la plantilla no modifica automáticamente recorridos ya generados.
+Si todas las fechas están programadas u omitidas, la validación no habilita el
+guardado ni emite un token. El servidor también rechaza guardar una operación
+sin fechas nuevas; el formulario muestra una advertencia con las fechas omitidas.
 
 Cada conductor y ayudante necesita contrato activo no anulado que cubra cada
 fecha. Solo las vacaciones aprobadas bloquean disponibilidad. No se admite
 personal ni vehículo asignado en la misma fecha y turno; otro turno sí se permite.
 Los reemplazos sugeridos proceden de empleados reales del cargo correspondiente,
 con disponibilidad para todas las fechas nuevas de la operación.
+
+Las listas de conductores y ayudantes se consultan automáticamente al seleccionar
+el grupo o cambiar fechas, días semanales o feriados habilitados. Solo muestran
+personal activo con contrato vigente, sin vacaciones aprobadas ni asignaciones
+en el mismo turno para todas las fechas a generar. Los días sin trabajo, feriados
+omitidos y fechas ya programadas no excluyen candidatos. Al editar se excluye la
+propia reserva. Una selección que deja de estar disponible se limpia con un aviso;
+durante la consulta o ante un error no se permite validar con listas anteriores.
+La consulta no reemplaza las comprobaciones al validar y guardar.
 
 La capacidad del vehículo es el máximo de ocupantes, incluido un conductor. Las
 plazas opcionales pueden quedar vacías; las personas no pueden repetirse dentro
