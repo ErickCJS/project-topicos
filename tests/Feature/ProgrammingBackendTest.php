@@ -275,6 +275,83 @@ class ProgrammingBackendTest extends TestCase
         $this->assertSame([$this->helper->id], $this->group->helpers()->pluck('employees.id')->all());
     }
 
+    public function test_people_options_require_contracts_for_every_scheduled_date_and_both_roles(): void
+    {
+        $expired = $this->employee(1);
+        $expired->contracts()->update(['end_date' => '2026-11-01']);
+        $partial = $this->employee(2);
+        $partial->contracts()->update(['end_date' => '2026-11-07']);
+        $future = $this->employee(1);
+        $future->contracts()->update(['start_date' => '2026-11-03']);
+        $cancelled = $this->employee(2);
+        $cancelled->contracts()->update(['cancelled_at' => now()]);
+        $missing = $this->employee(2);
+        $missing->contracts()->delete();
+        $inactive = $this->employee(1);
+        $inactive->update(['status' => 'Inactivo']);
+        $query = $this->data();
+        unset($query['driver_id'], $query['helpers']);
+        $result = $this->getJson(route('programming.people', $query))->assertOk()
+            ->assertJsonCount(1, 'drivers')->assertJsonCount(1, 'helpers')->assertJsonCount(4, 'dates');
+        $result->assertJsonPath('drivers.0.id', $this->driver->id)->assertJsonPath('helpers.0.id', $this->helper->id);
+        $this->getJson(route('programming.people', array_replace($query, ['end_date' => '2026-11-06'])))
+            ->assertOk()->assertJsonCount(2, 'helpers');
+        $this->assertDatabaseCount('programmings', 0);
+    }
+
+    public function test_people_options_exclude_approved_vacations_only_on_scheduled_days(): void
+    {
+        foreach ([$this->driver, $this->helper] as $person) {
+            $vacation = Vacation::create(['employee_id' => $person->id, 'year' => 2026, 'start_date' => '2026-11-04', 'end_date' => '2026-11-04', 'scheduled_days' => 1, 'pending_days' => 29, 'status' => 'Aprobada']);
+            $role = $person->id === $this->driver->id ? 'drivers' : 'helpers';
+            $this->getJson(route('programming.people', $this->data()))->assertOk()->assertJsonCount(0, $role);
+            $vacation->update(['status' => 'Pendiente']);
+            $this->getJson(route('programming.people', $this->data()))->assertOk()->assertJsonCount(1, $role);
+            $vacation->update(['status' => 'Aprobada', 'start_date' => '2026-11-03', 'end_date' => '2026-11-03']);
+            $this->getJson(route('programming.people', $this->data()))->assertOk()->assertJsonCount(1, $role);
+            $vacation->delete();
+        }
+    }
+
+    public function test_people_options_follow_holiday_choices_and_return_empty_for_no_new_dates(): void
+    {
+        Holiday::create(['name' => 'Feriado', 'date' => '2026-11-04', 'state' => true]);
+        Vacation::create(['employee_id' => $this->driver->id, 'year' => 2026, 'start_date' => '2026-11-04', 'end_date' => '2026-11-04', 'scheduled_days' => 1, 'pending_days' => 29, 'status' => 'Aprobada']);
+        $this->getJson(route('programming.people', $this->data()))->assertOk()->assertJsonCount(1, 'drivers')->assertJsonCount(3, 'dates');
+        $this->getJson(route('programming.people', $this->data(['work_holidays' => ['2026-11-04']])))
+            ->assertOk()->assertJsonCount(0, 'drivers')->assertJsonCount(4, 'dates');
+        $this->getJson(route('programming.people', $this->data(['start_date' => '2026-11-04', 'end_date' => '2026-11-04', 'days' => [3]])))
+            ->assertOk()->assertJsonCount(0, 'dates')->assertJsonCount(0, 'drivers')->assertJsonCount(0, 'helpers');
+    }
+
+    public function test_people_options_check_same_shift_and_exclude_the_edited_assignment(): void
+    {
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $other = $this->group->replicate(); $other->name = 'Otro grupo'; $other->save(); $this->copyWorkingDaysTo($other);
+        $query = $this->data(['staff_group_id' => $other->id, 'end_date' => '2026-11-02']);
+        $this->getJson(route('programming.people', $query))->assertOk()->assertJsonCount(0, 'drivers')->assertJsonCount(0, 'helpers');
+        $edit = $this->data(['programming_id' => $row->id, 'end_date' => '2026-11-02']);
+        $this->getJson(route('programming.people', $edit))->assertOk()->assertJsonPath('drivers.0.id', $this->driver->id)
+            ->assertJsonPath('helpers.0.id', $this->helper->id);
+        $this->getJson(route('programming.people', $this->data(['end_date' => '2026-11-02'])))
+            ->assertOk()->assertJsonCount(0, 'dates')->assertJsonCount(0, 'drivers');
+        $shift = Shift::create(['name' => 'Otro turno', 'start_time' => '14:00', 'end_time' => '22:00']);
+        $other->update(['shift_id' => $shift->id]);
+        $this->getJson(route('programming.people', $query))->assertOk()->assertJsonCount(1, 'drivers')->assertJsonCount(1, 'helpers');
+    }
+
+    public function test_people_options_validate_period_group_and_authentication(): void
+    {
+        foreach ([['start_date' => '2026-10-29'], ['end_date' => '2026-11-01'], ['days' => [2]], ['end_date' => '2028-01-01']] as $changes) {
+            $this->getJson(route('programming.people', $this->data($changes)))->assertUnprocessable();
+        }
+        $this->group->update(['state' => false]);
+        $this->getJson(route('programming.people', $this->data()))->assertUnprocessable();
+        auth()->logout();
+        $this->getJson(route('programming.people', $this->data()))->assertUnauthorized();
+    }
+
     public function test_guests_cannot_read_or_write(): void
     {
         auth()->logout();

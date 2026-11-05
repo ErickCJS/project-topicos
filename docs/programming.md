@@ -23,6 +23,8 @@ Debe existir al menos un grupo real configurado en Grupos de Personal.
 - `GET /admin/programming/groups/{id}`: configuración real del grupo seleccionado.
 - `GET /admin/programming/holidays`: feriados activos del período que coinciden
   con los días de trabajo elegidos, consultados desde la base de datos.
+- `GET /admin/programming/people`: conductores y ayudantes disponibles para todas
+  las fechas nuevas de la operación; no necesita personal previamente elegido.
 - `POST /admin/programming/check`: validación de fechas, días y equipo; informa
   disponibilidad, reemplazos y fechas omitidas.
 - `POST /admin/programming`: generación individual por rango de fechas.
@@ -77,6 +79,15 @@ fecha. Solo las vacaciones aprobadas bloquean disponibilidad. No se admite
 personal ni vehículo asignado en la misma fecha y turno; otro turno sí se permite.
 Los reemplazos sugeridos proceden de empleados reales del cargo correspondiente,
 con disponibilidad para todas las fechas nuevas de la operación.
+
+Las listas de conductores y ayudantes se consultan automáticamente al seleccionar
+el grupo o cambiar fechas, días semanales o feriados habilitados. Solo muestran
+personal activo con contrato vigente, sin vacaciones aprobadas ni asignaciones
+en el mismo turno para todas las fechas a generar. Los días sin trabajo, feriados
+omitidos y fechas ya programadas no excluyen candidatos. Al editar se excluye la
+propia reserva. Una selección que deja de estar disponible se limpia con un aviso;
+durante la consulta o ante un error no se permite validar con listas anteriores.
+La consulta no reemplaza las comprobaciones al validar y guardar.
 
 La capacidad del vehículo es el máximo de ocupantes, incluido un conductor. Las
 plazas opcionales pueden quedar vacías; las personas no pueden repetirse dentro

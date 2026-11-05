@@ -54,38 +54,8 @@ class ProgrammingService
                 $this->reject('El conductor y los ayudantes deben tener el cargo correspondiente.');
             }
         }
-        $holidayRecords = Holiday::where('state', true)->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->get();
-        $holidays = $holidayRecords->pluck('date')->map(fn ($date) => $date->toDateString())->unique()->values()->all();
-        $workHolidays = $data['work_holidays'] ?? [];
-        foreach ($workHolidays as $date) {
-            if (! in_array($date, $holidays, true) || ! in_array(CarbonImmutable::parse($date)->dayOfWeekIso, array_map('intval', $data['days']), true)) {
-                $this->reject('Los feriados seleccionados cambiaron o no corresponden al período y días elegidos. Actualice la selección y valide nuevamente.');
-            }
-        }
-        $duplicates = Programming::where('staff_group_id', $group->id)
-            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))
-            ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->pluck('date')
-            ->map(fn ($date) => substr((string) $date, 0, 10))->all();
-        $dates = [];
-        $omittedHolidays = [];
-        $omittedDuplicates = [];
-        $includedHolidays = [];
-        foreach (CarbonPeriod::create($data['start_date'], $data['end_date']) as $day) {
-            if (! in_array($day->dayOfWeekIso, array_map('intval', $data['days']), true)) {
-                continue;
-            }
-            $date = $day->toDateString();
-            if (in_array($date, $duplicates, true)) {
-                $omittedDuplicates[] = $date;
-            } elseif (in_array($date, $holidays, true) && ! in_array($date, $workHolidays, true)) {
-                $omittedHolidays[] = $date;
-            } else {
-                $dates[] = $date;
-                if (in_array($date, $workHolidays, true)) {
-                    $includedHolidays[] = $date;
-                }
-            }
-        }
+        ['dates' => $dates, 'omittedHolidays' => $omittedHolidays, 'omittedDuplicates' => $omittedDuplicates,
+            'includedHolidays' => $includedHolidays, 'holidayRecords' => $holidayRecords] = $this->calendar($data, $group, $editing);
         // Editing checks reservations on the destination even before a holiday is enabled.
         $reservationDates = $editing ? [$data['start_date']] : $dates;
         $occupied = Programming::with('employees')->where('shift_id', $group->shift_id)->whereIn('date', $reservationDates)
@@ -145,6 +115,84 @@ class ProgrammingService
         }
 
         return compact('group', 'people', 'dates', 'issues', 'suggestions', 'omittedHolidays', 'omittedDuplicates', 'includedHolidays', 'holidayRecords');
+    }
+
+    public function availablePeople(array $data, ?Programming $editing = null): array
+    {
+        $group = StaffGroup::with('days')->findOrFail($data['staff_group_id']);
+        if (! $group->state) {
+            $this->reject('El grupo seleccionado está inactivo.');
+        }
+        if (array_diff(array_map('intval', $data['days']), $group->days->pluck('day')->all())) {
+            throw ValidationException::withMessages(['days' => 'Solo puede programar los días de trabajo configurados en el grupo.']);
+        }
+        if ($editing && ($editing->status !== 'Programado' || $data['start_date'] !== $data['end_date']
+            || ! in_array(CarbonImmutable::parse($data['start_date'])->dayOfWeekIso, array_map('intval', $data['days']), true))) {
+            $this->reject('Seleccione una fecha y día válidos para modificar el recorrido pendiente.');
+        }
+        $dates = $this->calendar($data, $group, $editing)['dates'];
+        $occupied = Programming::with('employees')->where('shift_id', $group->shift_id)->whereIn('date', $dates)
+            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))->get();
+        $people = Employee::with(['contracts', 'vacations'])->where('status', 'Activo')
+            ->orderBy('last_name')->orderBy('first_name')->get()
+            ->filter(function ($person) use ($dates, $occupied) {
+                if (! $dates) {
+                    return false;
+                }
+                foreach ($dates as $date) {
+                    if (! $this->hasContract($person, $date) || $this->onVacation($person, $date)
+                        || $occupied->contains(fn ($row) => $row->date->toDateString() === $date && $row->employees->contains('id', $person->id))) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        $option = fn ($person) => ['id' => $person->id, 'name' => $person->dni.' — '.$this->name($person)];
+
+        return [
+            'drivers' => $people->filter(fn ($person) => (int) $person->employee_type_id === 1)->map($option)->values()->all(),
+            'helpers' => $people->filter(fn ($person) => (int) $person->employee_type_id !== 1)->map($option)->values()->all(),
+            'dates' => $dates,
+        ];
+    }
+
+    private function calendar(array $data, StaffGroup $group, ?Programming $editing): array
+    {
+        $holidayRecords = Holiday::where('state', true)->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->get();
+        $holidays = $holidayRecords->pluck('date')->map(fn ($date) => $date->toDateString())->unique()->values()->all();
+        $workHolidays = $data['work_holidays'] ?? [];
+        foreach ($workHolidays as $date) {
+            if (! in_array($date, $holidays, true) || ! in_array(CarbonImmutable::parse($date)->dayOfWeekIso, array_map('intval', $data['days']), true)) {
+                $this->reject('Los feriados seleccionados cambiaron o no corresponden al período y días elegidos. Actualice la selección y valide nuevamente.');
+            }
+        }
+        $duplicates = Programming::where('staff_group_id', $group->id)
+            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))
+            ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->pluck('date')
+            ->map(fn ($date) => substr((string) $date, 0, 10))->all();
+        $dates = [];
+        $omittedHolidays = [];
+        $omittedDuplicates = [];
+        $includedHolidays = [];
+        foreach (CarbonPeriod::create($data['start_date'], $data['end_date']) as $day) {
+            if (! in_array($day->dayOfWeekIso, array_map('intval', $data['days']), true)) {
+                continue;
+            }
+            $date = $day->toDateString();
+            if (in_array($date, $duplicates, true)) {
+                $omittedDuplicates[] = $date;
+            } elseif (in_array($date, $holidays, true) && ! in_array($date, $workHolidays, true)) {
+                $omittedHolidays[] = $date;
+            } else {
+                $dates[] = $date;
+                if (in_array($date, $workHolidays, true)) {
+                    $includedHolidays[] = $date;
+                }
+            }
+        }
+
+        return compact('dates', 'omittedHolidays', 'omittedDuplicates', 'includedHolidays', 'holidayRecords');
     }
 
     private function hasContract(Employee $person, string $date): bool

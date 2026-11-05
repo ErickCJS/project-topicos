@@ -17,6 +17,8 @@ $(function () {
     let checking = false, saving = false;
     let holidayRequest = null, holidayRevision = 0, holidaysReady = false;
     let allowedGroupDays = [];
+    let peopleRequest = null, peopleRevision = 0, peopleReady = false;
+    let preferredPeople = {driver: '', helpers: []};
 
     function request(method, path, data = {}) {
         return $.ajax({url: base + path, method, data: method === 'GET' ? data : JSON.stringify(data),
@@ -95,7 +97,53 @@ $(function () {
             select.value = ids[index] || ''; container.appendChild(node);
         }
     }
+    function resetPeople(message) {
+        if (peopleReady) {
+            preferredPeople = {driver: $('#programDriver').val(), helpers: $('.programming-helper-select').map((i, el) => el.value).get()};
+        }
+        peopleReady = false; peopleRevision++;
+        if (peopleRequest) peopleRequest.abort();
+        peopleRequest = null;
+        $('#programDriver, .programming-helper-select').each(function () {
+            this.replaceChildren(new Option(message, '')); this.disabled = true;
+        });
+        $('#programPeopleNote').text(message);
+    }
+    function loadPeople() {
+        resetPeople('Consultando personal disponible…');
+        const data = payload(), current = peopleRevision;
+        if (!holidaysReady || !data.staff_group_id || !data.days.length) return;
+        peopleRequest = request('GET', '/people', data).done(result => {
+            if (current !== peopleRevision) return;
+            let cleared = false;
+            function fill(select, options, selected, placeholder) {
+                select.replaceChildren(new Option(placeholder, ''));
+                options.forEach(person => select.add(new Option(person.name, person.id)));
+                const eligible = options.some(person => String(person.id) === String(selected));
+                select.value = eligible ? selected : '';
+                if (selected && !eligible) cleared = true;
+                select.disabled = false;
+            }
+            fill(document.getElementById('programDriver'), result.drivers, preferredPeople.driver, 'Seleccione un conductor');
+            $('.programming-helper-select').each(function (index) {
+                fill(this, result.helpers, preferredPeople.helpers[index], 'Sin asignar');
+            });
+            peopleReady = true;
+            invalidate();
+            $('#programPeopleNote').text(!result.dates.length ? 'No hay fechas nuevas para programar. Revise los días y feriados seleccionados.'
+                : (cleared ? 'Se quitaron selecciones que no están disponibles. ' : '')
+                + `Personal disponible para todos los días a programar: ${result.drivers.length} conductor(es) y ${result.helpers.length} ayudante(s).`);
+        }).fail(xhr => {
+            if (current !== peopleRevision || xhr.statusText === 'abort') return;
+            $('#programPeopleNote').text('No se pudo consultar el personal disponible.');
+            $('#programPeopleNote').append('<button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="retryProgrammingPeople">Reintentar</button>');
+            errors(xhr);
+        }).always(() => {if (current === peopleRevision) peopleRequest = null;});
+    }
+    $('#programPeopleNote').on('click', '#retryProgrammingPeople', loadPeople);
+    $(form).on('change', '.programming-work-holiday', loadPeople);
     function loadHolidays(selected = null) {
+        resetPeople('Seleccione un grupo, un período válido y días de trabajo.');
         const chosen = selected || $('.programming-work-holiday:checked').map((i, el) => el.value).get();
         const current = ++holidayRevision;
         if (holidayRequest) holidayRequest.abort();
@@ -112,6 +160,7 @@ $(function () {
             ).join('') : 'No hay feriados activos en los días seleccionados.');
             holidaysReady = true;
             invalidate();
+            loadPeople();
         }).fail(xhr => {
             if (current !== holidayRevision || xhr.statusText === 'abort') return;
             $('#programHolidayOptions').text('No se pudieron consultar los feriados.');
@@ -139,6 +188,11 @@ $(function () {
     }
     function loadGroup(id, row = null) {
         if (groupRequest) groupRequest.abort();
+        resetPeople('Seleccione un grupo, un período válido y días de trabajo.');
+        preferredPeople = {driver: '', helpers: []};
+        holidayRevision++;
+        if (holidayRequest) holidayRequest.abort();
+        holidayRequest = null; holidaysReady = false;
         allowedGroupDays = []; applyGroupDays();
         document.getElementById('programStart').setCustomValidity('');
         $('#programGroupSummary').prop('hidden',true); helpers(1);
@@ -147,8 +201,9 @@ $(function () {
         groupRequest = request('GET','/groups/' + id).done(group => {
             if (String($('#programGroup').val()) !== String(id)) return;
             $('#programGroupSummary').html([['Grupo',group.name],['Zona',group.zone],['Turno',`${group.shift} (${group.hours})`],['Vehículo',`${group.vehicle} · ${group.plate}`]].map(([label,value]) => `<div><small>${label}</small><strong>${escape(value)}</strong></div>`).join('')).prop('hidden',false);
-            $('#programDriver').val(row ? row.driver_id : group.driver_id);
+            preferredPeople = {driver: row ? row.driver_id : group.driver_id, helpers: row ? row.helper_ids : group.helpers};
             helpers(group.capacity,row ? row.helper_ids : group.helpers);
+            $('.programming-helper-select').prop('disabled', true);
             const days = (row ? row.days : group.days).map(Number);
             allowedGroupDays = group.days.map(Number);
             applyGroupDays();
@@ -181,7 +236,7 @@ $(function () {
         status('info','Revise los datos del grupo y valide la disponibilidad antes de guardar.');
     }
     $('#newProgramming').on('click',() => openForm());
-    $('#programmingFormModal').on('hidden.bs.modal',() => {if(groupRequest) groupRequest.abort();holidayRevision++;if(holidayRequest) holidayRequest.abort();holidayRequest=null;holidaysReady=false;invalidate();});
+    $('#programmingFormModal').on('hidden.bs.modal',() => {if(groupRequest) groupRequest.abort();holidayRevision++;if(holidayRequest) holidayRequest.abort();holidayRequest=null;holidaysReady=false;resetPeople('Seleccione un grupo y un período.');invalidate();});
     $('#bulkProgramming').prop('disabled',true).attr('title','Programación masiva: siguiente avance');
     function payload() {
         return {staff_group_id:$('#programGroup').val(),driver_id:$('#programDriver').val(),helpers:$('.programming-helper-select').map((i,el) => el.value).get().filter(Boolean),
@@ -194,6 +249,7 @@ $(function () {
     $('#validateProgramming').on('click',function(){
         if(checking || saving) return;
         if(!$('#programGroup').val()){status('danger','Seleccione un grupo de personal.');return;}
+        if (!peopleReady || peopleRequest) {status('info','Espere la consulta de personal disponible o vuelva a intentarla antes de validar.');return;}
         if(!form.reportValidity()) return;
         if(!holidaysReady || holidayRequest){status('info','Espere la consulta de feriados o vuelva a intentarla antes de validar.');return;}
         invalidate(); const current = revision; checking = true; $(this).prop('disabled',true);

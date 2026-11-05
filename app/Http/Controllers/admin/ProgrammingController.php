@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\admin\Employee;
 use App\Models\admin\Holiday;
 use App\Models\admin\Programming;
 use App\Models\admin\Shift;
@@ -45,11 +44,10 @@ class ProgrammingController extends Controller
             return DataTables::collection($query->get()->map(fn ($row) => $this->row($row)))->skipPaging()->escapeColumns([])->toJson();
         }
         $groups = StaffGroup::with(['zone', 'shift'])->where('state', true)->orderBy('name')->get();
-        $employees = Employee::where('status', 'Activo')->orderBy('last_name')->orderBy('first_name')->get();
         $zones = Zone::orderBy('name')->get();
         $shifts = Shift::orderBy('name')->get();
 
-        return view('admin.programming.index', compact('groups', 'employees', 'zones', 'shifts'));
+        return view('admin.programming.index', compact('groups', 'zones', 'shifts'));
     }
 
     public function holidays(Request $request)
@@ -85,6 +83,14 @@ class ProgrammingController extends Controller
             'capacity' => (int) $staffGroup->vehicle->occupats_capacity, 'driver_id' => $staffGroup->driver_id,
             'helpers' => $staffGroup->helpers->pluck('id'), 'days' => $staffGroup->days->pluck('day'),
         ]);
+    }
+
+    public function people(Request $request)
+    {
+        $data = $this->validated($request, false);
+        $editing = $data['programming_id'] ? Programming::findOrFail($data['programming_id']) : null;
+
+        return response()->json($this->service->availablePeople($data, $editing));
     }
 
     public function check(Request $request)
@@ -199,12 +205,12 @@ class ProgrammingController extends Controller
             'finished_at' => $row->finished_at?->format('d/m/Y H:i')];
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, bool $requirePeople = true): array
     {
         $data = $request->validate([
             'staff_group_id' => ['required', 'integer', 'exists:staff_groups,id'],
-            'driver_id' => ['required', 'integer', 'exists:employees,id'],
-            'helpers' => ['present', 'array'], 'helpers.*' => ['required', 'integer', 'distinct', 'exists:employees,id'],
+            'driver_id' => $requirePeople ? ['required', 'integer', 'exists:employees,id'] : ['exclude'],
+            'helpers' => $requirePeople ? ['present', 'array'] : ['exclude'], 'helpers.*' => ['required', 'integer', 'distinct', 'exists:employees,id'],
             'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.today('America/Lima')->toDateString()],
             'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'days' => ['required', 'array', 'min:1'], 'days.*' => ['required', 'integer', 'distinct', 'between:1,7'],
@@ -227,9 +233,9 @@ class ProgrammingController extends Controller
             $this->reject('Seleccione un período máximo de 366 días por operación.');
         }
         $data['staff_group_id'] = (int) $data['staff_group_id'];
-        $data['driver_id'] = (int) $data['driver_id'];
+        $data['driver_id'] = (int) ($data['driver_id'] ?? 0);
         $data['programming_id'] = empty($data['programming_id']) ? null : (int) $data['programming_id'];
-        $data['helpers'] = array_map('intval', $data['helpers']);
+        $data['helpers'] = array_map('intval', $data['helpers'] ?? []);
         $data['days'] = array_map('intval', $data['days']);
         sort($data['days']);
         $data['notes'] = trim($data['notes'] ?? '');
