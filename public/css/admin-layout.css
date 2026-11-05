@@ -154,6 +154,18 @@ html.dark {
     color: var(--sidebar-active-text);
 }
 
+.rsu-sidebar .sidebar-menu > .nav-item.menu-open > .nav-link,
+.rsu-sidebar .sidebar-menu > .nav-item.menu-open > .nav-link.active {
+    background: transparent;
+    color: var(--sidebar-text);
+}
+
+.rsu-sidebar .sidebar-menu > .nav-item > .nav-treeview {
+    margin: 2px 0 8px 10px;
+    padding: 4px 0 4px 12px;
+    border-left: 1px solid var(--sidebar-border);
+}
+
 .rsu-sidebar .nav-link p {
     min-width: 0;
     overflow: hidden;
