@@ -869,7 +869,7 @@ return [
             ],
         ],
         [
-            'text' => 'Cambios de programación',
+            'text' => 'Gestión de cambios',
             'icon' => 'bi bi-arrow-repeat',
             'submenu' => [
                 [
@@ -879,7 +879,7 @@ return [
                 ],
                 [
                     'text' => 'Cambios',
-                    'route' => 'programming-changes.index',
+                    'route' => 'cambios.index',
                     'icon' => 'bi bi-arrow-left-right',
                 ],
             ],

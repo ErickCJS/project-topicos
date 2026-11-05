@@ -20,7 +20,5 @@ class ChangeManagementRoutesTest extends TestCase
     {
         $this->get(route('reason.index'))->assertOk()->assertSee('Motivos');
         $this->get(route('cambios.index'))->assertOk()->assertSee('Cambios');
-        $this->get(route('programming-changes.index'))->assertOk()
-            ->assertSee('Cambios de programación')->assertSee('massChangeModal');
     }
 }
