@@ -9,6 +9,7 @@ use App\Models\admin\Shift;
 use App\Models\admin\StaffGroup;
 use App\Models\admin\Zone;
 use App\Services\ProgrammingService;
+use App\Services\ProgrammingModificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ProgrammingController extends Controller
 {
-    public function __construct(private ProgrammingService $service) {}
+    public function __construct(private ProgrammingService $service, private ProgrammingModificationService $modificationService) {}
 
     public function index(Request $request)
     {
@@ -166,6 +167,59 @@ class ProgrammingController extends Controller
         ])]);
     }
 
+    public function modifications(Programming $programming)
+    {
+        $programming->load('employees');
+
+        return response()->json([
+            'current' => [...$this->row($programming),
+                'shift_id' => $programming->shift_id,
+                'vehicle_id' => $programming->vehicle_id,
+                'driver_id' => $programming->driver_id,
+                'helper_ids' => $programming->employees->where('pivot.role', 'helper')->pluck('id')->values(),
+                'helper_people' => $programming->employees->where('pivot.role', 'helper')->map(fn ($employee) => [
+                    'id' => $employee->id, 'name' => trim($employee->first_name.' '.$employee->last_name),
+                ])->values(),
+            ],
+            'options' => $this->modificationService->options($programming, (int) request('shift_id', $programming->shift_id)),
+            'history' => $programming->changes()->with('user:id,name')->orderByDesc('id')->get()
+                ->filter(fn ($change) => str_starts_with($change->action, 'Cambio de ') || $change->action === 'Retiro de ayudante')
+                ->map(fn ($change) => [
+                    'id' => $change->id, 'type' => $change->action, 'before' => $change->before, 'after' => $change->after,
+                    'user' => $change->user?->name ?? 'Usuario no disponible',
+                    'at' => $change->created_at->format('d/m/Y H:i'),
+                ])->values(),
+        ]);
+    }
+
+    public function modificationOptions(Request $request, Programming $programming)
+    {
+        $data = $request->validate(['shift_id' => ['required', 'integer', 'exists:shifts,id']]);
+
+        return response()->json($this->modificationService->options($programming, (int) $data['shift_id']));
+    }
+
+    public function updateModifications(Request $request, Programming $programming)
+    {
+        $data = $request->validate([
+            'changes' => ['required', 'array', 'min:1', 'max:20'],
+            'changes.*.type' => ['required', 'in:shift,vehicle,driver,helper'],
+            'changes.*.new_id' => ['required', 'integer', 'min:1'],
+            'changes.*.old_id' => ['required_if:changes.*.type,helper', 'nullable', 'integer', 'min:1'],
+            'changes.*.reason' => ['required', 'string', 'max:100', 'exists:reason,name'],
+            'changes.*.custom_reason' => ['nullable', 'string', 'max:120', 'required_if:changes.*.reason,Otro'],
+            'changes.*.description' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'changes.required' => 'Agregue al menos un cambio antes de guardar.',
+            'changes.*.reason.required' => 'Cada cambio debe incluir un motivo.',
+            'changes.*.custom_reason.required_if' => 'Especifique el motivo cuando seleccione “Otro”.',
+        ]);
+
+        $count = $this->modificationService->apply($programming, $data['changes'], (int) $request->user()->id);
+
+        return response()->json(['message' => 'Modificaciones guardadas correctamente.', 'count' => $count]);
+    }
+
     public function finish(Request $request, Programming $programming)
     {
         DB::transaction(function () use ($programming, $request) {
@@ -179,6 +233,22 @@ class ProgrammingController extends Controller
         });
 
         return response()->json(['message' => 'Recorrido finalizado correctamente.']);
+    }
+
+    public function annul(Request $request, Programming $programming)
+    {
+        DB::transaction(function () use ($programming, $request) {
+            $row = Programming::whereKey($programming->id)->lockForUpdate()->firstOrFail();
+            if ($row->status !== 'Programado') {
+                $this->reject('Solo se puede anular un recorrido programado.');
+            }
+            $before = $row->toArray();
+            $row->employees()->detach();
+            $row->update(['status' => 'Anulado', 'group_date_key' => null, 'vehicle_date_key' => null]);
+            $row->changes()->create(['user_id' => $request->user()->id, 'action' => 'Anulación', 'before' => $before, 'after' => $row->toArray()]);
+        });
+
+        return response()->json(['message' => 'Programación anulada correctamente.']);
     }
 
     public function destroy(Request $request, Programming $programming)

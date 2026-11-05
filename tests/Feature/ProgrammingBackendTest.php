@@ -6,13 +6,16 @@ use App\Models\admin\Contract;
 use App\Models\admin\Employee;
 use App\Models\admin\Holiday;
 use App\Models\admin\Programming;
+use App\Models\admin\Reason;
 use App\Models\admin\Shift;
 use App\Models\admin\StaffGroup;
 use App\Models\admin\Vacation;
 use App\Models\admin\Vehicle;
 use App\Models\admin\Zone;
 use App\Models\User;
+use Database\Seeders\ReasonSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -65,6 +68,18 @@ class ProgrammingBackendTest extends TestCase
         Contract::create(['employee_id' => $person->id, 'type' => 'Permanente', 'start_date' => '2026-01-01', 'salary' => 1500, 'is_active' => true]);
 
         return $person;
+    }
+
+    private function alternativeVehicle(string $name, string $code, string $plate, int $capacity = 3): Vehicle
+    {
+        $template = $this->group->vehicle;
+
+        return Vehicle::create([
+            'name' => $name, 'code' => $code, 'plate' => $plate, 'year' => 2026,
+            'load_capacity' => 5, 'occupats_capacity' => $capacity, 'fuel_capacity' => 10, 'compact_capacity' => 5,
+            'brand_id' => $template->brand_id, 'model_id' => $template->model_id,
+            'type_id' => $template->type_id, 'color_id' => $template->color_id,
+        ]);
     }
 
     private function data(array $changes = []): array
@@ -840,5 +855,317 @@ class ProgrammingBackendTest extends TestCase
         $this->getJson(route('programming.history', $row->id))->assertOk()->assertJsonPath('data.1.action', 'Eliminación');
         $this->generate(['end_date' => '2026-11-02'])->assertJsonPath('created', 1);
         $this->assertSame(1, Programming::count());
+    }
+
+    public function test_programming_change_history_prevents_permanent_programming_deletion(): void
+    {
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+
+        try {
+            $row->forceDelete();
+            $this->fail('Una programación con historial no debe eliminarse permanentemente.');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('programmings', ['id' => $row->id]);
+            $this->assertDatabaseCount('programming_changes', 1);
+        }
+    }
+
+    public function test_annulment_preserves_history_and_releases_reservations(): void
+    {
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+
+        $this->patchJson(route('programming.annul', $row))->assertOk();
+
+        $this->assertSame('Anulado', $row->fresh()->status);
+        $this->assertNull($row->fresh()->group_date_key);
+        $this->assertNull($row->fresh()->vehicle_date_key);
+        $this->assertDatabaseCount('programming_employees', 0);
+        $this->getJson(route('programming.history', $row->id))->assertOk()->assertJsonPath('data.1.action', 'Anulación');
+        $this->generate(['end_date' => '2026-11-02'])->assertJsonPath('created', 1);
+        $this->assertSame(2, Programming::count());
+    }
+
+    public function test_programming_modifications_are_applied_individually_and_audited(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $newShift = Shift::create(['name' => 'Turno alternativo', 'start_time' => '14:00', 'end_time' => '22:00']);
+        $vehicleTemplate = $this->group->vehicle;
+        $newVehicle = Vehicle::create([
+            'name' => 'Vehículo alternativo', 'code' => 'RSU-2', 'plate' => 'XYZ-987', 'year' => 2026,
+            'load_capacity' => 5, 'occupats_capacity' => 3, 'fuel_capacity' => 10, 'compact_capacity' => 5,
+            'brand_id' => $vehicleTemplate->brand_id, 'model_id' => $vehicleTemplate->model_id,
+            'type_id' => $vehicleTemplate->type_id, 'color_id' => $vehicleTemplate->color_id,
+        ]);
+        $newDriver = $this->employee(1);
+        $newHelper = $this->employee(2);
+        $options = $this->getJson(route('programming.modifications', $row))->assertOk()
+            ->assertJsonPath('current.shift_id', $row->shift_id);
+        $this->assertContains('Turno alternativo', array_column($options->json('options.shifts'), 'name'));
+        $this->assertNotEmpty($options->json('options.drivers'));
+
+        $changes = [
+            ['type' => 'shift', 'new_id' => $newShift->id, 'reason' => 'Necesidad operativa', 'description' => 'Se requiere cubrir el turno tarde.'],
+            ['type' => 'vehicle', 'new_id' => $newVehicle->id, 'reason' => 'Mantenimiento preventivo', 'description' => 'La unidad habitual entrará a mantenimiento.'],
+            ['type' => 'driver', 'new_id' => $newDriver->id, 'reason' => 'Cambio de disponibilidad', 'description' => 'Se reasigna el conductor disponible.'],
+            ['type' => 'helper', 'old_id' => $this->helper->id, 'new_id' => $newHelper->id, 'reason' => 'Inasistencia', 'description' => 'Se cubre la ausencia del ayudante.'],
+        ];
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => $changes])
+            ->assertOk()->assertJsonPath('count', 4);
+
+        $row->refresh();
+        $this->assertSame($newShift->id, $row->shift_id);
+        $this->assertSame($newVehicle->id, $row->vehicle_id);
+        $this->assertSame($newDriver->id, $row->driver_id);
+        $this->assertSame('Turno alternativo', $row->snapshot['shift']);
+        $this->assertSame('Vehículo alternativo', $row->snapshot['vehicle']);
+        $this->assertDatabaseCount('programming_changes', 5);
+        $this->getJson(route('programming.modifications', $row))->assertOk()
+            ->assertJsonCount(4, 'history')
+            ->assertJsonPath('history.0.after.reason', 'Inasistencia')
+            ->assertJsonPath('history.0.after.description', 'Se cubre la ausencia del ayudante.')
+            ->assertJsonPath('history.0.before.value', 'Persona 2 Registrada');
+    }
+
+    public function test_programming_modifications_require_actual_changes_and_valid_roles_atomically(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $newShift = Shift::create(['name' => 'Turno alternativo', 'start_time' => '14:00', 'end_time' => '22:00']);
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'shift', 'new_id' => $row->shift_id, 'reason' => 'Necesidad operativa', 'description' => 'No debe guardar el mismo turno.',
+        ]]])->assertUnprocessable();
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'shift', 'new_id' => $newShift->id, 'reason' => 'Otro', 'description' => 'Cambio temporal.',
+        ]]])->assertUnprocessable();
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [
+            ['type' => 'shift', 'new_id' => $newShift->id, 'reason' => 'Necesidad operativa', 'description' => 'Cambio temporal.'],
+            ['type' => 'vehicle', 'new_id' => $this->alternativeVehicle('Vehículo de validación', 'RSU-8', 'UIO-321')->id, 'reason' => 'Reasignación operativa'],
+            ['type' => 'driver', 'new_id' => $this->helper->id, 'reason' => 'Inasistencia', 'description' => 'Cargo incorrecto.'],
+        ]])->assertUnprocessable();
+
+        $this->assertSame('Programado', $row->fresh()->status);
+        $this->assertSame($this->group->shift_id, $row->fresh()->shift_id);
+        $this->assertDatabaseCount('programming_changes', 1);
+    }
+
+    public function test_modification_reasons_come_from_reason_catalog_and_are_required_to_exist(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        Reason::query()->where('name', 'Necesidad operativa')->delete();
+
+        $this->getJson(route('programming.modifications', $row))->assertOk()
+            ->assertJsonMissing(['name' => 'Necesidad operativa'])
+            ->assertJsonFragment(['name' => 'Avería mecánica'])
+            ->assertJsonFragment(['name' => 'Ajuste de capacidad del vehículo']);
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'shift', 'new_id' => Shift::create(['name' => 'Turno alternativo', 'start_time' => '14:00', 'end_time' => '22:00'])->id,
+            'reason' => 'Necesidad operativa', 'description' => 'Motivo removido del catálogo.',
+        ]]])->assertUnprocessable();
+        $this->assertDatabaseCount('programming_changes', 1);
+    }
+
+    public function test_modification_description_is_optional_but_reason_remains_required(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $newShift = Shift::create(['name' => 'Turno alternativo', 'start_time' => '14:00', 'end_time' => '22:00']);
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'shift', 'new_id' => $newShift->id, 'reason' => 'Necesidad operativa',
+        ]]])->assertOk()->assertJsonPath('count', 1);
+        $this->getJson(route('programming.modifications', $row))->assertOk()
+            ->assertJsonPath('history.0.after.description', null);
+
+        $anotherShift = Shift::create(['name' => 'Turno noche', 'start_time' => '22:00', 'end_time' => '06:00']);
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'shift', 'new_id' => $anotherShift->id,
+        ]]])->assertUnprocessable()->assertJsonValidationErrors('changes.0.reason');
+    }
+
+    public function test_modification_rejects_resources_reserved_in_overlapping_shifts(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $overlapShift = Shift::create(['name' => 'Turno traslapado', 'start_time' => '12:00', 'end_time' => '20:00']);
+        $otherDriver = $this->employee(1);
+        $vehicleTemplate = $this->group->vehicle;
+        $otherVehicle = Vehicle::create([
+            'name' => 'Vehículo de otro turno', 'code' => 'RSU-3', 'plate' => 'QWE-654', 'year' => 2026,
+            'load_capacity' => 5, 'occupats_capacity' => 3, 'fuel_capacity' => 10, 'compact_capacity' => 5,
+            'brand_id' => $vehicleTemplate->brand_id, 'model_id' => $vehicleTemplate->model_id,
+            'type_id' => $vehicleTemplate->type_id, 'color_id' => $vehicleTemplate->color_id,
+        ]);
+        $otherRoute = $row->replicate();
+        $otherRoute->shift_id = $overlapShift->id;
+        $otherRoute->vehicle_id = $otherVehicle->id;
+        $otherRoute->driver_id = $otherDriver->id;
+        $otherRoute->group_date_key = null;
+        $otherRoute->vehicle_date_key = null;
+        $otherRoute->save();
+        $otherRoute->employees()->attach([
+            $otherDriver->id => ['date' => $row->date->toDateString(), 'shift_id' => $overlapShift->id, 'role' => 'driver'],
+            $this->helper->id => ['date' => $row->date->toDateString(), 'shift_id' => $overlapShift->id, 'role' => 'helper'],
+        ]);
+
+        $options = $this->getJson(route('programming.modification-options', [
+            'programming' => $row->id, 'shift_id' => $overlapShift->id,
+        ]))->assertOk();
+        $helperOption = collect($options->json('helpers'))->firstWhere('id', $this->helper->id);
+        $this->assertFalse($helperOption['available']);
+        $vehicleOption = collect($options->json('vehicles'))->firstWhere('id', $otherVehicle->id);
+        $this->assertFalse($vehicleOption['available']);
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'shift', 'new_id' => $overlapShift->id, 'reason' => 'Necesidad operativa',
+            'description' => 'El ayudante ya tiene otro servicio traslapado.',
+        ]]])->assertUnprocessable()->assertJsonValidationErrors('modifications');
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'vehicle', 'new_id' => $otherVehicle->id, 'reason' => 'Reasignación operativa',
+            'description' => 'El vehículo está asignado en un horario traslapado.',
+        ]]])->assertUnprocessable()->assertJsonValidationErrors('modifications');
+
+        $this->assertSame($this->group->shift_id, $row->fresh()->shift_id);
+        $this->assertSame($this->group->vehicle_id, $row->fresh()->vehicle_id);
+        $this->assertDatabaseCount('programming_changes', 1);
+    }
+
+    public function test_modification_rejects_staff_without_contract_or_on_approved_vacation(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $withoutContract = $this->employee(1);
+        $withoutContract->contracts()->update(['cancelled_at' => now()]);
+        $onVacation = $this->employee(1);
+        Vacation::create([
+            'employee_id' => $onVacation->id, 'year' => 2026, 'start_date' => '2026-11-02', 'end_date' => '2026-11-02',
+            'scheduled_days' => 1, 'pending_days' => 29, 'status' => 'Aprobada',
+        ]);
+        foreach ([$withoutContract, $onVacation] as $employee) {
+            $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+                'type' => 'driver', 'new_id' => $employee->id, 'reason' => 'Reasignación de personal',
+                'description' => 'La persona no está disponible.',
+            ]]])->assertUnprocessable()->assertJsonValidationErrors('modifications');
+            $this->assertSame($this->driver->id, $row->fresh()->driver_id);
+            $this->assertSame('Programado', $row->fresh()->status);
+        }
+
+        $this->assertSame($this->group->shift_id, $row->fresh()->shift_id);
+        $this->assertDatabaseCount('programming_changes', 1);
+    }
+
+    public function test_personnel_changes_are_independent_and_vehicle_changes_require_equal_capacity(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+
+        $newHelper = $this->employee(2);
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'helper', 'old_id' => $this->helper->id, 'new_id' => $newHelper->id,
+            'reason' => 'Reasignación de personal',
+        ]]])->assertOk()->assertJsonPath('count', 1);
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'remove_helper', 'old_id' => $newHelper->id, 'reason' => 'Reasignación de personal',
+        ]]])->assertUnprocessable();
+
+        $smallerVehicle = $this->alternativeVehicle('Vehículo de menor capacidad', 'RSU-10', 'UIO-323', 2);
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'vehicle', 'new_id' => $smallerVehicle->id, 'reason' => 'Reasignación operativa',
+        ]]])->assertUnprocessable()->assertJsonValidationErrors('modifications');
+        $this->assertSame($this->group->vehicle_id, $row->fresh()->vehicle_id);
+
+        $vehicle = $this->alternativeVehicle('Vehículo alternativo', 'RSU-11', 'UIO-324');
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'vehicle', 'new_id' => $vehicle->id, 'reason' => 'Reasignación operativa',
+        ]]])->assertOk()->assertJsonPath('count', 1);
+
+        $anotherVehicle = $this->alternativeVehicle('Otro vehículo', 'RSU-12', 'UIO-325');
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'vehicle', 'new_id' => $anotherVehicle->id, 'reason' => 'Reasignación operativa',
+        ]]])->assertOk()->assertJsonPath('count', 1);
+        $this->assertSame($anotherVehicle->id, $row->fresh()->vehicle_id);
+        $this->assertDatabaseCount('programming_changes', 4);
+    }
+
+    public function test_modification_checks_overnight_shift_conflicts_from_the_previous_date(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $overnightShift = Shift::create(['name' => 'Turno de madrugada', 'start_time' => '20:00', 'end_time' => '02:00']);
+        $earlyShift = Shift::create(['name' => 'Turno madrugada temprano', 'start_time' => '01:00', 'end_time' => '04:00']);
+        $otherDriver = $this->employee(1);
+        $otherVehicle = $this->group->vehicle;
+        $previousRoute = $row->replicate();
+        $previousRoute->date = '2026-11-01';
+        $previousRoute->shift_id = $overnightShift->id;
+        $previousRoute->driver_id = $otherDriver->id;
+        $previousRoute->group_date_key = null;
+        $previousRoute->vehicle_date_key = null;
+        $previousRoute->save();
+        $previousRoute->employees()->attach([
+            $otherDriver->id => ['date' => '2026-11-01', 'shift_id' => $overnightShift->id, 'role' => 'driver'],
+            $this->helper->id => ['date' => '2026-11-01', 'shift_id' => $overnightShift->id, 'role' => 'helper'],
+        ]);
+
+        $options = $this->getJson(route('programming.modification-options', [
+            'programming' => $row->id, 'shift_id' => $earlyShift->id,
+        ]))->assertOk();
+        $helperOption = collect($options->json('helpers'))->firstWhere('id', $this->helper->id);
+        $this->assertFalse($helperOption['available']);
+        $this->assertFalse(collect($options->json('vehicles'))->firstWhere('id', $otherVehicle->id)['available']);
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'shift', 'new_id' => $earlyShift->id, 'reason' => 'Necesidad operativa',
+            'description' => 'El ayudante tiene un turno nocturno que termina a las 02:00.',
+        ]]])->assertUnprocessable()->assertJsonValidationErrors('modifications');
+
+        $this->assertSame($this->group->shift_id, $row->fresh()->shift_id);
+        $this->assertDatabaseCount('programming_changes', 1);
+    }
+
+    public function test_vehicle_change_rejects_a_different_occupant_capacity(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $additionalHelper = $this->employee(2);
+        $row->employees()->attach($additionalHelper->id, [
+            'date' => $row->date->toDateString(), 'shift_id' => $row->shift_id, 'role' => 'helper',
+        ]);
+        $row->refresh();
+        $vehicleTemplate = $this->group->vehicle;
+        $smallerVehicle = Vehicle::create([
+            'name' => 'Vehículo de capacidad reducida', 'code' => 'RSU-4', 'plate' => 'RTY-432', 'year' => 2026,
+            'load_capacity' => 5, 'occupats_capacity' => 2, 'fuel_capacity' => 10, 'compact_capacity' => 5,
+            'brand_id' => $vehicleTemplate->brand_id, 'model_id' => $vehicleTemplate->model_id,
+            'type_id' => $vehicleTemplate->type_id, 'color_id' => $vehicleTemplate->color_id,
+        ]);
+        $largerVehicle = $this->alternativeVehicle('Vehículo de mayor capacidad', 'RSU-5', 'RTY-433', 4);
+        $availableVehicles = $this->getJson(route('programming.modifications', $row))->assertOk()->json('options.vehicles');
+        $this->assertNotContains($smallerVehicle->id, array_column($availableVehicles, 'id'));
+        $this->assertNotContains($largerVehicle->id, array_column($availableVehicles, 'id'));
+        $this->assertContains($this->group->vehicle_id, array_column($availableVehicles, 'id'));
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'vehicle', 'new_id' => $smallerVehicle->id,
+            'reason' => 'Reasignación operativa', 'description' => 'La unidad disponible tiene menor capacidad.',
+        ]]])
+            ->assertUnprocessable()->assertJsonValidationErrors('modifications');
+        $this->assertSame($this->group->vehicle_id, $row->fresh()->vehicle_id);
+        $this->assertCount(3, $row->fresh()->employees);
+        $this->assertDatabaseCount('programming_changes', 1);
     }
 }

@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             HolidaySeeder::class,
             AttendanceSeeder::class,
             CatalogSeeder::class,
+            ReasonSeeder::class,
         ]);
     }
 }

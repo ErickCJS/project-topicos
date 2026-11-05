@@ -5,6 +5,7 @@ $(function () {
     const form = document.getElementById('programmingForm');
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('programmingFormModal'));
     const detail = bootstrap.Modal.getOrCreateInstance(document.getElementById('programmingDetailModal'));
+    const modificationsModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('programmingModificationsModal'));
     const csrf = $(form).find('[name="_token"]').val();
     const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const dateLabel = value => String(value || '').slice(0, 10).split('-').reverse().join('/');
@@ -18,6 +19,7 @@ $(function () {
     let holidayRequest = null, holidayRevision = 0, holidaysReady = false;
     let peopleRequest = null, peopleRevision = 0, peopleReady = false;
     let preferredPeople = {driver: '', helpers: []};
+    let modificationId = null, modificationCurrent = null, modificationHistory = [], modificationOptions = null;
 
     function request(method, path, data = {}) {
         return $.ajax({url: base + path, method, data: method === 'GET' ? data : JSON.stringify(data),
@@ -35,7 +37,7 @@ $(function () {
         status('info','Los datos han cambiado. Valide la disponibilidad nuevamente.');
     }
     function button(action, icon, label, style = 'outline-primary') {
-        return `<button type="button" class="btn btn-${style} table-action-button" data-action="${action}" title="${label}" aria-label="${label}"><i class="bi bi-${icon}" aria-hidden="true"></i></button>`;
+        return `<button type="button" class="btn btn-${style}  ${action === 'detail' ? 'flex-grow-1' : ''} table-action-button" data-action="${action}" title="${label}" aria-label="${label}"><i class="bi bi-${icon}" aria-hidden="true"></i></button>`;
     }
     const table = $('#programmingTable').DataTable({
         processing:true, order:[[0,'asc']], pageLength:10,
@@ -45,13 +47,18 @@ $(function () {
         }, error:errors},
         columns:[
             {data:'date',render:(v,t) => ['display','export'].includes(t) ? dateLabel(v) : v},
-            {data:'status',render:(v,t) => t === 'display' ? `<span class="programming-status ${v === 'Finalizado' ? 'text-success-emphasis bg-success-subtle' : 'text-info-emphasis bg-info-subtle'}">${escape(v)}</span>` : v},
+            {data:'status',render:(v,t) => {
+                const statusClass = v === 'Anulado' ? 'programming-status--annulled'
+                    : v === 'Finalizado' ? 'programming-status--finished'
+                        : v === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
+                return t === 'display' ? `<span class="programming-status ${statusClass}">${escape(v)}</span>` : v;
+            }},
             {data:'zone',render:$.fn.dataTable.render.text()},
             {data:'shift',render:(v,t) => t === 'display' ? `<span class="badge bg-warning-subtle text-warning-emphasis">${escape(v)}</span>` : v},
             {data:'vehicle',render:(v,t,row) => t === 'display' ? `<span class="programming-vehicle">${escape(v)}<small>${escape(row.plate)}</small></span>` : `${v} ${row.plate}`},
             {data:'driver',render:$.fn.dataTable.render.text()},
             {data:'helpers',render:(v,t) => t === 'display' ? v.map(name => `<span class="programming-helper">${escape(name)}</span>`).join('') : v.join(', ')},
-            {data:null,orderable:false,searchable:false,render:row => `<div class="programming-actions table-action-buttons" data-id="${row.id}">${button('detail','eye','Ver detalle')}${row.status === 'Programado' ? button('edit','pencil-square','Modificar programación','outline-warning') + button('delete','trash','Eliminar programación','outline-danger') : ''}${button('history','clock-history','Historial de cambios','outline-secondary')}${row.status === 'Programado' ? button('finish','check-circle','Finalizar programación','outline-success') : ''}</div>`}
+            { data: null, orderable: false, searchable: false, render: row => `<div class="programming-actions table-action-buttons d-flex justify-content-center" data-id="${row.id}">${row.status === 'Programado' ? button('edit', 'pencil-square', 'Modificar programación', 'outline-warning') + button('annul','bi bi-ban','Anular programación','outline-danger') + button('group','people','Ver grupo asociado','outline-primary') + button('finish','check-circle','Aceptar y finalizar recorrido','outline-success') : button('detail','eye','Ver detalle','outline-primary')}</div>`}
         ],
         language:{search:'Buscar:',lengthMenu:'Mostrar _MENU_ registros',info:'Mostrando _START_ a _END_ de _TOTAL_ registros',infoEmpty:'Sin registros',infoFiltered:'(filtrado de _MAX_ registros)',zeroRecords:'No se encontraron programaciones',emptyTable:'No hay programaciones para las fechas seleccionadas',paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}
     });
@@ -86,6 +93,13 @@ $(function () {
     }
     $('#programmingFilters').on('submit',event => event.preventDefault()).on('change',reload).on('reset',() => setTimeout(() => {table.search('');reload();},0));
     $('#programGroup').select2({theme:'bootstrap-5',width:'100%',dropdownParent:$('#programmingFormModal'),placeholder:'Busque por nombre, zona o turno',allowClear:true});
+    $('#programmingModificationsModal select').select2({
+        theme:'bootstrap-5',width:'100%',dropdownParent:$('#programmingModificationsModal'),allowClear:true
+    });
+    $('#modPeopleRole').select2('destroy').select2({
+        theme:'bootstrap-5',width:'100%',dropdownParent:$('#programmingModificationsModal'),
+        minimumResultsForSearch:Infinity
+    });
 
     function helpers(capacity, ids = []) {
         const container = document.getElementById('programHelpers'); container.replaceChildren();
@@ -270,28 +284,268 @@ $(function () {
             Swal.fire({icon:'success',title:'Proceso exitoso',text:result.message,confirmButtonText:'Entendido'});
         }).fail(xhr => {invalidate();errors(xhr);}).always(() => {saving=false;$(form).find('input,select,textarea,button').prop('disabled',false);$('#saveProgramming').prop('disabled',true);});
     });
-    function details(row) {
-        return [['Fecha',dateLabel(row.date)],['Estado',row.status],['Grupo',row.group],['Zona',row.zone],['Turno',row.shift + ' (' + row.hours + ')'],['Vehículo',row.vehicle + ' · ' + row.plate],['Conductor',row.driver],['Ayudantes',row.helpers.join(', ') || 'Sin ayudantes'],...(row.holiday_work ? [['Trabajo en feriado',row.holiday_work.names.join(', ') + ' · Autorizado el ' + dateLabel(row.holiday_work.authorized_at)]] : []),['Observaciones',row.notes || 'Sin observaciones'],['Finalización',row.finished_at || 'Pendiente']].map(([label,value]) => `<div class="col-12 col-md-6"><span class="programming-detail-label">${label}</span><span class="text-break">${escape(value)}</span></div>`).join('');
+    function auditValue(value) {
+        if (value == null) return '—';
+        if (typeof value !== 'object') return String(value);
+        if (value.value != null) return String(value.value);
+        const snapshot = value.snapshot || {};
+        const parts = [
+            value.status ? `Estado: ${value.status}` : '',
+            snapshot.shift || value.shift ? `Turno: ${snapshot.shift || value.shift}` : '',
+            snapshot.vehicle || value.vehicle ? `Vehículo: ${snapshot.vehicle || value.vehicle}${snapshot.plate || value.plate ? ` · ${snapshot.plate || value.plate}` : ''}` : '',
+            snapshot.driver || value.driver ? `Conductor: ${snapshot.driver || value.driver}` : '',
+        ].filter(Boolean);
+        return parts.join(' | ') || '—';
     }
+    function renderDetailHistory(history) {
+        if (!history.length) return '<tr><td colspan="6" class="text-center text-body-secondary py-3">Esta programación todavía no tiene cambios registrados.</td></tr>';
+        return history.map(change => `<tr>
+            <td>${escape(change.at)}</td><td>${escape(change.action)}</td>
+            <td>${escape(auditValue(change.before))}</td><td>${escape(auditValue(change.after))}</td>
+            <td>${escape(change.after?.reason ? modificationReasonLabel(change.after) : '—')}</td><td>${escape(change.user)}</td>
+        </tr>`).join('');
+    }
+    function details(row, history) {
+        const helpers = Array.isArray(row.helpers) ? row.helpers : [];
+        const statusClass = row.status === 'Anulado' ? 'programming-status--annulled'
+            : row.status === 'Finalizado' ? 'programming-status--finished'
+                : row.status === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
+        const facts = [
+            ['Fecha',dateLabel(row.date)], ['Estado',`<span class="programming-status ${statusClass}">${escape(row.status)}</span>`],
+            ['Grupo',row.group], ['Zona',row.zone], ['Turno',`${row.shift} · ${row.hours}`],
+            ['Vehículo',`${row.vehicle} · ${row.plate}`], ['Observaciones',row.notes || 'Sin observaciones'],
+            ['Finalización',row.finished_at || 'Pendiente'],
+            ...(row.holiday_work ? [['Trabajo en feriado',`${row.holiday_work.names.join(', ')} · Autorizado el ${dateLabel(row.holiday_work.authorized_at)}`]] : []),
+        ];
+        return `<div class="programming-detail-content">
+            <div class="programming-detail-layout">
+                <section class="programming-detail-panel" aria-label="Información de la programación">
+                    <h6 class="programming-detail-heading"><i class="bi bi-calendar2-check me-2" aria-hidden="true"></i>Datos del recorrido</h6>
+                    <div class="programming-detail-facts">${facts.map(([label,value]) => `<div class="programming-detail-fact"><span>${escape(label)}</span><strong>${label === 'Estado' ? value : escape(value)}</strong></div>`).join('')}</div>
+                </section>
+                <section class="programming-detail-panel" aria-label="Personal asociado">
+                    <h6 class="programming-detail-heading"><i class="bi bi-people me-2" aria-hidden="true"></i>Equipo de trabajo <span class="programming-detail-count">${helpers.length + (row.driver ? 1 : 0)}</span></h6>
+                    <div class="programming-detail-person"><span>Conductor</span><strong>${escape(row.driver || 'Sin conductor asignado')}</strong></div>
+                    <div class="programming-detail-person"><span>Ayudantes (${helpers.length})</span>
+                        ${helpers.length ? `<ul>${helpers.map(name => `<li>${escape(name)}</li>`).join('')}</ul>` : '<strong>Sin ayudantes asignados</strong>'}
+                    </div>
+                </section>
+            </div>
+            <section class="programming-detail-panel programming-detail-history" aria-label="Historial de cambios">
+                <h6 class="programming-detail-heading"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Historial de cambios</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead><tr><th>Fecha y hora</th><th>Acción</th><th>Valor anterior</th><th>Valor nuevo</th><th>Motivo</th><th>Usuario</th></tr></thead>
+                        <tbody>${renderDetailHistory(history)}</tbody>
+                    </table>
+                </div>
+            </section>
+        </div>`;
+    }
+    function modificationReasonLabel(change) {
+        return change.reason === 'Otro' ? `Otro: ${change.custom_reason}` : change.reason;
+    }
+    function fillModificationSelect(selector, rows, placeholder, label, selected = '') {
+        const options = rows.map(row => `<option value="${escape(row.id)}" ${String(row.id) === String(selected) ? 'selected' : ''}>${escape(label(row))}${row.available === false ? ' · No disponible' : ''}</option>`).join('');
+        $(selector).html(`<option value="">${escape(placeholder)}</option>${options}`).val(selected).trigger('change.select2');
+    }
+    function refreshModificationHelperSelects() {
+        const selectedCurrent = $('#modCurrentHelper').val() || '';
+        const helpers = modificationCurrent.helper_people;
+        fillModificationSelect('#modCurrentHelper',helpers,'Selecciona un ayudante actual',person => person.name,selectedCurrent);
+    }
+    function populateModificationOptions(options, selectedShift = '') {
+        modificationOptions = options;
+        const current = modificationCurrent;
+        const selectedVehicle = $('#modNewVehicle').val() || '';
+        const selectedDriver = $('#modNewDriver').val() || '';
+        const selectedHelper = $('#modNewHelper').val() || '';
+        const selectedReasons = ['#modShiftReason','#modVehicleReason','#modPeopleReason'].map(selector => $(selector).val());
+        fillModificationSelect('#modNewShift',options.shifts,'Seleccione un turno',item => `${item.name} · ${String(item.start_time).slice(0,5)} - ${String(item.end_time).slice(0,5)}`,selectedShift);
+        const currentCapacity = Number(options.vehicles.find(item => Number(item.id) === Number(current.vehicle_id))?.capacity);
+        const replacementVehicles = options.vehicles.filter(item =>
+            item.available
+                && Number(item.capacity) === currentCapacity
+                && Number(item.id) !== Number(current.vehicle_id)
+        );
+        fillModificationSelect('#modNewVehicle',replacementVehicles,'Seleccione un vehículo',item => `${item.code} · ${item.name} · ${item.plate}`,selectedVehicle);
+        fillModificationSelect('#modNewDriver',options.drivers.filter(item => item.available && Number(item.id) !== Number(current.driver_id)),'Selecciona un conductor disponible',item => `${item.name} · DNI ${item.dni}`,selectedDriver);
+        fillModificationSelect('#modNewHelper',options.helpers.filter(item => item.available && !current.helper_ids.map(Number).includes(Number(item.id))),'Selecciona un ayudante disponible',item => `${item.name} · DNI ${item.dni}`,selectedHelper);
+        ['#modShiftReason','#modVehicleReason','#modPeopleReason'].forEach((selector,index) => {
+            $(selector).html(`<option value="">Seleccione un motivo</option>${options.reasons.map(reason => `<option value="${escape(reason.name)}">${escape(reason.name)}</option>`).join('')}`).val(selectedReasons[index]).trigger('change');
+        });
+        updateVehicleCapacityWarning();
+    }
+    function renderModificationHistory() {
+        $('#programmingModHistoryBody').html(modificationHistory.length ? modificationHistory.map(change => `<tr>
+            <td>${escape(change.at)}</td><td>${escape(change.type)}</td><td>${escape(change.before?.value || '—')}</td><td>${escape(change.after?.value || '—')}</td>
+            <td>${escape(modificationReasonLabel(change.after || {}))}</td><td>${escape(change.user)}</td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" data-modification-history="${escape(change.id)}" aria-label="Ver detalle del cambio"><i class="bi bi-eye" aria-hidden="true"></i></button></td>
+        </tr>`).join('') : '<tr><td colspan="7" class="text-center text-body-secondary py-3">No hay modificaciones registradas.</td></tr>');
+    }
+    function openModificationModule(id) {
+        modificationId = id;
+        modificationCurrent = null;
+        modificationHistory = [];
+        $('#programmingModificationsSubtitle').text('Cargando datos de la programación…');
+        $('#programmingModHistoryBody').html('<tr><td colspan="7" class="text-center text-body-secondary py-3">Cargando historial…</td></tr>');
+        $('#modNewShift,#modNewVehicle,#modNewDriver,#modCurrentHelper,#modNewHelper').html('<option value="">Cargando…</option>').trigger('change');
+        modificationsModal.show();
+        refreshModificationData(true);
+    }
+    function refreshModificationData(resetInputs = false) {
+        if (!modificationId) return;
+        if (resetInputs) {
+            $('#modNewShift,#modNewVehicle,#modNewDriver,#modCurrentHelper,#modNewHelper').val('').trigger('change');
+            $('.programming-mod-reason').val('').trigger('change');
+            $('#modShiftDescription,#modVehicleDescription,#modPeopleDescription,#modShiftCustomReason,#modVehicleCustomReason,#modPeopleCustomReason').val('');
+            $('#modShiftCustomReason,#modVehicleCustomReason,#modPeopleCustomReason').addClass('d-none');
+        }
+        return request('GET','/' + modificationId + '/modifications').done(result => {
+            modificationCurrent = result.current;
+            modificationHistory = result.history;
+            const current = modificationCurrent;
+            $('#programmingModificationsSubtitle').text(`${current.group} · ${dateLabel(current.date)} · ${current.status}`);
+            $('#modCurrentShift').val(`${current.shift} (${current.hours})`);
+            $('#modCurrentVehicle').val(`${current.vehicle} · ${current.plate}`);
+            $('#modCurrentDriverName').text(current.driver);
+            refreshModificationHelperSelects();
+            populateModificationOptions(result.options,$('#modNewShift').val());
+            renderModificationHistory();
+        }).fail(errors);
+    }
+    function refreshModificationOptions() {
+        if (!modificationId || !modificationCurrent) return;
+        const shiftId = $('#modNewShift').val() || modificationCurrent.shift_id;
+        request('GET','/' + modificationId + '/modification-options',{shift_id:shiftId})
+            .done(options => populateModificationOptions(options,shiftId)).fail(errors);
+    }
+    function updateVehicleCapacityWarning() {
+        if (!modificationCurrent) return;
+        const vehicleId = $('#modNewVehicle').val();
+        const vehicle = modificationOptions?.vehicles.find(item => Number(item.id) === Number(vehicleId));
+        const currentVehicle = modificationOptions?.vehicles.find(item => Number(item.id) === Number(modificationCurrent.vehicle_id));
+        const capacityMismatch = Boolean(vehicle && currentVehicle && Number(vehicle.capacity) !== Number(currentVehicle.capacity));
+        const replacementAvailable = modificationOptions?.vehicles.some(item =>
+            item.available
+                && Number(item.capacity) === Number(currentVehicle?.capacity)
+                && Number(item.id) !== Number(modificationCurrent.vehicle_id)
+        );
+        const warning = $('#modVehicleCapacityWarning');
+        if (capacityMismatch) {
+            warning.removeClass('d-none').text(`No se puede aplicar el cambio: el vehículo elegido tiene una capacidad distinta. Selecciona uno de ${currentVehicle.capacity} ocupantes, igual que el vehículo actual.`);
+        } else if (currentVehicle && !replacementAvailable) {
+            warning.removeClass('d-none').text(`No hay vehículos sustitutos disponibles con la misma capacidad (${currentVehicle.capacity} ocupantes). No se puede aplicar el cambio hasta que haya uno disponible.`);
+        } else {
+            warning.addClass('d-none').text('');
+        }
+        $('[data-add-change="vehicle"]').prop('disabled',capacityMismatch || !replacementAvailable);
+        const role = $('#modPeopleRole').val() || 'driver';
+        $('#modPeopleDriverFields').toggleClass('d-none',role !== 'driver');
+        $('#modPeopleHelperReplaceFields').toggleClass('d-none',role !== 'helper');
+        $('#modPeopleSubmitButton')
+            .attr('data-add-change',role)
+            .html(`<i class="bi bi-check-lg me-1" aria-hidden="true"></i>Aplicar cambio`);
+    }
+    function addModification(type) {
+        const isPeople = ['driver','helper'].includes(type);
+        const reasonSelector = isPeople ? '#modPeopleReason' : type === 'shift' ? '#modShiftReason' : '#modVehicleReason';
+        const descriptionSelector = isPeople ? '#modPeopleDescription' : type === 'shift' ? '#modShiftDescription' : '#modVehicleDescription';
+        const customSelector = isPeople ? '#modPeopleCustomReason' : type === 'shift' ? '#modShiftCustomReason' : '#modVehicleCustomReason';
+        const reason = $(reasonSelector).val(), customReason = $(customSelector).val().trim(), description = $(descriptionSelector).val().trim();
+        const selection = type === 'driver' ? $('#modNewDriver').val()
+            : type === 'helper' ? $('#modCurrentHelper').val() && $('#modNewHelper').val()
+                : type === 'shift' ? $('#modNewShift').val() : $('#modNewVehicle').val();
+        if (!selection) {
+            const message = type === 'helper' ? 'Selecciona el ayudante actual y luego el ayudante que lo reemplazará.'
+                : type === 'driver' ? 'Selecciona el nuevo conductor.'
+                    : type === 'vehicle' ? 'Selecciona un solo vehículo sustituto de la lista. Debe estar disponible y tener la misma capacidad de ocupantes que el vehículo actual.'
+                        : 'Selecciona el nuevo turno antes de aplicar el cambio.';
+            Swal.fire({icon:'warning',title:'Completa la selección',text:message});return;
+        }
+        if (!reason || (reason === 'Otro' && !customReason)) {
+            Swal.fire({icon:'warning',title:'Complete los datos del cambio',text:'El motivo es obligatorio. Si elige “Otro”, especifique el motivo.'});return;
+        }
+        let change;
+        if (type === 'shift' || type === 'vehicle') {
+            const selector = type === 'shift' ? '#modNewShift' : '#modNewVehicle';
+            const id = $(selector).val();
+            const currentId = type === 'shift' ? modificationCurrent.shift_id : modificationCurrent.vehicle_id;
+            if (Number(id) === Number(currentId)) {Swal.fire({icon:'warning',title:'Sin cambios',text:type === 'vehicle' ? 'Elige un vehículo distinto al actual para poder aplicar el cambio.' : 'El nuevo turno debe ser diferente del turno actual.'});return;}
+            change = {type,new_id:id,reason,custom_reason:customReason,description};
+        } else if (type === 'driver') {
+            const driverId = $('#modNewDriver').val();
+            if (Number(driverId) === Number(modificationCurrent.driver_id)) {Swal.fire({icon:'warning',title:'Sin cambios',text:'El nuevo conductor debe ser diferente del conductor actual.'});return;}
+            change = {type:'driver',new_id:driverId,reason,custom_reason:customReason,description};
+        } else if (type === 'helper') {
+            const oldHelperId = $('#modCurrentHelper').val();
+            const newHelperId = $('#modNewHelper').val();
+            if (Number(oldHelperId) === Number(newHelperId)) {Swal.fire({icon:'warning',title:'Sin cambios',text:'El nuevo ayudante debe ser diferente del ayudante actual.'});return;}
+            change = {type:'helper',old_id:oldHelperId,new_id:newHelperId,reason,custom_reason:customReason,description};
+        }
+        if (!change || !modificationId) return;
+        const buttons = $('#programmingModificationsModal [data-add-change]');
+        buttons.prop('disabled',true);
+        let applied = false;
+        request('PATCH','/' + modificationId + '/modifications',{changes:[change]})
+            .done(response => {
+                applied = true;
+                table.ajax.reload(null,false);
+                Swal.fire({icon:'success',title:'Cambio aplicado',text:response.message,confirmButtonText:'Entendido'});
+                refreshModificationData(true).always(() => {
+                    buttons.prop('disabled',false);
+                    updateVehicleCapacityWarning();
+                });
+            })
+            .fail(errors)
+            .always(() => {
+                if (!applied) {
+                    buttons.prop('disabled',false);
+                    updateVehicleCapacityWarning();
+                }
+            });
+    }
+    $('.programming-mod-reason').on('change',function(){
+        const target = $(this).data('custom');
+        $(target).toggleClass('d-none',this.value !== 'Otro').prop('required',this.value === 'Otro');
+    });
+    $('#modNewShift').on('change',refreshModificationOptions);
+    $('#modNewVehicle').on('change',updateVehicleCapacityWarning);
+    $('#modPeopleRole').on('change',updateVehicleCapacityWarning);
+    $('#programmingModificationsModal').on('click','[data-add-change]',function(){addModification(this.dataset.addChange);});
+    $('#programmingModHistoryBody').on('click','[data-modification-history]',function(){
+        const change = modificationHistory.find(item => Number(item.id) === Number(this.dataset.modificationHistory));
+        if (!change) return;
+        Swal.fire({title:'Detalle de modificación',confirmButtonText:'Cerrar',width:650,html:`<dl class="text-start mb-0">
+            <dt>Tipo de modificación</dt><dd>${escape(change.type)}</dd>
+            <dt>Valor anterior</dt><dd>${escape(change.before?.value || '—')}</dd>
+            <dt>Valor nuevo</dt><dd>${escape(change.after?.value || '—')}</dd>
+            <dt>Motivo</dt><dd>${escape(modificationReasonLabel(change.after || {}))}</dd>
+            <dt>Descripción</dt><dd>${escape(change.after?.description || '—')}</dd>
+            <dt>Usuario responsable</dt><dd>${escape(change.user)}</dd>
+            <dt>Fecha y hora</dt><dd>${escape(change.at)}</dd>
+        </dl>`});
+    });
+    $('#programmingModificationsModal').on('hidden.bs.modal',function(){
+        modificationId=null;modificationCurrent=null;modificationHistory=[];modificationOptions=null;
+    });
     $('#programmingTable').on('click','[data-action]',async function(){
         const id = Number(this.closest('[data-id]').dataset.id), action = this.dataset.action;
-        if(action === 'detail' || action === 'edit') {
-            request('GET','/' + id).done(row => {
-                if(action === 'edit') openForm(row);
-                else {$('#programmingDetailTitle').text('Detalle de programación');$('#programmingDetailBody').html('<div class="row g-3">' + details(row) + '</div>');detail.show();}
-            }).fail(errors);return;
+        if(action === 'edit') {openModificationModule(id);return;}
+        if(action === 'detail' || action === 'group') {
+            $('#programmingDetailTitle').text('Detalle de programación y grupo');
+            $('#programmingDetailBody').html('<div class="text-center text-body-secondary py-5"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cargando datos e historial…</div>');
+            detail.show();
+            $.when(request('GET','/' + id),request('GET','/' + id + '/history'))
+                .done((rowResult,historyResult) => {
+                    $('#programmingDetailBody').html(details(rowResult[0],historyResult[0].data || []));
+                })
+                .fail(errors);
+            return;
         }
-        if(action === 'history') {
-            request('GET','/' + id + '/history').done(result => {
-                $('#programmingDetailTitle').text('Historial de cambios');
-                $('#programmingDetailBody').html(result.data.map(change => {
-                    const snapshot = value => value ? `<div class="small">${escape(dateLabel(value.date))} · ${escape(value.status)}<br>${escape(value.snapshot.zone)} / ${escape(value.snapshot.shift)} / ${escape(value.snapshot.vehicle)}<br>${escape(value.snapshot.driver)}; ${value.snapshot.helpers.map(escape).join(', ')}${value.snapshot.holiday_work ? '<br>Trabajo en feriado autorizado: ' + value.snapshot.holiday_work.names.map(escape).join(', ') : ''}<br>${escape(value.notes || 'Sin observaciones')}</div>` : '<div class="small">Sin registro previo</div>';
-                    return `<section class="mb-3 pb-3 border-bottom"><strong>${escape(change.action)}</strong><div class="small text-body-secondary mb-2">${escape(change.at)} · ${escape(change.user)}</div><div class="row g-3"><div class="col-md-6">Antes${snapshot(change.before)}</div><div class="col-md-6">Después${snapshot(change.after)}</div></div></section>`;
-                }).join('') || 'Sin cambios registrados.'); detail.show();
-            }).fail(errors);return;
-        }
-        const result = await Swal.fire({icon:'question',title:action === 'delete' ? '¿Eliminar programación?' : '¿Finalizar recorrido?',text:action === 'delete' ? 'Se eliminará el recorrido diario seleccionado y se conservará su historial.' : 'Se registrará la finalización del recorrido diario seleccionado.',showCancelButton:true,confirmButtonText:action === 'delete' ? 'Eliminar' : 'Finalizar',cancelButtonText:'Cancelar'});
-        if(result.isConfirmed) request(action === 'delete' ? 'DELETE' : 'POST','/' + id + (action === 'finish' ? '/finish' : '')).done(response => {
+        const isAnnul = action === 'annul';
+        const result = await Swal.fire({icon:'question',title:isAnnul ? '¿Anular programación?' : '¿Aceptar y finalizar recorrido?',text:isAnnul ? 'El recorrido quedará anulado, se liberarán sus reservas y se conservará su historial.' : 'Se registrará la finalización del recorrido diario seleccionado.',showCancelButton:true,confirmButtonText:isAnnul ? 'Anular' : 'Aceptar',cancelButtonText:'Cancelar'});
+        if(result.isConfirmed) request(isAnnul ? 'PATCH' : 'POST','/' + id + (isAnnul ? '/annul' : '/finish')).done(response => {
             table.ajax.reload(null,false); Swal.fire({icon:'success',title:'Proceso exitoso',text:response.message,confirmButtonText:'Entendido'});
         }).fail(errors);
     });

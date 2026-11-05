@@ -29,7 +29,11 @@ Route::get('programming/groups/{staffGroup}', [ProgrammingController::class, 'gr
 Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
 Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
 Route::get('programming/{id}/history', [ProgrammingController::class, 'history'])->name('programming.history');
+Route::get('programming/{programming}/modifications', [ProgrammingController::class, 'modifications'])->name('programming.modifications');
+Route::get('programming/{programming}/modification-options', [ProgrammingController::class, 'modificationOptions'])->name('programming.modification-options');
+Route::patch('programming/{programming}/modifications', [ProgrammingController::class, 'updateModifications'])->name('programming.update-modifications');
 Route::post('programming/{programming}/finish', [ProgrammingController::class, 'finish'])->name('programming.finish');
+Route::patch('programming/{programming}/annul', [ProgrammingController::class, 'annul'])->name('programming.annul');
 Route::get('programming/{programming}', [ProgrammingController::class, 'show'])->name('programming.show');
 Route::put('programming/{programming}', [ProgrammingController::class, 'update'])->name('programming.update');
 Route::delete('programming/{programming}', [ProgrammingController::class, 'destroy'])->name('programming.destroy');

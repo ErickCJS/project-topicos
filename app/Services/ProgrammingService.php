@@ -54,7 +54,7 @@ class ProgrammingService
             'includedHolidays' => $includedHolidays, 'holidayRecords' => $holidayRecords] = $this->calendar($data, $group, $editing);
         // Editing checks reservations on the destination even before a holiday is enabled.
         $reservationDates = $editing ? [$data['start_date']] : $dates;
-        $occupied = Programming::with('employees')->where('shift_id', $group->shift_id)->whereIn('date', $reservationDates)
+        $occupied = Programming::with('employees')->where('status', '!=', 'Anulado')->where('shift_id', $group->shift_id)->whereIn('date', $reservationDates)
             ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))->get();
         $authorNames = User::whereIn('id', $occupied->map(fn ($row) => $row->snapshot['holiday_work']['authorized_by'] ?? null)->filter())->pluck('name', 'id');
         $routeContext = fn ($row) => [
@@ -124,7 +124,7 @@ class ProgrammingService
             $this->reject('Seleccione una fecha y día válidos para modificar el recorrido pendiente.');
         }
         $dates = $this->calendar($data, $group, $editing)['dates'];
-        $occupied = Programming::with('employees')->where('shift_id', $group->shift_id)->whereIn('date', $dates)
+        $occupied = Programming::with('employees')->where('status', '!=', 'Anulado')->where('shift_id', $group->shift_id)->whereIn('date', $dates)
             ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))->get();
         $people = Employee::with(['contracts', 'vacations'])->where('status', 'Activo')
             ->orderBy('last_name')->orderBy('first_name')->get()
@@ -160,7 +160,7 @@ class ProgrammingService
                 $this->reject('Los feriados seleccionados cambiaron o no corresponden al período y días elegidos. Actualice la selección y valide nuevamente.');
             }
         }
-        $duplicates = Programming::where('staff_group_id', $group->id)
+        $duplicates = Programming::where('staff_group_id', $group->id)->where('status', '!=', 'Anulado')
             ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))
             ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->pluck('date')
             ->map(fn ($date) => substr((string) $date, 0, 10))->all();

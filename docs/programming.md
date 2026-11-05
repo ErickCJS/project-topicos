@@ -33,8 +33,17 @@ Debe existir al menos un grupo real configurado en Grupos de Personal.
   con validación previa y comprobación nuevamente al guardar.
 - `GET /admin/programming/{id}/history`: historial, usuario, fecha y valores
   anteriores/posteriores, incluso cuando el recorrido fue eliminado lógicamente.
+- `GET /admin/programming/{id}/modifications`: datos actuales, catálogo de
+  opciones e historial individual de cambios de turno, vehículo y personal.
+- `GET /admin/programming/{id}/modification-options`: disponibilidad de vehículos
+  y personal para el turno seleccionado y fecha del recorrido.
+- `PATCH /admin/programming/{id}/modifications`: aplica en una transacción los
+  cambios pendientes y registra un evento de auditoría por cada elemento cambiado,
+  con valores anterior/nuevo, motivo, descripción, usuario y fecha.
 - `POST /admin/programming/{id}/finish`: finalización del recorrido diario,
   registrando usuario, fecha y canal web.
+- `PATCH /admin/programming/{id}/annul`: anulación de un recorrido programado,
+  conservando el historial y liberando las reservas de vehículo y personal.
 - `DELETE /admin/programming/{id}`: eliminación lógica de un recorrido pendiente,
   conservando historial y liberando las reservas de vehículo y personal.
 
@@ -103,7 +112,8 @@ La operación usa transacciones, bloqueos de recursos y claves únicas para las
 reservas de grupo/vehículo y personal por fecha y turno. Los recorridos guardan
 copias de los nombres y horarios usados, y sus empleados asignados, para conservar
 el contexto histórico aunque luego cambie el grupo. No se puede editar ni
-eliminar un recorrido finalizado. El rango máximo por operación es de 366 días.
+eliminar o anular un recorrido finalizado. El rango máximo por operación es de
+366 días.
 
 ## Interfaz y reportes
 
@@ -111,11 +121,35 @@ Se conserva la línea gráfica, los modales, los estilos compartidos y las
 exportaciones a Excel/PDF e impresión. Los reportes usan los datos reales del
 listado filtrado, todas sus páginas y las columnas visibles. Al guardar se muestra
 el período generado para que los nuevos registros puedan revisarse.
+Los recorridos programados muestran acciones para modificar, anular, ver el grupo
+asociado y aceptar/finalizar. Los demás estados muestran únicamente Detalle.
+Modificar abre un modal con tarjetas para turno, vehículo y personal. Cada cambio
+se valida, aplica y registra inmediatamente al pulsar su botón; no hay lista de
+cambios pendientes ni confirmación separada para guardar. Cada cambio requiere un
+motivo del catálogo; la descripción es opcional. El historial conserva un registro
+independiente por elemento modificado y permite consultar el detalle, autor y fecha.
+Los cambios de turno, vehículo y personal se aplican de manera independiente. Al cambiar el turno, el servidor valida de nuevo
+la disponibilidad del vehículo y de cada persona en el nuevo horario. Un vehículo
+de reemplazo debe tener la misma capacidad de ocupantes que el actual; los cambios
+de personal solo permiten reemplazar al conductor o a un ayudante por una persona
+disponible del mismo cargo.
+Los motivos se cargan desde el catálogo `reason`; `ReasonSeeder` proporciona el
+catálogo inicial y se ejecuta con `php artisan db:seed --class=ReasonSeeder` o
+como parte de `php artisan db:seed`. Las modificaciones no insertan motivos
+automáticamente: cada selección debe existir en dicho catálogo.
+Al modificar se vuelve a validar en el servidor que el vehículo y el personal
+estén disponibles en la fecha y turno, considerando también turnos con horarios
+que se traslapan (incluidos los que cruzan medianoche). Cada persona debe estar
+activa, contar con contrato vigente y no tener vacaciones aprobadas. El catálogo
+de vehículos no tiene un indicador activo/inactivo; por ahora, todo vehículo
+existente se considera activo y se verifica su disponibilidad por programación.
+Cada modificación guarda su propio registro de auditoría. Los registros de cambios
+no se eliminan al volver a modificar la programación ni al eliminarla lógicamente.
 
 Programación masiva queda deshabilitada e identificada como siguiente avance,
-según el alcance del ingeniero. Los cruces se evalúan por la misma fecha y el
-mismo turno; reglas entre turnos diferentes con horarios superpuestos o que
-atraviesan medianoche requieren una definición adicional del equipo.
+según el alcance del ingeniero. El flujo de generación comprueba cruces por fecha
+y turno. En el módulo de modificaciones, la validación de disponibilidad también
+comprueba el traslape real de horarios, incluidos los turnos que cruzan medianoche.
 
 ## Verificación
 
