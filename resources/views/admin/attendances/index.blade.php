@@ -206,7 +206,22 @@ $(function () {
         });
     });
 
-    $('#formModal').on('change', '#attendance_employee_id, #attendance_date', cargarHistorial);
+    $('#formModal').on('change', '#attendance_date', function () {
+        const employeeSelect = $('#formModal #attendance_employee_id');
+        const selectedEmployee = employeeSelect.val();
+        const date = $(this).val();
+        $.get("{{ route('attendances.create') }}", { date: date }, function (response) {
+            const options = $(response).find('#attendance_employee_id option');
+            const validSelection = options.filter(function () { return this.value === selectedEmployee; }).length > 0;
+            employeeSelect.empty().append(options.clone());
+            employeeSelect.val(validSelection ? selectedEmployee : '').trigger('change.select2');
+            cargarHistorial();
+        }).fail(function (error) {
+            mostrar_error(error, 'No se pudo actualizar la lista de empleados.');
+        });
+    });
+
+    $('#formModal').on('change', '#attendance_employee_id', cargarHistorial);
 
     $(document).on('submit', '#formModal form', function (event) {
         event.preventDefault();
