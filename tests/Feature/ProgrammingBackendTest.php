@@ -94,6 +94,48 @@ class ProgrammingBackendTest extends TestCase
         $this->getJson(route('programming.index', ['start_date' => '2026-11-01', 'end_date' => '2026-11-30']))->assertOk()->assertJsonCount(4, 'data');
     }
 
+    public function test_staff_group_personnel_options_and_saving_require_active_current_contracts(): void
+    {
+        $expiredDriver = $this->employee(1);
+        $expiredDriver->contracts()->update(['end_date' => today()->subDay()]);
+        $futureHelper = $this->employee(2);
+        $futureHelper->contracts()->update(['start_date' => today()->addDay()]);
+        $cancelledHelper = $this->employee(2);
+        $cancelledHelper->contracts()->update(['cancelled_at' => now()]);
+        $inactiveHelper = $this->employee(2);
+        $inactiveHelper->update(['status' => 'Inactivo']);
+        $noContractHelper = $this->employee(2);
+        $noContractHelper->contracts()->delete();
+
+        $options = $this->getJson(route('staffgroups.helpers', [
+            'turnos' => $this->group->shift_id,
+            'zona' => $this->group->zone_id,
+            'vehiculo' => $this->group->vehicle_id,
+            'dias' => [1],
+            'id_staff' => $this->group->id,
+        ]))->assertOk();
+
+        $options->assertJsonPath('conductores.'.$this->driver->id, $this->driver->dni.' — '.$this->driver->first_name.' '.$this->driver->last_name)
+            ->assertJsonPath('ayudantes.'.$this->helper->id, $this->helper->dni.' — '.$this->helper->first_name.' '.$this->helper->last_name);
+
+        foreach ([$expiredDriver->id] as $id) {
+            $options->assertJsonMissingPath('conductores.'.$id);
+        }
+        foreach ([$futureHelper->id, $cancelledHelper->id, $inactiveHelper->id, $noContractHelper->id] as $id) {
+            $options->assertJsonMissingPath('ayudantes.'.$id);
+        }
+
+        $this->postJson(route('staffgroups.store'), [
+            'name' => 'Grupo con conductor sin contrato',
+            'shift_id' => $this->group->shift_id,
+            'zone_id' => $this->group->zone_id,
+            'vehicle_id' => $this->group->vehicle_id,
+            'days' => [2],
+            'driver_id' => $expiredDriver->id,
+            'helpers' => [],
+        ])->assertUnprocessable()->assertJsonValidationErrors('driver_id');
+    }
+
     public function test_guests_cannot_read_or_write(): void
     {
         auth()->logout();

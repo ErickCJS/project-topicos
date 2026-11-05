@@ -228,6 +228,7 @@ class StaffGroupsController extends Controller
         //necesitamos validar en caso es mismo carro en su mismo horario pero diferentes dias ok
         // mismo carro, turno, zona pero horario iguak enotnces no 
         $validate = $this->validarGrupoPersonal($request);
+        $this->validarPersonalConContratoVigente($validate);
         $this->validarDisponibilidad($validate);
         try {
             DB::transaction(function () use ($validate) {
@@ -378,6 +379,8 @@ class StaffGroupsController extends Controller
             'helpers.*.exists' => 'Uno de los empleados seleccionados no es un ayudante válido.',
         ]);
 
+        $this->validarPersonalConContratoVigente($datos);
+
         // Comprobar conflictos de turno, zona, vehículo y días,
         // excluyendo el propio grupo que se está editando.
         $this->validarDisponibilidad($datos, $staffgroup->id);
@@ -468,23 +471,61 @@ class StaffGroupsController extends Controller
 
         // Conductores disponibles.
         $conductores = Employee::where('employee_type_id', 1)
+            ->where('status', 'Activo')
+            ->withVigenteContract()
             ->whereNotIn('id', $conductoresOcupados)
-            ->selectRaw(
-                "id, CONCAT(dni, ' — ', CONCAT_WS(' ', first_name, last_name)) AS nombre_completo"
-            )
-            ->pluck('nombre_completo', 'id');
+            ->get(['id', 'dni', 'first_name', 'last_name'])
+            ->mapWithKeys(fn (Employee $employee) => [
+                $employee->id => $employee->dni.' — '.trim($employee->first_name.' '.$employee->last_name),
+            ]);
 
         // Ayudantes disponibles.
         $ayudantes = Employee::where('employee_type_id', '!=', 1)
+            ->where('status', 'Activo')
+            ->withVigenteContract()
             ->whereNotIn('id', $ayudantesOcupados)
-            ->selectRaw(
-                "id, CONCAT(dni, ' — ', CONCAT_WS(' ', first_name, last_name)) AS nombre_completo"
-            )
-            ->pluck('nombre_completo', 'id');
+            ->get(['id', 'dni', 'first_name', 'last_name'])
+            ->mapWithKeys(fn (Employee $employee) => [
+                $employee->id => $employee->dni.' — '.trim($employee->first_name.' '.$employee->last_name),
+            ]);
 
         return response()->json([
             'conductores' => $conductores,
             'ayudantes' => $ayudantes,
         ]);
+    }
+
+    private function validarPersonalConContratoVigente(array $datos): void
+    {
+        $driverId = $datos['driver_id'] ?? null;
+        if ($driverId && ! Employee::query()
+            ->whereKey($driverId)
+            ->where('status', 'Activo')
+            ->withVigenteContract()
+            ->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'driver_id' => 'El conductor debe estar activo y tener un contrato vigente.',
+            ]);
+        }
+
+        $helperIds = collect($datos['helpers'] ?? [])
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->unique()
+            ->values();
+
+        if ($helperIds->isNotEmpty()) {
+            $eligibleHelpers = Employee::query()
+                ->whereIn('id', $helperIds)
+                ->where('employee_type_id', '!=', 1)
+                ->where('status', 'Activo')
+                ->withVigenteContract()
+                ->count();
+
+            if ($eligibleHelpers !== $helperIds->count()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'helpers' => 'Todos los ayudantes deben estar activos y tener un contrato vigente.',
+                ]);
+            }
+        }
     }
 }

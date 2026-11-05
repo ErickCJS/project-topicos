@@ -5,6 +5,7 @@ namespace App\Models\admin;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -40,13 +41,22 @@ class Employee extends Model implements AuthenticatableContract
 
     public function hasVigenteContract(): bool
     {
-        return $this->contracts()
-            ->where('is_active', true)
-            ->whereDate('start_date', '<=', today())
-            ->where(function ($query) {
-                $query->whereNull('end_date')
-                    ->orWhereDate('end_date', '>=', today());
-            })
+        return self::query()
+            ->withVigenteContract()
+            ->whereKey($this->getKey())
             ->exists();
+    }
+
+    public function scopeWithVigenteContract(Builder $query): Builder
+    {
+        return $query->whereHas('contracts', function (Builder $contractQuery) {
+            $contractQuery->where('is_active', true)
+                ->whereNull('cancelled_at')
+                ->whereDate('start_date', '<=', today())
+                ->where(function (Builder $dateQuery) {
+                    $dateQuery->whereNull('end_date')
+                        ->orWhereDate('end_date', '>=', today());
+                });
+        });
     }
 }
