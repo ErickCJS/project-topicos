@@ -343,7 +343,7 @@ class ProgrammingBackendTest extends TestCase
 
     public function test_people_options_validate_period_group_and_authentication(): void
     {
-        foreach ([['start_date' => '2026-10-29'], ['end_date' => '2026-11-01'], ['days' => [2]], ['end_date' => '2028-01-01']] as $changes) {
+        foreach ([['start_date' => '2026-10-29'], ['end_date' => '2026-11-01'], ['days' => []], ['days' => [8]], ['end_date' => '2028-01-01']] as $changes) {
             $this->getJson(route('programming.people', $this->data($changes)))->assertUnprocessable();
         }
         $this->group->update(['state' => false]);
@@ -367,19 +367,22 @@ class ProgrammingBackendTest extends TestCase
         $this->assertDatabaseHas('shifts', ['id' => $this->group->shift_id]);
     }
 
-    public function test_programming_only_generates_the_groups_configured_monday_and_tuesday(): void
+    public function test_programming_days_can_extend_the_group_defaults_without_changing_the_group(): void
     {
         $this->group->days()->delete();
         $this->group->days()->createMany([['day' => 1], ['day' => 2]]);
         $data = $this->data(['start_date' => '2026-11-07', 'end_date' => '2026-11-14', 'days' => [1, 2]]);
         $this->postJson(route('programming.store'), $this->checked($data))->assertCreated()->assertJsonPath('created', 2);
         $this->assertSame(['2026-11-09', '2026-11-10'], Programming::orderBy('date')->get()->map(fn ($row) => $row->date->toDateString())->all());
-        $this->postJson(route('programming.check'), array_replace($data, ['days' => [1, 2, 3, 4, 5, 6, 7]]))
-            ->assertUnprocessable()->assertJsonValidationErrors('days');
-        $this->assertDatabaseCount('programmings', 2);
+        $custom = array_replace($data, ['days' => [1, 2, 3, 4, 5, 6, 7]]);
+        $this->getJson(route('programming.people', $custom))->assertOk()->assertJsonCount(6, 'dates')
+            ->assertJsonPath('drivers.0.id', $this->driver->id)->assertJsonPath('helpers.0.id', $this->helper->id);
+        $this->postJson(route('programming.store'), $this->checked($custom))->assertCreated()->assertJsonPath('created', 6);
+        $this->assertDatabaseCount('programmings', 8);
+        $this->assertSame([1, 2], $this->group->days()->orderBy('day')->pluck('day')->map(fn ($day) => (int) $day)->all());
     }
 
-    public function test_days_outside_group_are_rejected_on_edit_and_direct_save_even_for_authorized_holidays(): void
+    public function test_edit_can_move_outside_group_days_including_authorized_holidays(): void
     {
         $this->group->days()->delete();
         $this->group->days()->createMany([['day' => 1], ['day' => 2]]);
@@ -387,14 +390,14 @@ class ProgrammingBackendTest extends TestCase
         $row = Programming::firstOrFail();
         Holiday::create(['name' => 'Feriado domingo', 'date' => '2026-11-01', 'state' => true]);
         $edit = $this->data(['programming_id' => $row->id, 'start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7], 'work_holidays' => ['2026-11-01']]);
-        $this->putJson(route('programming.update', $row), $edit)->assertUnprocessable();
-        try {
-            app(\App\Services\ProgrammingService::class)->save($edit, auth()->id(), $row);
-            $this->fail('No se deben permitir días fuera de la configuración del grupo.');
-        } catch (\Illuminate\Validation\ValidationException $exception) {
-            $this->assertArrayHasKey('days', $exception->errors());
-        }
-        $this->assertSame('2026-11-02', $row->fresh()->date->toDateString());
+        $this->getJson(route('programming.people', $edit))->assertOk()->assertJsonPath('dates', ['2026-11-01']);
+        $this->putJson(route('programming.update', $row), $this->checked($edit))->assertOk();
+        $this->assertSame('2026-11-01', $row->fresh()->date->toDateString());
+        $this->assertSame('2026-11-01', $row->fresh()->snapshot['holiday_work']['date']);
+        $direct = array_replace($edit, ['start_date' => '2026-11-04', 'end_date' => '2026-11-04', 'days' => [3], 'work_holidays' => []]);
+        app(\App\Services\ProgrammingService::class)->save($direct, auth()->id(), $row);
+        $this->assertSame('2026-11-04', $row->fresh()->date->toDateString());
+        $this->assertSame([1, 2], $this->group->days()->orderBy('day')->pluck('day')->map(fn ($day) => (int) $day)->all());
         $this->assertDatabaseCount('programmings', 1);
     }
 
@@ -402,7 +405,7 @@ class ProgrammingBackendTest extends TestCase
     {
         $checked = $this->checked($this->data());
         $this->group->days()->where('day', 7)->delete();
-        $this->postJson(route('programming.store'), $checked)->assertUnprocessable()->assertJsonValidationErrors('days');
+        $this->postJson(route('programming.store'), $checked)->assertUnprocessable()->assertJsonValidationErrors('programming');
         $this->assertDatabaseCount('programmings', 0);
     }
 
@@ -415,8 +418,6 @@ class ProgrammingBackendTest extends TestCase
         $this->postJson(route('programming.check'), $this->data())->assertOk()->assertJsonPath('valid', false)
             ->assertJsonPath('count', 0)->assertJsonPath('validation_token', null)->assertJsonCount(3, 'omitted_duplicates');
         $this->postJson(route('programming.store'), $this->data())->assertUnprocessable();
-        $this->postJson(route('programming.check'), $this->data(['days' => [1, 2, 3, 5, 7]]))->assertUnprocessable()->assertJsonValidationErrors('days');
-        $this->group->days()->create(['day' => 2]);
         $this->generate(['days' => [1, 2, 3, 5, 7]])->assertJsonPath('created', 1);
         $this->assertDatabaseCount('programmings', 4);
         $this->assertDatabaseHas('programmings', ['date' => '2026-11-03']);

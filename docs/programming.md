@@ -64,11 +64,12 @@ America/Lima, tanto en el formulario como al validar y guardar en el servidor.
 Los filtros del listado permiten fechas pasadas para consultar el historial.
 La identidad para evitar duplicados es grupo + fecha: repetir una generación
 conserva lo existente; añadir días semanales permite completar fechas faltantes.
-Solo se admiten los días semanales configurados en el grupo. El formulario los
-precarga y bloquea los demás; el servidor comprueba esta restricción al validar
-y guardar. Para agregar otro día primero debe actualizarse el grupo. La edición
-de un recorrido también exige una fecha cuyo día esté permitido por ese grupo;
-habilitar un feriado no permite saltarse esa configuración.
+Los días semanales del grupo se precargan como selección inicial. Todos los días
+quedan habilitados para elegir una combinación distinta en cada programación,
+sin modificar el grupo. Al cambiar los días se vuelven a consultar feriados y
+personal disponible y se exige validar nuevamente antes de guardar. Al editar
+un recorrido se selecciona el día correspondiente a la fecha elegida, aunque
+no forme parte de los días del grupo. Los feriados requieren autorización explícita.
 Cambiar la plantilla no modifica automáticamente recorridos ya generados.
 Si todas las fechas están programadas u omitidas, la validación no habilita el
 guardado ni emite un token. El servidor también rechaza guardar una operación

@@ -22,10 +22,6 @@ class ProgrammingService
         if (! $group->state) {
             $this->reject('El grupo seleccionado está inactivo.');
         }
-        $allowedDays = $group->days->pluck('day')->map(fn ($day) => (int) $day)->all();
-        if (array_diff(array_map('intval', $data['days']), $allowedDays)) {
-            throw ValidationException::withMessages(['days' => 'Solo puede programar los días de trabajo configurados en el grupo. Modifique el grupo si necesita otros días.']);
-        }
         if ($editing && $editing->status !== 'Programado') {
             $this->reject('Solo se puede modificar una programación pendiente.');
         }
@@ -122,9 +118,6 @@ class ProgrammingService
         $group = StaffGroup::with('days')->findOrFail($data['staff_group_id']);
         if (! $group->state) {
             $this->reject('El grupo seleccionado está inactivo.');
-        }
-        if (array_diff(array_map('intval', $data['days']), $group->days->pluck('day')->all())) {
-            throw ValidationException::withMessages(['days' => 'Solo puede programar los días de trabajo configurados en el grupo.']);
         }
         if ($editing && ($editing->status !== 'Programado' || $data['start_date'] !== $data['end_date']
             || ! in_array(CarbonImmutable::parse($data['start_date'])->dayOfWeekIso, array_map('intval', $data['days']), true))) {
