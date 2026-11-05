@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\admin\Employee;
+use App\Models\admin\Holiday;
 use App\Models\admin\Programming;
 use App\Models\admin\Shift;
 use App\Models\admin\StaffGroup;
@@ -44,11 +44,30 @@ class ProgrammingController extends Controller
             return DataTables::collection($query->get()->map(fn ($row) => $this->row($row)))->skipPaging()->escapeColumns([])->toJson();
         }
         $groups = StaffGroup::with(['zone', 'shift'])->where('state', true)->orderBy('name')->get();
-        $employees = Employee::where('status', 'Activo')->orderBy('last_name')->orderBy('first_name')->get();
         $zones = Zone::orderBy('name')->get();
         $shifts = Shift::orderBy('name')->get();
 
-        return view('admin.programming.index', compact('groups', 'employees', 'zones', 'shifts'));
+        return view('admin.programming.index', compact('groups', 'zones', 'shifts'));
+    }
+
+    public function holidays(Request $request)
+    {
+        $data = $request->validate([
+            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.today('America/Lima')->toDateString()],
+            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'days' => ['required', 'array', 'min:1'],
+            'days.*' => ['required', 'integer', 'distinct', 'between:1,7'],
+        ]);
+        if (CarbonImmutable::parse($data['start_date'])->diffInDays(CarbonImmutable::parse($data['end_date'])) > 365) {
+            $this->reject('Seleccione un período máximo de 366 días por operación.');
+        }
+        $holidays = Holiday::where('state', true)->whereDate('date', '>=', $data['start_date'])
+            ->whereDate('date', '<=', $data['end_date'])->orderBy('date')->get()
+            ->filter(fn ($holiday) => in_array($holiday->date->dayOfWeekIso, array_map('intval', $data['days']), true))
+            ->groupBy(fn ($holiday) => $holiday->date->toDateString())
+            ->map(fn ($items, $date) => ['date' => $date, 'names' => $items->pluck('name')->values()->all()])->values();
+
+        return response()->json(['data' => $holidays]);
     }
 
     public function group(StaffGroup $staffGroup)
@@ -66,13 +85,22 @@ class ProgrammingController extends Controller
         ]);
     }
 
+    public function people(Request $request)
+    {
+        $data = $this->validated($request, false);
+        $editing = $data['programming_id'] ? Programming::findOrFail($data['programming_id']) : null;
+
+        return response()->json($this->service->availablePeople($data, $editing));
+    }
+
     public function check(Request $request)
     {
         $data = $this->validated($request);
         $editing = $data['programming_id'] ? Programming::findOrFail($data['programming_id']) : null;
         $result = $this->service->inspect($data, $editing);
         $token = null;
-        if (! $result['issues']) {
+        $canSave = ! $result['issues'] && count($result['dates']) > 0;
+        if ($canSave) {
             $token = Str::random(64);
             $request->session()->put('programming.validation', ['token' => $token, 'hash' => $this->fingerprint($data), 'group_hash' => $this->service->groupFingerprint($result['group']), 'expires' => now()->addMinutes(15)->timestamp]);
         } else {
@@ -80,9 +108,10 @@ class ProgrammingController extends Controller
         }
 
         return response()->json([
-            'valid' => ! $result['issues'], 'count' => count($result['dates']), 'dates' => $result['dates'],
+            'valid' => $canSave, 'count' => count($result['dates']), 'dates' => $result['dates'],
             'issues' => $result['issues'], 'suggestions' => $result['suggestions'],
             'omitted_holidays' => $result['omittedHolidays'], 'omitted_duplicates' => $result['omittedDuplicates'],
+            'included_holidays' => $result['includedHolidays'],
             'validation_token' => $token,
         ]);
     }
@@ -123,6 +152,7 @@ class ProgrammingController extends Controller
             'driver_id' => $programming->driver_id,
             'helper_ids' => $programming->employees->where('pivot.role', 'helper')->pluck('id')->values(),
             'days' => [$programming->date->dayOfWeekIso],
+            'work_holidays' => ! empty($programming->snapshot['holiday_work']) ? [$programming->date->toDateString()] : [],
         ]);
     }
 
@@ -175,36 +205,42 @@ class ProgrammingController extends Controller
             'finished_at' => $row->finished_at?->format('d/m/Y H:i')];
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, bool $requirePeople = true): array
     {
         $data = $request->validate([
             'staff_group_id' => ['required', 'integer', 'exists:staff_groups,id'],
-            'driver_id' => ['required', 'integer', 'exists:employees,id'],
-            'helpers' => ['present', 'array'], 'helpers.*' => ['required', 'integer', 'distinct', 'exists:employees,id'],
-            'start_date' => ['required', 'date_format:Y-m-d'],
+            'driver_id' => $requirePeople ? ['required', 'integer', 'exists:employees,id'] : ['exclude'],
+            'helpers' => $requirePeople ? ['present', 'array'] : ['exclude'], 'helpers.*' => ['required', 'integer', 'distinct', 'exists:employees,id'],
+            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.today('America/Lima')->toDateString()],
             'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'days' => ['required', 'array', 'min:1'], 'days.*' => ['required', 'integer', 'distinct', 'between:1,7'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'programming_id' => ['nullable', 'integer', 'exists:programmings,id'],
+            'work_holidays' => ['sometimes', 'array', 'max:366'],
+            'work_holidays.*' => ['required', 'date_format:Y-m-d', 'distinct'],
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'exists' => 'El valor seleccionado para :attribute no existe.',
             'date_format' => 'El campo :attribute debe tener formato AAAA-MM-DD.',
             'end_date.after_or_equal' => 'La fecha final no puede ser anterior a la fecha inicial.',
+            'start_date.after_or_equal' => 'La programación debe comenzar hoy o en una fecha futura.',
             'days.min' => 'Seleccione al menos un día de trabajo.',
             'helpers.*.distinct' => 'No puede seleccionar al mismo ayudante más de una vez.',
             'notes.max' => 'Las observaciones no deben superar los 1000 caracteres.',
+            'work_holidays.*.distinct' => 'No puede repetir un feriado seleccionado.',
         ], ['staff_group_id' => 'grupo de personal', 'driver_id' => 'conductor', 'start_date' => 'fecha de inicio', 'end_date' => 'fecha de fin', 'days' => 'días de trabajo', 'helpers' => 'ayudantes']);
         if (CarbonImmutable::parse($data['start_date'])->diffInDays(CarbonImmutable::parse($data['end_date'])) > 365) {
             $this->reject('Seleccione un período máximo de 366 días por operación.');
         }
         $data['staff_group_id'] = (int) $data['staff_group_id'];
-        $data['driver_id'] = (int) $data['driver_id'];
+        $data['driver_id'] = (int) ($data['driver_id'] ?? 0);
         $data['programming_id'] = empty($data['programming_id']) ? null : (int) $data['programming_id'];
-        $data['helpers'] = array_map('intval', $data['helpers']);
+        $data['helpers'] = array_map('intval', $data['helpers'] ?? []);
         $data['days'] = array_map('intval', $data['days']);
         sort($data['days']);
         $data['notes'] = trim($data['notes'] ?? '');
+        $data['work_holidays'] = $data['work_holidays'] ?? [];
+        sort($data['work_holidays']);
 
         return $data;
     }

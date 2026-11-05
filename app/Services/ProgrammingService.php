@@ -7,7 +7,9 @@ use App\Models\admin\Holiday;
 use App\Models\admin\Programming;
 use App\Models\admin\StaffGroup;
 use App\Models\admin\Vehicle;
+use App\Models\User;
 use Carbon\CarbonPeriod;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +27,9 @@ class ProgrammingService
         }
         if ($editing && $data['start_date'] !== $data['end_date']) {
             $this->reject('La modificación corresponde a un solo recorrido diario.');
+        }
+        if ($editing && ! in_array(CarbonImmutable::parse($data['start_date'])->dayOfWeekIso, array_map('intval', $data['days']), true)) {
+            $this->reject('El día de trabajo seleccionado no corresponde a la nueva fecha. Seleccione el día correspondiente y valide nuevamente.');
         }
         $helpers = array_map('intval', $data['helpers'] ?? []);
         $ids = array_merge([(int) $data['driver_id']], $helpers);
@@ -45,34 +50,26 @@ class ProgrammingService
                 $this->reject('El conductor y los ayudantes deben tener el cargo correspondiente.');
             }
         }
-        $holidays = Holiday::where('state', true)->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])
-            ->pluck('date')->map(fn ($date) => substr((string) $date, 0, 10))->all();
-        $duplicates = Programming::where('staff_group_id', $group->id)
-            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))
-            ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->pluck('date')
-            ->map(fn ($date) => substr((string) $date, 0, 10))->all();
-        $dates = [];
-        $omittedHolidays = [];
-        $omittedDuplicates = [];
-        foreach (CarbonPeriod::create($data['start_date'], $data['end_date']) as $day) {
-            if (! in_array($day->dayOfWeekIso, array_map('intval', $data['days']), true)) {
-                continue;
-            }
-            $date = $day->toDateString();
-            if (in_array($date, $holidays, true)) {
-                $omittedHolidays[] = $date;
-            } elseif (in_array($date, $duplicates, true)) {
-                $omittedDuplicates[] = $date;
-            } else {
-                $dates[] = $date;
-            }
-        }
-        $occupied = Programming::with('employees')->where('shift_id', $group->shift_id)->whereIn('date', $dates)
+        ['dates' => $dates, 'omittedHolidays' => $omittedHolidays, 'omittedDuplicates' => $omittedDuplicates,
+            'includedHolidays' => $includedHolidays, 'holidayRecords' => $holidayRecords] = $this->calendar($data, $group, $editing);
+        // Editing checks reservations on the destination even before a holiday is enabled.
+        $reservationDates = $editing ? [$data['start_date']] : $dates;
+        $occupied = Programming::with('employees')->where('shift_id', $group->shift_id)->whereIn('date', $reservationDates)
             ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))->get();
+        $authorNames = User::whereIn('id', $occupied->map(fn ($row) => $row->snapshot['holiday_work']['authorized_by'] ?? null)->filter())->pluck('name', 'id');
+        $routeContext = fn ($row) => [
+            'id' => $row->id, 'group' => $row->snapshot['group'], 'shift' => $row->snapshot['shift'],
+            'holiday_authorized' => ! empty($row->snapshot['holiday_work']),
+            'authorized_by' => $authorNames[$row->snapshot['holiday_work']['authorized_by'] ?? 0] ?? null,
+        ];
         $issues = [];
+        if ($editing && $omittedDuplicates) {
+            $issues[] = ['person' => $group->name, 'reason' => 'Ya existe un recorrido de este grupo en la fecha seleccionada',
+                'dates' => $omittedDuplicates, 'routes' => $occupied->where('staff_group_id', $group->id)->map($routeContext)->values()->all()];
+        }
         foreach ($people as $person) {
             foreach (['contract' => 'Sin contrato vigente', 'vacation' => 'Vacaciones aprobadas', 'conflict' => 'Asignación en la misma fecha y turno'] as $kind => $reason) {
-                $affected = array_values(array_filter($dates, function ($date) use ($person, $kind, $occupied) {
+                $affected = array_values(array_filter($kind === 'conflict' ? $reservationDates : $dates, function ($date) use ($person, $kind, $occupied) {
                     return match ($kind) {
                         'contract' => ! $this->hasContract($person, $date),
                         'vacation' => $this->onVacation($person, $date),
@@ -80,16 +77,18 @@ class ProgrammingService
                     };
                 }));
                 if ($affected) {
-                    $issues[] = ['employee_id' => $person->id, 'person' => $this->name($person), 'reason' => $reason, 'dates' => $affected];
+                    $issue = ['employee_id' => $person->id, 'person' => $this->name($person), 'reason' => $reason, 'dates' => $affected];
+                    if ($kind === 'conflict') {
+                        $issue['routes'] = $occupied->filter(fn ($row) => $row->employees->contains('id', $person->id))->map($routeContext)->values()->all();
+                    }
+                    $issues[] = $issue;
                 }
             }
         }
         $vehicleDates = $occupied->where('vehicle_id', $group->vehicle_id)->pluck('date')->map(fn ($date) => $date->toDateString())->values()->all();
         if ($vehicleDates) {
-            $issues[] = ['person' => $group->vehicle->name, 'reason' => 'Vehículo asignado en la misma fecha y turno', 'dates' => $vehicleDates];
-        }
-        if ($editing && ! $dates) {
-            $this->reject('La fecha elegida debe ser un día de trabajo válido y no feriado.');
+            $issues[] = ['person' => $group->vehicle->name, 'reason' => 'Vehículo asignado en la misma fecha y turno', 'dates' => $vehicleDates,
+                'routes' => $occupied->where('vehicle_id', $group->vehicle_id)->map($routeContext)->values()->all()];
         }
         $suggestions = [];
         if ($issues && $dates) {
@@ -111,7 +110,82 @@ class ProgrammingService
             }
         }
 
-        return compact('group', 'people', 'dates', 'issues', 'suggestions', 'omittedHolidays', 'omittedDuplicates');
+        return compact('group', 'people', 'dates', 'issues', 'suggestions', 'omittedHolidays', 'omittedDuplicates', 'includedHolidays', 'holidayRecords');
+    }
+
+    public function availablePeople(array $data, ?Programming $editing = null): array
+    {
+        $group = StaffGroup::with('days')->findOrFail($data['staff_group_id']);
+        if (! $group->state) {
+            $this->reject('El grupo seleccionado está inactivo.');
+        }
+        if ($editing && ($editing->status !== 'Programado' || $data['start_date'] !== $data['end_date']
+            || ! in_array(CarbonImmutable::parse($data['start_date'])->dayOfWeekIso, array_map('intval', $data['days']), true))) {
+            $this->reject('Seleccione una fecha y día válidos para modificar el recorrido pendiente.');
+        }
+        $dates = $this->calendar($data, $group, $editing)['dates'];
+        $occupied = Programming::with('employees')->where('shift_id', $group->shift_id)->whereIn('date', $dates)
+            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))->get();
+        $people = Employee::with(['contracts', 'vacations'])->where('status', 'Activo')
+            ->orderBy('last_name')->orderBy('first_name')->get()
+            ->filter(function ($person) use ($dates, $occupied) {
+                if (! $dates) {
+                    return false;
+                }
+                foreach ($dates as $date) {
+                    if (! $this->hasContract($person, $date) || $this->onVacation($person, $date)
+                        || $occupied->contains(fn ($row) => $row->date->toDateString() === $date && $row->employees->contains('id', $person->id))) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        $option = fn ($person) => ['id' => $person->id, 'name' => $person->dni.' — '.$this->name($person)];
+
+        return [
+            'drivers' => $people->filter(fn ($person) => (int) $person->employee_type_id === 1)->map($option)->values()->all(),
+            'helpers' => $people->filter(fn ($person) => (int) $person->employee_type_id !== 1)->map($option)->values()->all(),
+            'dates' => $dates,
+        ];
+    }
+
+    private function calendar(array $data, StaffGroup $group, ?Programming $editing): array
+    {
+        $holidayRecords = Holiday::where('state', true)->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->get();
+        $holidays = $holidayRecords->pluck('date')->map(fn ($date) => $date->toDateString())->unique()->values()->all();
+        $workHolidays = $data['work_holidays'] ?? [];
+        foreach ($workHolidays as $date) {
+            if (! in_array($date, $holidays, true) || ! in_array(CarbonImmutable::parse($date)->dayOfWeekIso, array_map('intval', $data['days']), true)) {
+                $this->reject('Los feriados seleccionados cambiaron o no corresponden al período y días elegidos. Actualice la selección y valide nuevamente.');
+            }
+        }
+        $duplicates = Programming::where('staff_group_id', $group->id)
+            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))
+            ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->pluck('date')
+            ->map(fn ($date) => substr((string) $date, 0, 10))->all();
+        $dates = [];
+        $omittedHolidays = [];
+        $omittedDuplicates = [];
+        $includedHolidays = [];
+        foreach (CarbonPeriod::create($data['start_date'], $data['end_date']) as $day) {
+            if (! in_array($day->dayOfWeekIso, array_map('intval', $data['days']), true)) {
+                continue;
+            }
+            $date = $day->toDateString();
+            if (in_array($date, $duplicates, true)) {
+                $omittedDuplicates[] = $date;
+            } elseif (in_array($date, $holidays, true) && ! in_array($date, $workHolidays, true)) {
+                $omittedHolidays[] = $date;
+            } else {
+                $dates[] = $date;
+                if (in_array($date, $workHolidays, true)) {
+                    $includedHolidays[] = $date;
+                }
+            }
+        }
+
+        return compact('dates', 'omittedHolidays', 'omittedDuplicates', 'includedHolidays', 'holidayRecords');
     }
 
     private function hasContract(Employee $person, string $date): bool
@@ -158,6 +232,9 @@ class ProgrammingService
                 if ($result['issues']) {
                     $this->reject('La disponibilidad cambió o existen inconsistencias. Valide nuevamente.');
                 }
+                if (! $result['dates']) {
+                    $this->reject('No hay fechas nuevas para generar. Las fechas elegidas ya están programadas o fueron omitidas.');
+                }
                 $snapshot = [
                     'group' => $result['group']->name, 'zone' => $result['group']->zone->name,
                     'shift' => $result['group']->shift->name, 'hours' => substr($result['group']->shift->start_time, 0, 5).' - '.substr($result['group']->shift->end_time, 0, 5),
@@ -166,12 +243,20 @@ class ProgrammingService
                     'helpers' => collect($data['helpers'] ?? [])->map(fn ($id) => $this->name($result['people'][$id]))->values()->all(),
                 ];
                 foreach ($result['dates'] as $date) {
+                    $dailySnapshot = $snapshot;
+                    if (in_array($date, $result['includedHolidays'], true)) {
+                        $dailySnapshot['holiday_work'] = [
+                            'date' => $date,
+                            'names' => $result['holidayRecords']->filter(fn ($holiday) => $holiday->date->toDateString() === $date)->pluck('name')->values()->all(),
+                            'authorized_by' => $userId, 'authorized_at' => now()->toIso8601String(),
+                        ];
+                    }
                     $row = $editing ?? new Programming;
                     $before = $editing ? $row->toArray() : null;
                     $row->fill([
                         'staff_group_id' => $group->id, 'zone_id' => $group->zone_id, 'shift_id' => $group->shift_id,
                         'vehicle_id' => $group->vehicle_id, 'driver_id' => $data['driver_id'], 'date' => $date,
-                        'notes' => $data['notes'] ?? null, 'snapshot' => $snapshot,
+                        'notes' => $data['notes'] ?? null, 'snapshot' => $dailySnapshot,
                         'group_date_key' => $group->id.':'.$date, 'vehicle_date_key' => $date.':'.$group->shift_id.':'.$group->vehicle_id,
                     ]);
                     if (! $row->exists) {
@@ -187,7 +272,7 @@ class ProgrammingService
                     $row->changes()->create(['user_id' => $userId, 'action' => $editing ? 'Modificación' : 'Creación', 'before' => $before, 'after' => $row->toArray()]);
                 }
 
-                return ['created' => count($result['dates']), 'omitted_holidays' => $result['omittedHolidays'], 'omitted_duplicates' => $result['omittedDuplicates']];
+                return ['created' => count($result['dates']), 'omitted_holidays' => $result['omittedHolidays'], 'omitted_duplicates' => $result['omittedDuplicates'], 'included_holidays' => $result['includedHolidays']];
             }, 3);
         } catch (QueryException $exception) {
             if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {

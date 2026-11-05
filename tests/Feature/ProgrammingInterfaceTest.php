@@ -31,6 +31,8 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertSee('Lista de Programaciones')
             ->assertSee('programmingFormModal')
             ->assertSee('Validar disponibilidad')
+            ->assertSee('Feriados del período')
+            ->assertSee('programHolidayOptions')
             ->assertSee('js/programming.js')
             ->assertSee('css/programming.css');
     }
