@@ -6,6 +6,7 @@ use App\Models\admin\Contract;
 use App\Models\admin\Employee;
 use App\Models\admin\Holiday;
 use App\Models\admin\Programming;
+use App\Models\admin\ProgrammingChange;
 use App\Models\admin\Shift;
 use App\Models\admin\StaffGroup;
 use App\Models\admin\Vacation;
@@ -92,6 +93,112 @@ class ProgrammingBackendTest extends TestCase
         $this->travelTo(now()->setDate(2026, 11, 2));
         $this->getJson(route('programming.index'))->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.zone', 'Zona registrada');
         $this->getJson(route('programming.index', ['start_date' => '2026-11-01', 'end_date' => '2026-11-30']))->assertOk()->assertJsonCount(4, 'data');
+    }
+
+    public function test_programming_change_history_can_be_filtered_viewed_and_deleted_without_deleting_programming(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(10, 0));
+        $this->generate();
+        $change = ProgrammingChange::query()->firstOrFail();
+        ProgrammingChange::create([
+            'programming_id' => $change->programming_id,
+            'user_id' => User::query()->firstOrFail()->id,
+            'action' => 'Modificación',
+            'before' => null,
+            'after' => [],
+            'created_at' => '2026-11-01 10:00:00',
+            'updated_at' => '2026-11-01 10:00:00',
+        ]);
+
+        $this->get(route('programming-changes.index'))
+            ->assertOk()->assertSee('programmingChangesTable');
+
+        $this->getJson(route('programming-changes.index', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'start_date' => '2026-11-02',
+            'end_date' => '2026-11-02',
+            'action' => 'Creación',
+        ]), ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk()->assertJsonPath('recordsTotal', 5)->assertJsonPath('recordsFiltered', 4)
+            ->assertJsonCount(4, 'data')->assertJsonPath('data.0.action', 'Creación');
+
+        $this->getJson(route('programming-changes.show', $change))
+            ->assertOk()->assertJsonPath('action', 'Creación')->assertJsonPath('programming_id', $change->programming_id);
+
+        $this->deleteJson(route('programming-changes.destroy', $change))->assertOk();
+        $this->assertDatabaseMissing('programming_changes', ['id' => $change->id]);
+        $this->assertDatabaseHas('programmings', ['id' => $change->programming_id]);
+    }
+
+    public function test_bulk_programming_change_updates_records_and_keeps_reason_and_value_snapshots(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(10, 0));
+        $this->generate();
+        $reasonId = DB::table('reason')->insertGetId(['name' => 'Reasignación operativa', 'description' => 'Cambio de servicio']);
+        $newShift = Shift::create(['name' => 'Turno alternativo', 'start_time' => '14:00', 'end_time' => '22:00']);
+
+        $this->postJson(route('programming-changes.store'), [
+            'start_date' => '2026-11-02',
+            'end_date' => '2026-11-08',
+            'zone_id' => $this->group->zone_id,
+            'type' => 'shift',
+            'value_id' => $newShift->id,
+            'reason_id' => $reasonId,
+            'reason_detail' => 'Reorganización del servicio semanal.',
+        ])->assertOk()->assertJsonPath('changed', 4);
+
+        $programming = Programming::query()->firstOrFail();
+        $this->assertSame($newShift->id, $programming->shift_id);
+        $this->assertDatabaseHas('programming_employees', ['programming_id' => $programming->id, 'shift_id' => $newShift->id]);
+        $change = ProgrammingChange::query()->where('reason_id', $reasonId)->firstOrFail();
+        $this->assertSame('Turno registrado', $change->before['label']);
+        $this->assertSame('Turno alternativo', $change->after['label']);
+        $this->assertSame('Reorganización del servicio semanal.', $change->reason_detail);
+
+        $this->getJson(route('programming-changes.show', $change))
+            ->assertOk()->assertJsonPath('programming_id', $programming->id)
+            ->assertJsonPath('reason', 'Reasignación operativa')
+            ->assertJsonPath('before.label', 'Turno registrado')
+            ->assertJsonPath('after.label', 'Turno alternativo');
+    }
+
+    public function test_bulk_programming_change_can_replace_driver_occupant_and_vehicle(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 2)->setTime(10, 0));
+        $this->generate();
+        $reasonId = DB::table('reason')->insertGetId(['name' => 'Ajuste de personal', 'description' => 'Reasignación']);
+        $replacementDriver = $this->employee(1);
+        $replacementHelper = $this->employee(2);
+        $replacementVehicle = $this->group->vehicle->replicate();
+        $replacementVehicle->code = 'RSU-3';
+        $replacementVehicle->plate = 'GHI-789';
+        $replacementVehicle->save();
+        $payload = [
+            'start_date' => '2026-11-02',
+            'end_date' => '2026-11-08',
+            'zone_id' => $this->group->zone_id,
+            'reason_id' => $reasonId,
+            'reason_detail' => 'Reasignación de recursos.',
+        ];
+
+        $this->postJson(route('programming-changes.store'), $payload + [
+            'type' => 'driver', 'value_id' => $replacementDriver->id,
+        ])->assertOk()->assertJsonPath('changed', 4);
+        $this->postJson(route('programming-changes.store'), $payload + [
+            'type' => 'occupant', 'occupant_id' => $this->helper->id, 'value_id' => $replacementHelper->id,
+        ])->assertOk()->assertJsonPath('changed', 4);
+        $this->postJson(route('programming-changes.store'), $payload + [
+            'type' => 'vehicle', 'value_id' => $replacementVehicle->id,
+        ])->assertOk()->assertJsonPath('changed', 4);
+
+        $programming = Programming::query()->firstOrFail();
+        $this->assertSame($replacementDriver->id, $programming->driver_id);
+        $this->assertSame($replacementVehicle->id, $programming->vehicle_id);
+        $this->assertDatabaseHas('programming_employees', ['programming_id' => $programming->id, 'employee_id' => $replacementDriver->id, 'role' => 'driver']);
+        $this->assertDatabaseHas('programming_employees', ['programming_id' => $programming->id, 'employee_id' => $replacementHelper->id, 'role' => 'helper']);
+        $this->assertDatabaseCount('programming_changes', 16);
     }
 
     public function test_staff_group_personnel_options_and_saving_require_active_current_contracts(): void
