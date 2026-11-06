@@ -68,19 +68,62 @@
                         <div class="rsu-attendance missing"><strong><i class="bi bi-person-x"></i> {{ $programacion['missing']->count() }}</strong><span>Faltantes</span></div>
                     </div>
                     <div class="rsu-people-list"><strong>Personal faltante</strong><span>{{ $programacion['missing']->pluck('name')->join(', ') ?: 'Sin personal faltante' }}</span></div>
-                    <button type="button" class="rsu-btn-details" data-programming-id="{{ $programacion['id'] }}" data-summary="{{ e(json_encode($programacion)) }}"><i class="bi bi-eye"></i> Ver detalles</button>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="rsu-btn-details" data-programming-id="{{ $programacion['id'] }}" data-summary="{{ e(json_encode($programacion)) }}"><i class="bi bi-eye"></i> Ver detalles</button>
+                        @if(($programacion['status'] ?? 'Programado') === 'Programado')
+                            <button type="button" class="btn btn-outline-info rsu-btn-reschedule" data-programming-id="{{ $programacion['id'] }}"><i class="bi bi-calendar-plus"></i> Reprogramar</button>
+                        @endif
+                    </div>
                 </div>
             </article>
         @empty
             <div class="rsu-empty-state"><i class="bi bi-calendar-x"></i><h4>No hay programaciones registradas</h4><p>No se encontraron programaciones para los filtros seleccionados.</p><a href="{{ route('programming.index') }}" class="btn rsu-btn-programming"><i class="bi bi-plus-lg"></i> Registrar programación</a></div>
         @endforelse
     </section>
+
+    <section class="mt-4">
+        <div class="rsu-section-heading">
+            <div><h3><i class="bi bi-person-badge"></i> Retenes presentes</h3><p>Personal con asistencia de retén y sin recorrido asignado.</p></div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                @forelse($retenes as $reten)
+                    <div class="d-flex flex-wrap justify-content-between align-items-center border-bottom py-2 gap-2">
+                        <div><strong>{{ $reten['name'] }}</strong><span class="text-muted ms-2">{{ $reten['dni'] }}</span></div>
+                        <div class="text-muted">{{ $reten['shift'] }} · Entrada {{ $reten['time'] }}</div>
+                        <span class="badge {{ $reten['available'] ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $reten['available'] ? 'Disponible' : 'Ya asignado' }}</span>
+                    </div>
+                @empty
+                    <span class="text-muted">No hay retenes presentes para los filtros seleccionados.</span>
+                @endforelse
+            </div>
+        </div>
+    </section>
 </div>
 
-<div class="modal fade" id="dashboardProgrammingModal" data-details-url="{{ route('programming.modifications', ['programming' => '__ID__']) }}" data-options-url="{{ route('programming.modification-options', ['programming' => '__ID__']) }}" data-update-url="{{ route('programming.update-modifications', ['programming' => '__ID__']) }}" tabindex="-1" aria-labelledby="dashboardProgrammingModalTitle" aria-hidden="true">
+<div class="modal fade" id="dashboardProgrammingModal" data-details-url="{{ route('programming.modifications', ['programming' => '__ID__']) }}" data-options-url="{{ route('programming.modification-options', ['programming' => '__ID__']) }}" data-update-url="{{ route('programming.update-modifications', ['programming' => '__ID__']) }}" data-related-url="{{ route('programming.related', ['programming' => '__ID__']) }}" data-reschedule-options-url="{{ route('programming.rescheduling.options', ['programming' => '__ID__']) }}" data-reschedule-check-url="{{ route('programming.rescheduling.check', ['programming' => '__ID__']) }}" data-reschedule-store-url="{{ route('programming.rescheduling.store', ['programming' => '__ID__']) }}" tabindex="-1" aria-labelledby="dashboardProgrammingModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content dashboard-modal">
         <div class="modal-header"><div><span class="rsu-eyebrow">PROGRAMACIÓN</span><h5 class="modal-title" id="dashboardProgrammingModalTitle">Detalles</h5></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
         <div class="modal-body" id="dashboardProgrammingModalBody"><div class="dashboard-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Cargando...</div></div>
+    </div></div>
+</div>
+
+<div class="modal fade" id="dashboardReschedulingModal" tabindex="-1" aria-labelledby="dashboardReschedulingTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title" id="dashboardReschedulingTitle">Reprogramar recorrido</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+        <div class="modal-body">
+            <div id="dashboardReschedulingError" class="alert alert-danger d-none" role="alert"></div>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="dashboardRescheduleDate">Fecha destino</label><input type="date" class="form-control" id="dashboardRescheduleDate"></div>
+                <div class="col-md-6"><label class="form-label" for="dashboardRescheduleReason">Motivo</label><select class="form-select" id="dashboardRescheduleReason"><option value="">Seleccione un motivo</option></select></div>
+                <div class="col-md-6"><label class="form-label" for="dashboardRescheduleShift">Turno</label><select class="form-select" id="dashboardRescheduleShift"></select></div>
+                <div class="col-md-6"><label class="form-label" for="dashboardRescheduleVehicle">Vehículo</label><select class="form-select" id="dashboardRescheduleVehicle"></select></div>
+                <div class="col-md-6"><label class="form-label" for="dashboardRescheduleDriver">Conductor</label><select class="form-select" id="dashboardRescheduleDriver"></select></div>
+                <div class="col-md-6"><label class="form-label" for="dashboardRescheduleHelpers">Ayudantes</label><select class="form-select" id="dashboardRescheduleHelpers" multiple></select></div>
+                <div class="col-12"><label class="form-label" for="dashboardRescheduleDescription">Descripción (opcional)</label><textarea class="form-control" id="dashboardRescheduleDescription" maxlength="1000"></textarea></div>
+            </div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-primary" id="dashboardRescheduleValidate">Validar disponibilidad</button></div>
     </div></div>
 </div>
 @stop

@@ -12,6 +12,11 @@ class Programming extends Model
 {
     use SoftDeletes;
 
+    public const STATUS_PROGRAMMED = 'Programado';
+    public const STATUS_RESCHEDULED = 'Reprogramado';
+    public const STATUS_FINISHED = 'Finalizado';
+    public const STATUS_CANCELLED = 'Anulado';
+
     protected $guarded = ['id'];
 
     protected function casts(): array
@@ -43,5 +48,29 @@ class Programming extends Model
     public function changes()
     {
         return $this->hasMany(ProgrammingChange::class);
+    }
+
+    public function parentProgramming(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_programming_id');
+    }
+
+    public function childProgrammings()
+    {
+        return $this->hasMany(self::class, 'parent_programming_id');
+    }
+
+    public function relatedProgrammings()
+    {
+        return self::query()->whereKey($this->id)
+            ->orWhere('parent_programming_id', $this->id)
+            ->orWhereIn('id', function ($query) {
+                $query->select('parent_programming_id')->from('programmings')->where('id', $this->id);
+            });
+    }
+
+    public function hasChildProgramming(): bool
+    {
+        return $this->childProgrammings()->exists();
     }
 }

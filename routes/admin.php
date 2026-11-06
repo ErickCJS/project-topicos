@@ -48,6 +48,10 @@ Route::post('programming/{programming}/finish', [ProgrammingController::class, '
 Route::patch('programming/{programming}/annul', [ProgrammingController::class, 'annul'])->name('programming.annul');
 Route::get('programming/{programming}', [ProgrammingController::class, 'show'])->name('programming.show');
 Route::put('programming/{programming}', [ProgrammingController::class, 'update'])->name('programming.update');
+Route::get('programming/{programming}/rescheduling/options', [ProgrammingController::class, 'reschedulingOptions'])->name('programming.rescheduling.options');
+Route::post('programming/{programming}/rescheduling/check', [ProgrammingController::class, 'reschedulingCheck'])->name('programming.rescheduling.check');
+Route::post('programming/{programming}/rescheduling', [ProgrammingController::class, 'reschedule'])->name('programming.rescheduling.store');
+Route::get('programming/{programming}/related', [ProgrammingController::class, 'related'])->name('programming.related');
 Route::delete('programming/{programming}', [ProgrammingController::class, 'destroy'])->name('programming.destroy');
 Route::resource('contracts', ContractController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update'])->names('contracts');
 Route::patch('contracts/{id}/cancel', [ContractController::class, 'cancel'])->name('contracts.cancel');

@@ -58,7 +58,7 @@ $(function () {
             {data:'vehicle',render:(v,t,row) => t === 'display' ? `<span class="programming-vehicle">${escape(v)}<small>${escape(row.plate)}</small></span>` : `${v} ${row.plate}`},
             {data:'driver',render:$.fn.dataTable.render.text()},
             {data:'helpers',render:(v,t) => t === 'display' ? v.map(name => `<span class="programming-helper">${escape(name)}</span>`).join('') : v.join(', ')},
-            { data: null, orderable: false, searchable: false, render: row => `<div class="programming-actions table-action-buttons d-flex justify-content-center" data-id="${row.id}">${row.status === 'Programado' ? button('edit', 'pencil-square', 'Modificar programación', 'outline-warning') + button('annul','bi bi-ban','Anular programación','outline-danger') + button('group','people','Ver grupo asociado','outline-primary') + button('finish','check-circle','Aceptar y finalizar recorrido','outline-success') : button('detail','eye','Ver detalle','outline-primary')}</div>`}
+            { data: null, orderable: false, searchable: false, render: row => `<div class="programming-actions table-action-buttons d-flex justify-content-center" data-id="${row.id}">${row.status === 'Programado' ? button('edit', 'pencil-square', 'Modificar programación', 'outline-warning') + button('reschedule','calendar-plus','Reprogramar recorrido','outline-info') + button('annul','bi bi-ban','Anular programación','outline-danger') + button('group','people','Ver grupo asociado','outline-primary') + button('finish','check-circle','Aceptar y finalizar recorrido','outline-success') : button('detail','eye','Ver detalle','outline-primary')}</div>`}
         ],
         language:{search:'Buscar:',lengthMenu:'Mostrar _MENU_ registros',info:'Mostrando _START_ a _END_ de _TOTAL_ registros',infoEmpty:'Sin registros',infoFiltered:'(filtrado de _MAX_ registros)',zeroRecords:'No se encontraron programaciones',emptyTable:'No hay programaciones para las fechas seleccionadas',paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}
     });
@@ -531,6 +531,7 @@ $(function () {
     $('#programmingTable').on('click','[data-action]',async function(){
         const id = Number(this.closest('[data-id]').dataset.id), action = this.dataset.action;
         if(action === 'edit') {openModificationModule(id);return;}
+        if(action === 'reschedule') { openRescheduling(id); return; }
         if(action === 'detail' || action === 'group') {
             $('#programmingDetailTitle').text('Detalle de programación y grupo');
             $('#programmingDetailBody').html('<div class="text-center text-body-secondary py-5"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cargando datos e historial…</div>');
@@ -548,4 +549,21 @@ $(function () {
             table.ajax.reload(null,false); Swal.fire({icon:'success',title:'Proceso exitoso',text:response.message,confirmButtonText:'Entendido'});
         }).fail(errors);
     });
+
+    function openRescheduling(id) {
+        request('GET','/' + id + '/rescheduling/options').done(options => {
+            const origin = options.origin || {};
+            const opts = (items, selected) => (items || []).map(item => `<option value="${item.id}" ${String(item.id) === String(selected) ? 'selected' : ''}>${escape(item.name || item.code || item.plate)}</option>`).join('');
+            Swal.fire({title:'Reprogramar recorrido', width:700, html:`<label class="d-block text-start mb-2">Fecha destino<input id="rsDate" type="date" class="form-control" min="${todayInLima()}"></label><label class="d-block text-start mb-2">Turno<select id="rsShift" class="form-select">${opts(options.shifts, origin.shift_id)}</select></label><label class="d-block text-start mb-2">Vehículo<select id="rsVehicle" class="form-select">${opts(options.vehicles, origin.vehicle_id)}</select></label><label class="d-block text-start mb-2">Conductor<select id="rsDriver" class="form-select">${opts(options.drivers, origin.driver_id)}</select></label><label class="d-block text-start mb-2">Ayudantes<select id="rsHelpers" class="form-select" multiple>${opts(options.helpers)}</select></label><label class="d-block text-start mb-2">Motivo<select id="rsReason" class="form-select"><option value="">Seleccione</option>${opts(options.reasons)}</select></label><textarea id="rsDescription" class="form-control" maxlength="1000" placeholder="Descripción (opcional)"></textarea>`, showCancelButton:true, confirmButtonText:'Validar', cancelButtonText:'Cancelar', preConfirm:() => ({destination_date:$('#rsDate').val(),shift_id:Number($('#rsShift').val()),vehicle_id:Number($('#rsVehicle').val()),driver_id:Number($('#rsDriver').val()),helpers:$('#rsHelpers').val() || [],reason_id:Number($('#rsReason').val()),description:$('#rsDescription').val()})}).then(result => {
+                if (!result.isConfirmed) return;
+                const data = result.value;
+                data.destination_date = String(data.destination_date || '').trim();
+                data.reason = $('#rsReason option:selected').text().trim();
+                request('POST','/' + id + '/rescheduling/check', data).done(check => {
+                    if (!check.valid) { Swal.fire({icon:'error',title:'No se puede reprogramar',text:(check.issues || []).map(issue => issue.message).join('\n') || 'Revise los datos.'}); return; }
+                    Swal.fire({icon:'warning',title:'Confirmar reprogramación',text:'Se liberarán las reservas originales y se creará un nuevo recorrido.',showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Cancelar'}).then(confirm => { if (!confirm.isConfirmed) return; request('POST','/' + id + '/rescheduling',{...data,validation_token:check.validation_token}).done(response => { table.ajax.reload(null,false); Swal.fire({icon:'success',title:'Reprogramación confirmada',text:`Nuevo recorrido #${response.destination_id}`}); }).fail(errors); });
+                }).fail(errors);
+            });
+        }).fail(errors);
+    }
 });

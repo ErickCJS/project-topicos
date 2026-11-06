@@ -73,7 +73,7 @@ class AttendancesController extends Controller
         $attendance = DB::transaction(function () use ($data) {
             $this->lockEmployee($data['employee_id']);
             $this->assertEligible($data);
-            $this->assertProgrammedAssignment($data);
+            $this->assertAttendanceOrigin($data);
 
             return Attendance::create($data);
         }, 3);
@@ -114,7 +114,7 @@ class AttendancesController extends Controller
             $this->lockEmployee($data['employee_id']);
             $lockedAttendance = Attendance::whereKey($attendance->id)->lockForUpdate()->firstOrFail();
             $this->assertEligible($data);
-            $this->assertProgrammedAssignment($data);
+            $this->assertAttendanceOrigin($data);
             $lockedAttendance->update($data);
         }, 3);
 
@@ -152,8 +152,35 @@ class AttendancesController extends Controller
         }
     }
 
-    private function assertProgrammedAssignment(array $data): void
+    private function assertAttendanceOrigin(array $data): void
     {
+        if ($data['origin'] === 'Retén') {
+            $validRole = DB::table('employees')
+                ->join('employee_types', 'employee_types.id', '=', 'employees.employee_type_id')
+                ->where('employees.id', $data['employee_id'])
+                ->whereIn('employee_types.name', ['Conductor', 'Ayudante'])
+                ->exists();
+            if (! $validRole) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'employee_id' => 'Solo el personal operativo puede registrar asistencia como retén.',
+                ]);
+            }
+            $assigned = DB::table('programming_employees')
+                ->join('programmings', 'programmings.id', '=', 'programming_employees.programming_id')
+                ->where('programming_employees.employee_id', $data['employee_id'])
+                ->whereDate('programming_employees.date', $data['date'])
+                ->where('programming_employees.shift_id', $data['shift_id'])
+                ->whereIn('programmings.status', ['Programado', 'Finalizado'])
+                ->whereNull('programmings.deleted_at')
+                ->exists();
+            if ($assigned) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'origin' => 'No se puede registrar como retén a una persona que ya tiene programación en ese turno.',
+                ]);
+            }
+            return;
+        }
+
         $assigned = DB::table('programming_employees')
             ->join('programmings', 'programmings.id', '=', 'programming_employees.programming_id')
             ->where('programming_employees.employee_id', $data['employee_id'])
@@ -239,7 +266,7 @@ class AttendancesController extends Controller
 
     private function validatedData(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'employee_id' => [
                 'required', 'integer', 'exists:employees,id',
             ],
@@ -258,6 +285,9 @@ class AttendancesController extends Controller
             'status' => [
                 'required', Rule::in(Attendance::STATUSES),
             ],
+            'origin' => [
+                'nullable', Rule::in(Attendance::ORIGINS),
+            ],
             'notes' => [
                 'nullable', 'string',
             ],
@@ -274,7 +304,10 @@ class AttendancesController extends Controller
             'type.in' => 'El tipo de marcación no es válido.',
             'status.required' => 'Seleccione el estado.',
             'status.in' => 'El estado seleccionado no es válido.',
+            'origin.in' => 'El origen de la asistencia no es válido.',
             'notes.string' => 'Las observaciones deben ser texto.',
         ]);
+        $data['origin'] = $data['origin'] ?? 'Programado';
+        return $data;
     }
 }

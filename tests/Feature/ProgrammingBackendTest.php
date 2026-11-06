@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\admin\Contract;
+use App\Models\admin\Attendance;
 use App\Models\admin\Employee;
 use App\Models\admin\Holiday;
 use App\Models\admin\Programming;
@@ -1148,6 +1149,120 @@ class ProgrammingBackendTest extends TestCase
         $this->assertDatabaseCount('programming_changes', 4);
     }
 
+    public function test_retainer_driver_is_listed_once_and_replacement_preserves_group_and_history(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $row = Programming::firstOrFail();
+        $retainer = $this->employee(1);
+        Attendance::create([
+            'employee_id' => $retainer->id, 'shift_id' => $row->shift_id, 'date' => $row->date,
+            'time' => '05:45:00', 'type' => 'Entrada', 'status' => 'Presente', 'origin' => 'Retén',
+        ]);
+
+        $options = $this->getJson(route('programming.modification-options', [
+            'programming' => $row->id, 'shift_id' => $row->shift_id,
+        ]))->assertOk()->json();
+        $this->assertCount(0, collect($options['drivers'])->where('id', $retainer->id));
+        $this->assertCount(1, collect($options['retainers'])->where('id', $retainer->id));
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'driver', 'new_id' => $retainer->id, 'is_retainer' => true,
+            'reason' => 'Reasignación de personal',
+        ]]])->assertOk();
+
+        $fresh = $row->fresh();
+        $this->assertSame($this->group->id, $fresh->staff_group_id);
+        $this->assertSame($retainer->id, $fresh->driver_id);
+        $change = DB::table('programming_changes')->latest('id')->first();
+        $this->assertSame($this->driver->id, json_decode($change->before, true)['id']);
+        $this->assertSame($retainer->id, json_decode($change->after, true)['id']);
+        $this->assertDatabaseHas('attendances', [
+            'employee_id' => $retainer->id, 'origin' => 'Retén', 'type' => 'Entrada',
+        ]);
+        $this->assertSame(1, Attendance::where('employee_id', $retainer->id)->where('type', 'Entrada')->count());
+    }
+
+    public function test_retainer_helper_replacement_requires_explicit_valid_attendance(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $row = Programming::firstOrFail();
+        $retainer = $this->employee(2);
+        Attendance::create([
+            'employee_id' => $retainer->id, 'shift_id' => $row->shift_id, 'date' => $row->date,
+            'time' => '05:45:00', 'type' => 'Entrada', 'status' => 'Presente', 'origin' => 'Retén',
+        ]);
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'helper', 'old_id' => $this->helper->id, 'new_id' => $retainer->id,
+            'is_retainer' => true, 'reason' => 'Reasignación de personal',
+        ]]])->assertOk();
+
+        $this->assertDatabaseHas('programming_employees', [
+            'programming_id' => $row->id, 'employee_id' => $retainer->id, 'role' => 'helper',
+        ]);
+        $this->assertSame(1, Attendance::where('employee_id', $retainer->id)->where('type', 'Entrada')->count());
+    }
+
+    public function test_retainer_selection_rejects_missing_or_completed_attendance_and_unmarked_selection(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $row = Programming::firstOrFail();
+        $retainer = $this->employee(1);
+        $base = ['type' => 'driver', 'new_id' => $retainer->id, 'reason' => 'Reasignación de personal'];
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [$base + ['is_retainer' => true]]])
+            ->assertUnprocessable();
+
+        Attendance::create([
+            'employee_id' => $retainer->id, 'shift_id' => $row->shift_id, 'date' => $row->date,
+            'time' => '05:45:00', 'type' => 'Entrada', 'status' => 'Presente', 'origin' => 'Retén',
+        ]);
+        Attendance::create([
+            'employee_id' => $retainer->id, 'shift_id' => $row->shift_id, 'date' => $row->date,
+            'time' => '14:00:00', 'type' => 'Salida', 'status' => 'Presente', 'origin' => 'Retén',
+        ]);
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [$base + ['is_retainer' => true]]])
+            ->assertUnprocessable();
+
+        $unmarked = $this->employee(1);
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'driver', 'new_id' => $unmarked->id, 'reason' => 'Reasignación de personal',
+        ]]])->assertOk();
+    }
+
+    public function test_retainer_replacement_rejects_an_incompatible_existing_route(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $row = Programming::firstOrFail();
+        $retainer = $this->employee(1);
+        Attendance::create([
+            'employee_id' => $retainer->id, 'shift_id' => $row->shift_id, 'date' => $row->date,
+            'time' => '05:45:00', 'type' => 'Entrada', 'status' => 'Presente', 'origin' => 'Retén',
+        ]);
+        $conflict = Shift::create(['name' => 'Turno incompatible', 'start_time' => '10:00', 'end_time' => '18:00']);
+        $otherRoute = $row->replicate();
+        $otherRoute->shift_id = $conflict->id;
+        $otherRoute->driver_id = $retainer->id;
+        $otherRoute->group_date_key = null;
+        $otherRoute->vehicle_date_key = null;
+        $otherRoute->save();
+        $otherRoute->employees()->attach([
+            $retainer->id => ['date' => $row->date->toDateString(), 'shift_id' => $conflict->id, 'role' => 'driver'],
+        ]);
+
+        $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
+            'type' => 'driver', 'new_id' => $retainer->id, 'is_retainer' => true,
+            'reason' => 'Reasignación de personal',
+        ]]])->assertUnprocessable();
+
+        $this->assertSame($this->driver->id, $row->fresh()->driver_id);
+        $this->assertSame('Programado', $row->fresh()->status);
+    }
+
     public function test_modification_checks_overnight_shift_conflicts_from_the_previous_date(): void
     {
         $this->seed(ReasonSeeder::class);
@@ -1387,5 +1502,126 @@ class ProgrammingBackendTest extends TestCase
         $preview = $this->postJson(route('programming.bulk-modifications.check'), $payload)->assertOk()->assertJsonPath('valid', true);
         $this->postJson(route('programming.bulk-modifications.apply'), [...$payload, 'end_date' => '2026-11-03', 'validation_token' => $preview->json('validation_token')])->assertUnprocessable();
         $this->assertSame($this->group->shift_id, Programming::firstOrFail()->shift_id);
+    }
+
+    public function test_rescheduling_creates_a_child_releases_the_origin_and_preserves_its_snapshot(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        $snapshot = $origin->snapshot;
+        $payload = ['destination_date' => '2026-11-04', 'shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id,
+            'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id, 'description' => 'Cambio operativo.'];
+        $check = $this->postJson(route('programming.rescheduling.check', $origin), $payload)->assertOk()->assertJsonPath('valid', true);
+        $response = $this->postJson(route('programming.rescheduling.store', $origin), [...$payload, 'validation_token' => $check->json('validation_token')])->assertCreated();
+        $destination = Programming::findOrFail($response->json('destination_id'));
+        $this->assertSame(Programming::STATUS_RESCHEDULED, $origin->fresh()->status);
+        $this->assertSame($origin->id, $destination->parent_programming_id);
+        $this->assertSame(Programming::STATUS_PROGRAMMED, $destination->status);
+        $this->assertSame($snapshot, $origin->fresh()->snapshot);
+        $this->assertDatabaseCount('programming_employees', 2);
+        $this->assertDatabaseHas('programming_changes', ['programming_id' => $origin->id, 'destination_programming_id' => $destination->id]);
+    }
+
+    public function test_rescheduling_supports_a_chain_but_rejects_a_second_direct_child(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        $payload = ['shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id];
+        $check = $this->postJson(route('programming.rescheduling.check', $origin), $payload + ['destination_date' => '2026-11-04'])->assertOk();
+        $child = Programming::findOrFail($this->postJson(route('programming.rescheduling.store', $origin), $payload + ['destination_date' => '2026-11-04', 'validation_token' => $check->json('validation_token')])->json('destination_id'));
+        $check = $this->postJson(route('programming.rescheduling.check', $child), $payload + ['destination_date' => '2026-11-06'])->assertOk()->assertJsonPath('valid', true);
+        $grandchild = Programming::findOrFail($this->postJson(route('programming.rescheduling.store', $child), $payload + ['destination_date' => '2026-11-06', 'validation_token' => $check->json('validation_token')])->json('destination_id'));
+        $this->assertSame($child->id, $grandchild->parent_programming_id);
+        $this->postJson(route('programming.rescheduling.check', $origin), $payload + ['destination_date' => '2026-11-08'])->assertUnprocessable();
+        $this->assertCount(3, $this->getJson(route('programming.related', $grandchild))->json('data'));
+    }
+
+    public function test_rescheduling_is_blocked_when_the_origin_has_attendance(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        Attendance::create(['employee_id' => $this->driver->id, 'shift_id' => $origin->shift_id, 'date' => $origin->date, 'time' => '06:00:00', 'type' => 'Entrada', 'status' => 'Presente', 'origin' => 'Programado']);
+        $this->postJson(route('programming.rescheduling.check', $origin), ['destination_date' => '2026-11-04', 'shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id])->assertOk()->assertJsonPath('valid', false);
+    }
+
+    public function test_rescheduling_validates_lima_dates_and_catalog_reasons(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        $base = ['shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id]];
+        foreach (['2026-11-02', '2026-10-29'] as $date) {
+            $this->postJson(route('programming.rescheduling.check', $origin), $base + ['destination_date' => $date, 'reason_id' => Reason::first()->id])->assertUnprocessable();
+        }
+        $this->postJson(route('programming.rescheduling.check', $origin), $base + ['destination_date' => '2026-11-04', 'reason_id' => 999999])
+            ->assertUnprocessable()->assertJsonFragment(['El motivo seleccionado no existe.']);
+        $this->postJson(route('programming.rescheduling.check', $origin), $base + ['destination_date' => '2026-11-04', 'reason' => Reason::first()->name])
+            ->assertOk()->assertJsonPath('valid', true);
+    }
+
+    public function test_rescheduling_excludes_only_the_origin_but_rejects_real_employee_conflicts(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        $conflict = $origin->replicate();
+        $conflict->date = '2026-11-04';
+        $conflict->group_date_key = null;
+        $conflict->vehicle_date_key = null;
+        $conflict->save();
+        $conflict->employees()->attach($this->driver->id, ['date' => '2026-11-04', 'shift_id' => $origin->shift_id, 'role' => 'driver']);
+        $payload = ['destination_date' => '2026-11-04', 'shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id];
+        $this->postJson(route('programming.rescheduling.check', $origin), $payload)->assertOk()->assertJsonPath('valid', false)->assertJsonFragment(['resource' => 'employee']);
+    }
+
+    public function test_rescheduling_detects_a_real_overnight_conflict_on_the_previous_date(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        $overnight = Shift::create(['name' => 'Turno nocturno reprogramación', 'start_time' => '22:00', 'end_time' => '02:00']);
+        $conflict = $origin->replicate();
+        $conflict->date = '2026-11-03';
+        $conflict->shift_id = $overnight->id;
+        $conflict->group_date_key = null;
+        $conflict->vehicle_date_key = null;
+        $conflict->save();
+        $conflict->employees()->attach($this->helper->id, ['date' => '2026-11-03', 'shift_id' => $overnight->id, 'role' => 'helper']);
+        $early = Shift::create(['name' => 'Turno temprano reprogramación', 'start_time' => '01:00', 'end_time' => '04:00']);
+        $payload = ['destination_date' => '2026-11-04', 'shift_id' => $early->id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id];
+        $this->postJson(route('programming.rescheduling.check', $origin), $payload)->assertOk()->assertJsonPath('valid', false)->assertJsonFragment(['resource' => 'employee']);
+    }
+
+    public function test_rescheduling_revalidates_a_new_reservation_and_keeps_origin_on_failure(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        $payload = ['destination_date' => '2026-11-04', 'shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id];
+        $check = $this->postJson(route('programming.rescheduling.check', $origin), $payload)->assertOk()->assertJsonPath('valid', true);
+        $other = $origin->replicate();
+        $other->date = '2026-11-04';
+        $other->group_date_key = null;
+        $other->vehicle_date_key = null;
+        $other->save();
+        $this->postJson(route('programming.rescheduling.store', $origin), [...$payload, 'validation_token' => $check->json('validation_token')])->assertUnprocessable();
+        $this->assertSame(Programming::STATUS_PROGRAMMED, $origin->fresh()->status);
+        $this->assertSame(0, $origin->childProgrammings()->count());
+    }
+
+    public function test_dashboard_shows_reprogram_action_only_for_programmed_routes_and_uses_rescheduling_flow(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $origin = Programming::firstOrFail();
+        $this->get(route('admin.home', ['fecha' => '2026-11-02']))
+            ->assertOk()->assertSee('rsu-btn-reschedule')->assertSee('dashboardReschedulingModal');
+        $payload = ['destination_date' => '2026-11-04', 'shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id];
+        $check = $this->postJson(route('programming.rescheduling.check', $origin), $payload)->assertOk()->assertJsonPath('valid', true);
+        $this->postJson(route('programming.rescheduling.store', $origin), [...$payload, 'validation_token' => $check->json('validation_token')])->assertCreated();
+        $this->get(route('admin.home', ['fecha' => '2026-11-02']))->assertOk()->assertSee('Reprogramado');
     }
 }

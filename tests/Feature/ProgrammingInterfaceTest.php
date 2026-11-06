@@ -30,18 +30,31 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertOk()
             ->assertSee('Lista de Programaciones')
             ->assertSee('programmingFormModal')
-            ->assertSee('Cambio masivo de programaciones')
-            ->assertSee('bulkModificationStart')
-            ->assertSee('bulkModificationEnd')
-            ->assertSee('bulkModificationZone')
-            ->assertSee('type="button" class="btn btn-outline-primary w-100" id="bulkModificationPreview"', false)
-            ->assertSee('type="button" class="btn btn-warning" id="bulkModificationApply" disabled', false)
-            ->assertSee('bulkModificationApply')
+            ->assertSee('Programación masiva')
+            ->assertDontSee('bulkModificationModal')
+            ->assertDontSee('bulk-programming-modifications.js')
             ->assertSee('Validar disponibilidad')
             ->assertSee('Feriados del período')
             ->assertSee('programHolidayOptions')
             ->assertSee('js/programming.js')
-            ->assertSee('js/bulk-programming-modifications.js')
             ->assertSee('css/programming.css');
+    }
+
+    public function test_dashboard_exposes_rescheduling_controls_and_related_navigation(): void
+    {
+        $this->actingAs(User::factory()->make(['id' => 1]));
+
+        $this->get(route('admin.home'))
+            ->assertOk()
+            ->assertSee('dashboardReschedulingModal')
+            ->assertSee('dashboardRescheduleDate')
+            ->assertSee('dashboardRescheduleShift')
+            ->assertSee('dashboardRescheduleVehicle')
+            ->assertSee('dashboardRescheduleDriver')
+            ->assertSee('dashboardRescheduleHelpers')
+            ->assertSee('dashboardRescheduleReason')
+            ->assertSee('dashboardRescheduleValidate')
+            ->assertSee('rescheduling/check')
+            ->assertSee('rescheduling');
     }
 }

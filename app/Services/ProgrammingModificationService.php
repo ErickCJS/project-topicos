@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\admin\Employee;
+use App\Models\admin\Attendance;
 use App\Models\admin\Programming;
 use App\Models\admin\Reason;
 use App\Models\admin\Shift;
@@ -24,6 +25,7 @@ class ProgrammingModificationService
             ->map(fn ($id) => (int) $id)->unique()->values()->all();
         $currentHelperIds = $programming->employees()->wherePivot('role', 'helper')->pluck('employees.id')->map(fn ($id) => (int) $id)->all();
         $employeeQuery = Employee::query()->where('status', 'Activo')
+            ->whereHas('employeeType', fn ($query) => $query->whereIn('name', ['Conductor', 'Ayudante']))
             ->whereHas('contracts', fn ($query) => $query->where('is_active', true)->whereNull('cancelled_at')
                 ->whereDate('start_date', '<=', $programming->date->toDateString())
                 ->where(fn ($dates) => $dates->whereNull('end_date')->orWhereDate('end_date', '>=', $programming->date->toDateString())))
@@ -40,6 +42,27 @@ class ProgrammingModificationService
                 'available' => ! in_array((int) $employee->id, $busyEmployees, true),
             ]);
 
+        $retainerIds = Attendance::query()
+            ->whereDate('date', $programming->date)
+            ->where('shift_id', $shift->id)
+            ->where('type', 'Entrada')
+            ->where('status', 'Presente')
+            ->where('origin', 'Retén')
+            ->whereNotExists(function ($query) use ($programming) {
+                $query->selectRaw('1')->from('attendances as exits')
+                    ->whereColumn('exits.employee_id', 'attendances.employee_id')
+                    ->whereColumn('exits.shift_id', 'attendances.shift_id')
+                    ->whereDate('exits.date', $programming->date)
+                    ->where('exits.type', 'Salida');
+            })
+            ->pluck('employee_id');
+        $retainers = $employees->whereIn('id', $retainerIds)->map(function (array $employee) use ($busyEmployees) {
+            $employee['retainer'] = true;
+            $employee['available'] = $employee['available'] && ! in_array((int) $employee['id'], $busyEmployees, true);
+            return $employee;
+        })->values();
+        $regularEmployees = $employees->whereNotIn('id', $retainerIds)->values();
+
         $currentVehicleCapacity = (int) Vehicle::query()->whereKey($programming->vehicle_id)->value('occupats_capacity');
         $vehicles = Vehicle::query()->orderBy('name')->get()
             ->map(fn (Vehicle $vehicle) => [
@@ -55,8 +78,9 @@ class ProgrammingModificationService
         return [
             'shifts' => Shift::query()->orderBy('name')->get(['id', 'name', 'start_time', 'end_time']),
             'vehicles' => $vehicles,
-            'drivers' => $employees->where('role', 'driver')->values(),
-            'helpers' => $employees->where('role', 'helper')->values(),
+            'drivers' => $regularEmployees->where('role', 'driver')->values(),
+            'helpers' => $regularEmployees->where('role', 'helper')->values(),
+            'retainers' => $retainers,
             'reasons' => Reason::query()->orderBy('name')->get(['id', 'name']),
         ];
     }
@@ -124,8 +148,9 @@ class ProgrammingModificationService
                     $this->reject('No se puede aplicar el cambio: el vehículo elegido debe tener la misma capacidad de ocupantes que el actual ('.$oldVehicleCapacity.' ocupantes). Seleccione otro vehículo.');
                 }
                 $employeeIds = array_values(array_unique(array_merge([$nextDriverId], $nextHelperIds)));
-                $employees = Employee::query()->whereIn('id', $employeeIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+                $employees = Employee::query()->whereIn('id', $employeeIds)->with('employeeType')->orderBy('id')->lockForUpdate()->get()->keyBy('id');
 
+                $this->validateRetainerCandidates($row, $shift, $employees, $nextDriverId, $nextHelperIds, $changes);
                 $this->validateAvailability($row, $shift, $vehicle, $employees, $nextDriverId, $nextHelperIds);
 
                 $snapshot = $row->snapshot;
@@ -182,10 +207,13 @@ class ProgrammingModificationService
                         'after' => [
                             'id' => $newId,
                             'value' => $afterValue,
+                            'type' => $type,
                             'reason' => $change['reason'],
                             'custom_reason' => $change['custom_reason'] ?? null,
                             'description' => $change['description'] ?? null,
                         ],
+                        'reason' => $change['reason'],
+                        'description' => $change['description'] ?? null,
                     ]);
                 }
 
@@ -206,6 +234,7 @@ class ProgrammingModificationService
         if (count($ids) !== count(array_unique($ids))) {
             $this->reject('Una persona no puede ocupar dos cargos en la programación.');
         }
+
         if (count($ids) > (int) $vehicle->occupats_capacity) {
             $this->reject('El nuevo vehículo no tiene capacidad suficiente para el personal asignado.');
         }
@@ -237,6 +266,68 @@ class ProgrammingModificationService
             if ($busy) {
                 $this->reject('Una de las personas seleccionadas ya está asignada en un turno que se cruza con este servicio.');
             }
+        }
+
+    }
+
+    private function validateRetainerCandidates(Programming $row, Shift $shift, Collection $employees, int $driverId, array $helperIds, array $changes): void
+    {
+        $retainerIds = collect($changes)
+            ->filter(fn (array $change) => (bool) ($change['is_retainer'] ?? false))
+            ->pluck('new_id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        foreach ($retainerIds as $employeeId) {
+            $attendance = Attendance::query()
+                ->where('employee_id', $employeeId)
+                ->whereDate('date', $row->date->toDateString())
+                ->where('shift_id', $shift->id)
+                ->where('type', 'Entrada')
+                ->where('status', 'Presente')
+                ->where('origin', 'Retén')
+                ->whereNotExists(function ($query) use ($row) {
+                    $query->selectRaw('1')->from('attendances as exits')
+                        ->whereColumn('exits.employee_id', 'attendances.employee_id')
+                        ->whereColumn('exits.shift_id', 'attendances.shift_id')
+                        ->whereDate('exits.date', $row->date)
+                        ->where('exits.type', 'Salida');
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if (! $attendance) {
+                $this->reject('El retén seleccionado no tiene una entrada vigente para el turno.');
+            }
+
+            $employee = $employees->get($employeeId);
+            $isDriver = $employeeId === $driverId;
+            if (! $employee || ($isDriver ? $employee->employeeType?->name !== 'Conductor' : $employee->employeeType?->name !== 'Ayudante')) {
+                $this->reject('El retén seleccionado no tiene el cargo correspondiente.');
+            }
+        }
+
+        $selectedIds = collect(array_merge([$driverId], $helperIds))->unique()->values();
+        $unmarkedRetainer = Attendance::query()
+            ->whereIn('employee_id', $selectedIds)
+            ->whereDate('date', $row->date->toDateString())
+            ->where('shift_id', $shift->id)
+            ->where('type', 'Entrada')
+            ->where('status', 'Presente')
+            ->where('origin', 'Retén')
+            ->whereNotExists(function ($query) use ($row) {
+                $query->selectRaw('1')->from('attendances as exits')
+                    ->whereColumn('exits.employee_id', 'attendances.employee_id')
+                    ->whereColumn('exits.shift_id', 'attendances.shift_id')
+                    ->whereDate('exits.date', $row->date->toDateString())
+                    ->where('exits.type', 'Salida');
+            })
+            ->whereNotIn('employee_id', $retainerIds)
+            ->lockForUpdate()
+            ->exists();
+
+        if ($unmarkedRetainer) {
+            $this->reject('El personal con asistencia de retén debe seleccionarse como retén.');
         }
     }
 

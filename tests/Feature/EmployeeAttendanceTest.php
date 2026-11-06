@@ -464,6 +464,28 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertNull(app('router')->getRoutes()->getByName('employee.attendances'));
     }
 
+    public function test_operational_worker_can_mark_retainer_attendance_without_programming(): void
+    {
+        Carbon::setTestNow('2026-10-30 05:00:00');
+        $type = DB::table('employee_types')->insertGetId(['name' => 'Conductor', 'created_at' => now(), 'updated_at' => now()]);
+        $employeeId = $this->createEmployee($type, '22334455', 'Retén', 'Disponible', 'retainer@test.local', 'retainer123');
+        DB::table('contracts')->insert([
+            'employee_id' => $employeeId, 'type' => 'Permanente', 'start_date' => '2026-01-01',
+            'end_date' => null, 'salary' => 1500, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->postJson(route('employee.authenticate'), [
+            'dni' => '22334455', 'password' => 'retainer123',
+        ])->assertOk()->assertJsonPath('origin', 'Retén');
+
+        $this->assertDatabaseHas('attendances', [
+            'employee_id' => $employeeId, 'shift_id' => $this->shiftId,
+            'origin' => 'Retén', 'type' => 'Entrada',
+        ]);
+        $this->assertDatabaseMissing('programming_employees', ['employee_id' => $employeeId]);
+    }
+
     private function credentials(): array
     {
         return ['dni' => '87654321', 'password' => 'secret123'];

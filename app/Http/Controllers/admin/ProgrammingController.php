@@ -14,6 +14,7 @@ use App\Models\admin\Reason;
 use App\Services\ProgrammingService;
 use App\Services\ProgrammingModificationService;
 use App\Services\BulkProgrammingModificationService;
+use App\Services\ProgrammingReschedulingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ProgrammingController extends Controller
 {
-    public function __construct(private ProgrammingService $service, private ProgrammingModificationService $modificationService, private BulkProgrammingModificationService $bulkModificationService) {}
+    public function __construct(private ProgrammingService $service, private ProgrammingModificationService $modificationService, private BulkProgrammingModificationService $bulkModificationService, private ProgrammingReschedulingService $reschedulingService) {}
 
     public function index(Request $request)
     {
@@ -276,6 +277,42 @@ class ProgrammingController extends Controller
         return $this->persist($request, $programming);
     }
 
+    public function reschedulingOptions(Programming $programming)
+    {
+        return response()->json($this->reschedulingService->options($programming));
+    }
+
+    public function reschedulingCheck(Request $request, Programming $programming)
+    {
+        $data = $this->validatedRescheduling($request);
+        $result = $this->reschedulingService->preview($programming, $data);
+        if ($result['valid']) {
+            $token = Str::random(64);
+            $request->session()->put('programming.rescheduling', ['token' => $token, 'hash' => $this->fingerprint($data), 'expires' => now()->addMinutes(15)->timestamp]);
+            $result['validation_token'] = $token;
+        } else {
+            $request->session()->forget('programming.rescheduling');
+            $result['validation_token'] = null;
+        }
+        return response()->json($result);
+    }
+
+    public function reschedule(Request $request, Programming $programming)
+    {
+        $saved = $request->session()->get('programming.rescheduling');
+        $data = $this->validatedRescheduling($request);
+        $request->session()->forget('programming.rescheduling');
+        if (! $saved || $saved['expires'] < now()->timestamp || ! hash_equals($saved['token'], (string) $request->input('validation_token')) || ! hash_equals($saved['hash'], $this->fingerprint($data))) {
+            $this->reject('La vista previa expiró o los datos cambiaron. Vuelva a validar antes de confirmar.');
+        }
+        return response()->json($this->reschedulingService->confirm($programming, $data, (int) $request->user()->id), 201);
+    }
+
+    public function related(Programming $programming)
+    {
+        return response()->json($this->reschedulingService->related($programming));
+    }
+
     private function persist(Request $request, ?Programming $editing = null)
     {
         $data = $this->validated($request);
@@ -354,6 +391,7 @@ class ProgrammingController extends Controller
             'changes' => ['required', 'array', 'min:1', 'max:20'],
             'changes.*.type' => ['required', 'in:shift,vehicle,driver,helper'],
             'changes.*.new_id' => ['required', 'integer', 'min:1'],
+            'changes.*.is_retainer' => ['nullable', 'boolean'],
             'changes.*.old_id' => ['required_if:changes.*.type,helper', 'nullable', 'integer', 'min:1'],
             'changes.*.reason' => ['required', 'string', 'max:100', 'exists:reason,name'],
             'changes.*.custom_reason' => ['nullable', 'string', 'max:120', 'required_if:changes.*.reason,Otro'],
@@ -420,7 +458,8 @@ class ProgrammingController extends Controller
     private function row(Programming $row): array
     {
         return ['id' => $row->id, 'date' => $row->date->toDateString(), 'status' => $row->status,
-            'group_id' => $row->staff_group_id, ...$row->snapshot, 'notes' => $row->notes,
+            'group_id' => $row->staff_group_id, 'parent_programming_id' => $row->parent_programming_id,
+            'child_programming_id' => $row->childProgrammings()->value('id'), ...$row->snapshot, 'notes' => $row->notes,
             'finished_at' => $row->finished_at?->format('d/m/Y H:i')];
     }
 
@@ -461,6 +500,29 @@ class ProgrammingController extends Controller
         $data['work_holidays'] = $data['work_holidays'] ?? [];
         sort($data['work_holidays']);
 
+        return $data;
+    }
+
+    private function validatedRescheduling(Request $request): array
+    {
+        $data = $request->validate([
+            'destination_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.today('America/Lima')->toDateString()],
+            'shift_id' => ['required', 'integer', 'exists:shifts,id'],
+            'vehicle_id' => ['required', 'integer', 'exists:vehicles,id'],
+            'driver_id' => ['required', 'integer', 'exists:employees,id'],
+            'helpers' => ['present', 'array'], 'helpers.*' => ['integer', 'distinct', 'exists:employees,id'],
+            'reason_id' => ['nullable', 'integer', 'min:1'], 'reason' => ['nullable', 'string', 'max:100', 'exists:reason,name'],
+            'description' => ['nullable', 'string', 'max:1000'], 'notes' => ['nullable', 'string', 'max:1000'],
+            'validation_token' => ['nullable', 'string'],
+        ], ['destination_date.after_or_equal' => 'La fecha destino no puede estar en el pasado.', 'reason_id.required' => 'El motivo es obligatorio.']);
+        if (empty($data['reason_id']) && empty($data['reason'])) $this->reject('El motivo es obligatorio.');
+        $reason = ! empty($data['reason_id']) ? Reason::find((int) $data['reason_id']) : null;
+        if (! $reason && ! empty($data['reason'])) $reason = Reason::where('name', $data['reason'])->first();
+        if (! $reason) $this->reject('El motivo seleccionado no existe.');
+        $data['reason_id'] = (int) $reason->id;
+        $data['shift_id'] = (int) $data['shift_id']; $data['vehicle_id'] = (int) $data['vehicle_id']; $data['driver_id'] = (int) $data['driver_id'];
+        $data['helpers'] = array_values(array_map('intval', $data['helpers'] ?? [])); $data['description'] = trim($data['description'] ?? ''); $data['notes'] = trim($data['notes'] ?? '');
+        unset($data['validation_token']);
         return $data;
     }
 

@@ -11,6 +11,8 @@ class Attendance extends Model
 
     public const STATUSES = ['Presente', 'Ausente'];
 
+    public const ORIGINS = ['Programado', 'Retén'];
+
     protected $fillable = [
         'employee_id',
         'shift_id',
@@ -18,6 +20,7 @@ class Attendance extends Model
         'time',
         'type',
         'status',
+        'origin',
         'notes',
     ];
 

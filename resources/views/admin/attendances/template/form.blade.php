@@ -67,6 +67,18 @@
         </select>
     </div>
 
+    <div class="col-12 col-md-6">
+        <label for="attendance_origin" class="form-label">Origen *</label>
+        <select name="origin" id="attendance_origin" class="form-select" required>
+            @foreach(\App\Models\admin\Attendance::ORIGINS as $origin)
+                <option value="{{ $origin }}"
+                    @selected(old('origin', $editing ? $attendance->origin : 'Programado') === $origin)>
+                    {{ $origin }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+
     <div class="col-12">
         <label for="attendance_notes" class="form-label">Observaciones</label>
         <textarea name="notes" id="attendance_notes" class="form-control" rows="3"

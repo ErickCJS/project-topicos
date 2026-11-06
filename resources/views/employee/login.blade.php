@@ -36,6 +36,7 @@
         @csrf
         <div class="field"><label for="dni">DNI</label><input id="dni" name="dni" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" required autofocus></div>
         <div class="field"><label for="password">Contrase&ntilde;a</label><input id="password" name="password" type="password" required></div>
+        <div class="field" id="shift-field" hidden><label for="shift_id">Turno compatible</label><select id="shift_id" name="shift_id"></select></div>
         <button class="btn" id="submit-button" type="submit">Registrar asistencia</button>
     </form>
 </main>
@@ -44,6 +45,8 @@
     const form = document.getElementById('attendance-form');
     const dni = document.getElementById('dni');
     const password = document.getElementById('password');
+    const shiftField = document.getElementById('shift-field');
+    const shift = document.getElementById('shift_id');
     const button = document.getElementById('submit-button');
     const message = document.getElementById('message');
     let timer;
@@ -76,11 +79,22 @@
             const payload = await response.json();
             if (! response.ok) {
                 const errors = payload.errors || {};
+                const options = errors.shift_options?.[0];
+                if (options) {
+                    try {
+                        const shifts = typeof options === 'string' ? JSON.parse(options) : options;
+                        shift.innerHTML = shifts.map(item => `<option value="${item.id}">${item.name}</option>`).join('');
+                        shiftField.hidden = false;
+                    } catch (error) {
+                        shiftField.hidden = true;
+                    }
+                }
                 const values = Object.values(errors).flat();
                 throw new Error(values[0] || payload.message || 'No se pudo registrar la asistencia.');
             }
             showMessage(payload.message, 'success');
             form.reset();
+            shiftField.hidden = true;
             dni.focus();
         } catch (error) {
             password.value = '';
