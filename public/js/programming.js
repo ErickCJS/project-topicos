@@ -238,7 +238,6 @@ $(function () {
     }
     $('#newProgramming').on('click',() => openForm());
     $('#programmingFormModal').on('hidden.bs.modal',() => {if(groupRequest) groupRequest.abort();holidayRevision++;if(holidayRequest) holidayRequest.abort();holidayRequest=null;holidaysReady=false;resetPeople('Seleccione un grupo y un período.');invalidate();});
-    $('#bulkProgramming').prop('disabled',true).attr('title','Programación masiva: siguiente avance');
     function payload() {
         return {staff_group_id:$('#programGroup').val(),driver_id:$('#programDriver').val(),helpers:$('.programming-helper-select').map((i,el) => el.value).get().filter(Boolean),
             start_date:$('#programStart').val(),end_date:$('#programEnd').val(),days:$(form).find('[name="workdays"]:checked').map((i,el) => el.value).get(),notes:$('#programNotes').val(),programming_id:editing,
