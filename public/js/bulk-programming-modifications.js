@@ -5,13 +5,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
     const $ = id => document.getElementById(id);
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || document.querySelector('[name="_token"]')?.value;
+    const endpointBase = modalElement.dataset.endpointBase || '/admin/programming/bulk-modifications';
     let token = null;
     let options = {people: [], old_helpers: [], vehicles: []};
     let reports = [];
 
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const call = async (path, data) => {
-        const response = await fetch(`/admin/programming/bulk-modifications/${path}`, {method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf}, body: JSON.stringify(data)});
+        const response = await fetch(`${endpointBase}/${path}`, {method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf}, body: JSON.stringify(data)});
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(Object.values(result.errors || {}).flat()[0] || result.message || 'No se pudo completar la operación.');
         return result;
@@ -142,11 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
     $('bulkModificationPreview').addEventListener('click', validate);
     $('bulkModificationApply').addEventListener('click', async () => {
         if (!token) return;
-        const confirmation = await Swal.fire({icon: 'warning', title: '¿Confirmar cambio masivo?', text: 'Todas las programaciones válidas se modificarán en una sola operación.', showCancelButton: true, confirmButtonText: 'Confirmar', cancelButtonText: 'Cancelar'});
+        const confirmation = await Swal.fire({icon: 'warning', title: '¿Confirmar cambio masivo?', text: 'Esta operación modifica varias programaciones y no puede deshacerse automáticamente. Todas las programaciones válidas se modificarán en una sola operación.', showCancelButton: true, confirmButtonText: 'Confirmar', cancelButtonText: 'Cancelar'});
         if (!confirmation.isConfirmed) return;
         try {
             const result = await call('apply', {...formData(), validation_token: token});
-            invalidate(); modal.hide(); Swal.fire({icon: 'success', title: 'Cambio aplicado', text: result.message, confirmButtonText: 'Entendido'}); window.jQuery?.('#programmingTable').DataTable?.().ajax.reload(null, false);
+            invalidate(); modal.hide(); Swal.fire({icon: 'success', title: 'Cambio aplicado', text: result.message, confirmButtonText: 'Entendido'}).then(() => {
+                if (modalElement.dataset.reloadUrl) window.location.href = modalElement.dataset.reloadUrl;
+                else window.jQuery?.('#programmingTable').DataTable?.().ajax.reload(null, false);
+            });
         } catch (error) { showError(error.message); }
     });
     syncDates();

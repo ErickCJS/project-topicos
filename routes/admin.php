@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\admin\AdminController;
 use App\Http\Controllers\admin\CambioController;
+use App\Http\Controllers\admin\BulkChangeController;
 use App\Http\Controllers\admin\MotivoController;
 use App\Http\Controllers\admin\ProgrammingController;
 use App\Http\Controllers\admin\AttendancesController;
@@ -33,6 +34,10 @@ Route::post('programming/bulk/undo', [ProgrammingController::class, 'bulkUndo'])
 Route::post('programming/bulk-modifications/check', [ProgrammingController::class, 'bulkModificationCheck'])->name('programming.bulk-modifications.check');
 Route::post('programming/bulk-modifications/options', [ProgrammingController::class, 'bulkModificationOptions'])->name('programming.bulk-modifications.options');
 Route::post('programming/bulk-modifications/apply', [ProgrammingController::class, 'bulkModificationApply'])->name('programming.bulk-modifications.apply');
+Route::get('cambios/masivos', [BulkChangeController::class, 'index'])->name('cambios.bulk.index');
+Route::post('cambios/masivos/options', [BulkChangeController::class, 'options'])->name('cambios.bulk.options');
+Route::post('cambios/masivos/check', [BulkChangeController::class, 'check'])->name('cambios.bulk.check');
+Route::post('cambios/masivos/apply', [BulkChangeController::class, 'apply'])->name('cambios.bulk.apply');
 Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
 Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
 Route::get('programming/{id}/history', [ProgrammingController::class, 'history'])->name('programming.history');

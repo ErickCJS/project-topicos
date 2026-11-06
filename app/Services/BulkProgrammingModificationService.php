@@ -105,9 +105,12 @@ class BulkProgrammingModificationService
 
                     $row->changes()->create([
                         'user_id' => $userId,
+                        'operation_id' => $operationId,
                         'action' => 'Cambio masivo de '.$this->typeLabel($data['type']),
+                        'reason' => $data['reason'],
+                        'description' => $data['description'] ?? null,
                         'before' => $before,
-                        'after' => [...$this->historyAfter($row, $data), 'bulk_operation_id' => $operationId],
+                        'after' => [...$this->historyAfter($row, $data), 'type' => $data['type'], 'bulk_operation_id' => $operationId],
                     ]);
                 }
 
