@@ -30,6 +30,9 @@ Route::post('programming/bulk/context', [ProgrammingController::class, 'bulkCont
 Route::post('programming/bulk/check', [ProgrammingController::class, 'bulkCheck'])->name('programming.bulk.check');
 Route::post('programming/bulk/generate', [ProgrammingController::class, 'bulkGenerate'])->name('programming.bulk.generate');
 Route::post('programming/bulk/undo', [ProgrammingController::class, 'bulkUndo'])->name('programming.bulk.undo');
+Route::post('programming/bulk-modifications/check', [ProgrammingController::class, 'bulkModificationCheck'])->name('programming.bulk-modifications.check');
+Route::post('programming/bulk-modifications/options', [ProgrammingController::class, 'bulkModificationOptions'])->name('programming.bulk-modifications.options');
+Route::post('programming/bulk-modifications/apply', [ProgrammingController::class, 'bulkModificationApply'])->name('programming.bulk-modifications.apply');
 Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
 Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
 Route::get('programming/{id}/history', [ProgrammingController::class, 'history'])->name('programming.history');

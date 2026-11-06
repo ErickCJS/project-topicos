@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\admin\Contract;
 use App\Models\admin\Employee;
+use App\Models\admin\Programming;
 use App\Models\admin\Vacation;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class VacationService
             $this->assertCurrentEligibility($employee, $start, $end);
             $this->assertNotPast($start);
             $this->lockAnnualRecords($employee->id, (int) $data['year']);
+            $this->assertNoProgrammingConflict($employee->id, $start, $end);
 
             $this->assertAvailable($employee->id, (int) $data['year'], $start, $end, $days);
 
@@ -76,6 +78,7 @@ class VacationService
             if ($newYear !== $oldYear) {
                 $this->lockAnnualRecords($employee->id, $newYear);
             }
+            $this->assertNoProgrammingConflict($employee->id, $start, $end);
             $this->assertAvailable($employee->id, $newYear, $start, $end, $days, $vacation->id);
 
             $vacation->update([
@@ -124,6 +127,7 @@ class VacationService
             }
 
             $this->lockAnnualRecords($employee->id, $vacation->year);
+            $this->assertNoProgrammingConflict($employee->id, $start, $end);
             $this->assertAvailable($employee->id, $vacation->year, $start, $end, $days, $vacation->id);
 
             $vacation->update([
@@ -315,6 +319,28 @@ class VacationService
 
         if ($overlap) {
             $this->reject('start_date', 'El período se superpone con otra vacación registrada para el empleado.');
+        }
+    }
+
+    private function assertNoProgrammingConflict(int $employeeId, CarbonImmutable $start, CarbonImmutable $end): void
+    {
+        $conflict = Programming::query()
+            ->where('status', '!=', 'Anulado')
+            ->whereNull('programmings.deleted_at')
+            ->whereHas('employees', function ($query) use ($employeeId, $start, $end) {
+                $query->whereKey($employeeId)
+                    ->whereBetween('programming_employees.date', [
+                        $start->toDateString(),
+                        $end->toDateString(),
+                    ]);
+            })
+            ->exists();
+
+        if ($conflict) {
+            $this->reject(
+                'start_date',
+                'El período solicitado se superpone con una programación existente del trabajador.'
+            );
         }
     }
 

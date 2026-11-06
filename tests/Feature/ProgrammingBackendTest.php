@@ -114,17 +114,33 @@ class ProgrammingBackendTest extends TestCase
         $this->assertDatabaseCount('staff_groups', 1);
     }
 
-    public function test_staff_groups_require_at_least_one_helper_on_create_and_edit(): void
+    public function test_staff_groups_allow_optional_helpers_on_create_and_edit(): void
     {
-        foreach ([null, [], [null], ['', null]] as $helpers) {
-            $this->postJson(route('staffgroups.store'), $this->groupData(['helpers' => $helpers]))
-                ->assertUnprocessable()->assertJsonValidationErrors('helpers');
-            $this->putJson(route('staffgroups.update', $this->group), $this->groupData(['helpers' => $helpers]))
-                ->assertUnprocessable()->assertJsonValidationErrors('helpers');
+        $this->group->vehicle->update(['occupats_capacity' => 1]);
+        $this->postJson(route('staffgroups.store'), $this->groupData([
+            'name' => 'Equipo solo conductor', 'vehicle_id' => $this->group->vehicle_id, 'helpers' => [], 'state' => false,
+        ]))->assertCreated();
+        $this->assertDatabaseHas('staff_groups', ['name' => 'Equipo solo conductor']);
+        $this->postJson(route('staffgroups.store'), $this->groupData([
+            'name' => 'Equipo helper nulo', 'vehicle_id' => $this->group->vehicle_id, 'helpers' => null, 'state' => false,
+        ]))->assertCreated();
+        $this->assertDatabaseCount('staff_group_helpers', 1);
+
+        $this->putJson(route('staffgroups.update', $this->group), $this->groupData(['helpers' => []]))->assertOk();
+        $this->assertSame(0, $this->group->fresh()->helpers()->count());
+    }
+
+    public function test_staff_groups_allow_zero_one_or_two_helpers_without_filling_capacity(): void
+    {
+        $secondHelper = $this->employee(2);
+        foreach ([[], [$this->helper->id], [$this->helper->id, $secondHelper->id]] as $index => $helpers) {
+            $this->postJson(route('staffgroups.store'), $this->groupData([
+                'name' => 'Equipo capacidad '.$index,
+                'helpers' => $helpers,
+                'state' => false,
+            ]))->assertCreated();
         }
-        $this->assertDatabaseCount('staff_groups', 1);
-        $this->assertSame(1, $this->group->helpers()->count());
-        $this->postJson(route('staffgroups.store'), $this->groupData(['helpers' => [$this->helper->id, null]]))->assertCreated();
+        $this->assertDatabaseCount('staff_groups', 4);
     }
 
     public function test_staff_groups_reject_repeated_days_helpers_and_excess_capacity(): void
@@ -773,9 +789,41 @@ class ProgrammingBackendTest extends TestCase
     {
         $this->group->vehicle->update(['occupats_capacity' => 1]);
         $this->postJson(route('programming.check'), $this->data())->assertUnprocessable();
+        $checked = $this->checked($this->data(['helpers' => []]));
+        $this->postJson(route('programming.store'), $checked)->assertCreated();
+        $this->assertDatabaseCount('programming_employees', 4);
+        $this->assertDatabaseHas('programming_employees', ['employee_id' => $this->driver->id, 'role' => 'driver']);
         $this->postJson(route('programming.check'), $this->data(['driver_id' => $this->helper->id, 'helpers' => []]))->assertUnprocessable();
         $this->group->update(['state' => false]);
         $this->postJson(route('programming.check'), $this->data(['helpers' => []]))->assertUnprocessable();
+    }
+
+    public function test_bulk_generation_accepts_zero_and_partial_helper_assignments(): void
+    {
+        $secondShift = Shift::create(['name' => 'Turno parcial', 'start_time' => '14:00', 'end_time' => '22:00']);
+        $secondDriver = $this->employee(1);
+        $secondHelper = $this->employee(2);
+        $secondVehicle = $this->alternativeVehicle('Recolector parcial', 'RSU-PART', 'PAR-001', 3);
+        $secondGroup = StaffGroup::create([
+            'name' => 'Equipo parcial', 'zone_id' => $this->group->zone_id, 'shift_id' => $secondShift->id,
+            'vehicle_id' => $secondVehicle->id, 'driver_id' => $secondDriver->id, 'state' => true,
+        ]);
+        $this->copyWorkingDaysTo($secondGroup);
+        $payload = [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'excluded_holidays' => [],
+            'groups' => [
+                ['staff_group_id' => $this->group->id, 'vehicle_id' => $this->group->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => []],
+                ['staff_group_id' => $secondGroup->id, 'vehicle_id' => $secondVehicle->id, 'driver_id' => $secondDriver->id, 'helpers' => [$secondHelper->id]],
+            ],
+        ];
+
+        $check = $this->postJson(route('programming.bulk.check'), $payload)->assertOk()->assertJsonPath('valid', true);
+        $this->postJson(route('programming.bulk.generate'), [...$payload, 'validation_token' => $check->json('validation_token')])
+            ->assertOk()->assertJsonPath('ids.0', 1);
+
+        $this->assertSame(4, DB::table('programming_employees')->where('employee_id', $this->driver->id)->count());
+        $this->assertSame(4, DB::table('programming_employees')->where('employee_id', $secondDriver->id)->count());
+        $this->assertSame(4, DB::table('programming_employees')->where('employee_id', $secondHelper->id)->count());
     }
 
     public function test_group_changes_after_validation_require_a_new_check(): void
@@ -1167,5 +1215,177 @@ class ProgrammingBackendTest extends TestCase
         $this->assertSame($this->group->vehicle_id, $row->fresh()->vehicle_id);
         $this->assertCount(3, $row->fresh()->employees);
         $this->assertDatabaseCount('programming_changes', 1);
+    }
+
+    public function test_bulk_shift_change_updates_all_selected_rows_pivots_snapshots_and_history(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate();
+        $newShift = Shift::create(['name' => 'Turno masivo', 'start_time' => '14:00', 'end_time' => '22:00']);
+        $ids = Programming::pluck('id')->all();
+
+        $preview = $this->postJson(route('programming.bulk-modifications.check'), [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'zone_id' => $this->group->zone_id,
+            'type' => 'shift', 'new_shift_id' => $newShift->id, 'ids' => $ids,
+            'reason' => 'Necesidad operativa', 'description' => 'Cambio de jornada.',
+        ])->assertOk()->assertJsonPath('valid', true);
+
+        $this->postJson(route('programming.bulk-modifications.apply'), [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'zone_id' => $this->group->zone_id,
+            'type' => 'shift', 'new_shift_id' => $newShift->id, 'ids' => $ids,
+            'reason' => 'Necesidad operativa', 'description' => 'Cambio de jornada.',
+            'validation_token' => $preview->json('validation_token'),
+        ])->assertOk()->assertJsonPath('count', 4);
+
+        $this->assertDatabaseCount('programming_changes', 8);
+        $this->assertSame(4, Programming::where('shift_id', $newShift->id)->count());
+        $this->assertSame(8, DB::table('programming_employees')->where('shift_id', $newShift->id)->count());
+        $bulkChanges = DB::table('programming_changes')->where('action', 'Cambio masivo de turno')->get();
+        $this->assertCount(4, $bulkChanges);
+        $this->assertCount(1, $bulkChanges->map(fn ($change) => json_decode($change->after, true)['bulk_operation_id'])->unique());
+    }
+
+    public function test_bulk_preview_discovers_rows_without_applying_or_requiring_ids(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $newShift = Shift::create(['name' => 'Turno vista previa', 'start_time' => '14:00', 'end_time' => '22:00']);
+        $row = Programming::firstOrFail();
+        $payload = [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'zone_id' => $this->group->zone_id,
+            'type' => 'shift', 'new_shift_id' => $newShift->id, 'reason' => 'Necesidad operativa',
+        ];
+
+        $this->postJson(route('programming.bulk-modifications.check'), $payload)
+            ->assertOk()
+            ->assertJsonPath('valid', true)
+            ->assertJsonCount(1, 'ids');
+
+        $this->assertSame($this->group->shift_id, $row->fresh()->shift_id);
+        $this->assertDatabaseCount('programming_changes', 1);
+    }
+
+    public function test_bulk_helper_change_replaces_only_the_selected_helper(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate();
+        $newHelper = $this->employee(2);
+        $ids = Programming::pluck('id')->all();
+
+        $preview = $this->postJson(route('programming.bulk-modifications.check'), [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'zone_id' => $this->group->zone_id,
+            'type' => 'helper', 'old_employee_id' => $this->helper->id, 'new_employee_id' => $newHelper->id,
+            'ids' => $ids, 'reason' => 'Inasistencia',
+        ])->assertOk()->assertJsonPath('valid', true);
+
+        $this->postJson(route('programming.bulk-modifications.apply'), [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'zone_id' => $this->group->zone_id,
+            'type' => 'helper', 'old_employee_id' => $this->helper->id, 'new_employee_id' => $newHelper->id,
+            'ids' => $ids, 'reason' => 'Inasistencia', 'validation_token' => $preview->json('validation_token'),
+        ])->assertOk()->assertJsonPath('count', 4);
+
+        $this->assertSame(0, DB::table('programming_employees')->where('employee_id', $this->helper->id)->count());
+        $this->assertSame(4, DB::table('programming_employees')->where('employee_id', $newHelper->id)->where('role', 'helper')->count());
+        $this->assertDatabaseCount('programming_changes', 8);
+    }
+
+    public function test_bulk_change_revalidates_and_rolls_back_the_whole_batch(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate();
+        $newDriver = $this->employee(1);
+        $ids = Programming::pluck('id')->all();
+        $payload = [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'zone_id' => $this->group->zone_id,
+            'type' => 'driver', 'new_driver_id' => $newDriver->id, 'ids' => $ids,
+            'reason' => 'Cambio de disponibilidad', 'description' => 'Prueba de atomicidad.',
+        ];
+        $preview = $this->postJson(route('programming.bulk-modifications.check'), $payload)->assertOk()->assertJsonPath('valid', true);
+        Vacation::create(['employee_id' => $newDriver->id, 'year' => 2026, 'start_date' => '2026-11-04', 'end_date' => '2026-11-04', 'scheduled_days' => 1, 'pending_days' => 29, 'status' => 'Aprobada']);
+
+        $this->postJson(route('programming.bulk-modifications.apply'), [...$payload, 'validation_token' => $preview->json('validation_token')])->assertUnprocessable();
+        $this->assertSame(0, Programming::where('driver_id', $newDriver->id)->count());
+        $this->assertSame(4, DB::table('programming_employees')->where('employee_id', $this->driver->id)->count());
+        $this->assertDatabaseCount('programming_changes', 4);
+    }
+
+    public function test_bulk_selection_excludes_finalized_annulled_and_soft_deleted_rows(): void
+    {
+        $this->generate();
+        $rows = Programming::orderBy('id')->get();
+        $rows[0]->update(['status' => 'Finalizado']);
+        $rows[1]->update(['status' => 'Anulado']);
+        $rows[2]->delete();
+
+        $this->postJson(route('programming.bulk-modifications.options'), [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'zone_id' => $this->group->zone_id, 'type' => 'vehicle',
+        ])->assertOk()->assertJsonPath('count', 1);
+    }
+
+    public function test_bulk_driver_and_vehicle_changes_use_the_existing_role_and_capacity_rules(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate();
+        $newDriver = $this->employee(1);
+        $newVehicle = $this->alternativeVehicle('Vehículo masivo', 'RSU-BULK', 'BUL-001');
+        $ids = Programming::pluck('id')->all();
+        $driverPayload = [
+            'start_date' => '2026-11-02', 'end_date' => '2026-11-08', 'zone_id' => $this->group->zone_id,
+            'type' => 'driver', 'new_driver_id' => $newDriver->id, 'ids' => $ids, 'reason' => 'Cambio de disponibilidad',
+        ];
+        $driverPreview = $this->postJson(route('programming.bulk-modifications.check'), $driverPayload)->assertOk()->assertJsonPath('valid', true);
+        $this->postJson(route('programming.bulk-modifications.apply'), [...$driverPayload, 'validation_token' => $driverPreview->json('validation_token')])->assertOk();
+
+        $vehiclePayload = [...$driverPayload, 'type' => 'vehicle', 'new_driver_id' => null, 'new_vehicle_id' => $newVehicle->id, 'reason' => 'Mantenimiento preventivo'];
+        $vehiclePreview = $this->postJson(route('programming.bulk-modifications.check'), $vehiclePayload)->assertOk()->assertJsonPath('valid', true);
+        $this->postJson(route('programming.bulk-modifications.apply'), [...$vehiclePayload, 'validation_token' => $vehiclePreview->json('validation_token')])->assertOk();
+
+        $this->assertSame(4, Programming::where('driver_id', $newDriver->id)->where('vehicle_id', $newVehicle->id)->count());
+        $this->assertSame(4, DB::table('programming_employees')->where('employee_id', $newDriver->id)->where('role', 'driver')->count());
+    }
+
+    public function test_bulk_modification_dates_are_inclusive_and_reject_reversed_ranges(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $newShift = Shift::create(['name' => 'Turno fechas', 'start_time' => '14:00', 'end_time' => '22:00']);
+        $base = ['zone_id' => $this->group->zone_id, 'type' => 'shift', 'new_shift_id' => $newShift->id, 'ids' => Programming::pluck('id')->all(), 'reason' => 'Necesidad operativa'];
+
+        $this->postJson(route('programming.bulk-modifications.check'), [...$base, 'start_date' => '2026-11-03', 'end_date' => '2026-11-02'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['end_date'])->assertJsonFragment(['La fecha final no puede ser anterior a la fecha inicial.']);
+        $this->postJson(route('programming.bulk-modifications.check'), [...$base, 'start_date' => '2026-11-02', 'end_date' => '2026-11-02'])
+            ->assertOk()->assertJsonPath('valid', true);
+        $this->postJson(route('programming.bulk-modifications.check'), [...$base, 'start_date' => '2026-11-02', 'end_date' => '2026-11-03'])
+            ->assertOk()->assertJsonPath('valid', true);
+    }
+
+    public function test_bulk_driver_selection_uses_employee_id_and_requires_active_existing_employee(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $newDriver = $this->employee(1);
+        $payload = ['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'zone_id' => $this->group->zone_id, 'type' => 'driver', 'new_driver_id' => $newDriver->id, 'ids' => Programming::pluck('id')->all(), 'reason' => 'Cambio de disponibilidad'];
+
+        $options = $this->postJson(route('programming.bulk-modifications.options'), ['start_date' => $payload['start_date'], 'end_date' => $payload['end_date'], 'zone_id' => $payload['zone_id'], 'type' => 'driver'])->assertOk();
+        $this->assertSame($newDriver->id, collect($options->json('people'))->firstWhere('id', $newDriver->id)['id']);
+        $this->postJson(route('programming.bulk-modifications.check'), $payload)->assertOk()->assertJsonPath('valid', true);
+
+        $newDriver->update(['status' => 'Inactivo']);
+        $this->postJson(route('programming.bulk-modifications.check'), $payload)->assertOk()->assertJsonPath('valid', false)->assertJsonFragment(['Seleccione personal activo con el cargo correspondiente.']);
+        $this->postJson(route('programming.bulk-modifications.check'), [...$payload, 'new_driver_id' => 999999])
+            ->assertUnprocessable()->assertJsonFragment(['El conductor seleccionado no existe.']);
+    }
+
+    public function test_bulk_apply_requires_preview_and_date_changes_invalidate_the_token(): void
+    {
+        $this->seed(ReasonSeeder::class);
+        $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
+        $newShift = Shift::create(['name' => 'Turno token', 'start_time' => '14:00', 'end_time' => '22:00']);
+        $payload = ['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'zone_id' => $this->group->zone_id, 'type' => 'shift', 'new_shift_id' => $newShift->id, 'ids' => Programming::pluck('id')->all(), 'reason' => 'Necesidad operativa'];
+
+        $this->postJson(route('programming.bulk-modifications.apply'), $payload)->assertUnprocessable()->assertJsonFragment(['La vista previa expiró o los datos cambiaron. Consulte nuevamente antes de confirmar.']);
+        $preview = $this->postJson(route('programming.bulk-modifications.check'), $payload)->assertOk()->assertJsonPath('valid', true);
+        $this->postJson(route('programming.bulk-modifications.apply'), [...$payload, 'end_date' => '2026-11-03', 'validation_token' => $preview->json('validation_token')])->assertUnprocessable();
+        $this->assertSame($this->group->shift_id, Programming::firstOrFail()->shift_id);
     }
 }

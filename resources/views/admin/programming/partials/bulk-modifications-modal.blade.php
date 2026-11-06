@@ -1,0 +1,40 @@
+<div class="modal fade" id="bulkModificationModal" tabindex="-1" aria-labelledby="bulkModificationTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div><h5 class="modal-title" id="bulkModificationTitle">Cambio masivo de programaciones</h5><div class="small text-body-secondary">Solo se consideran programaciones programadas de la zona seleccionada.</div></div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="border-bottom pb-2">1. Selección del período y zona</h6>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3"><label class="form-label" for="bulkModificationStart">Fecha inicial *</label><input type="date" class="form-control" id="bulkModificationStart"></div>
+                    <div class="col-md-3"><label class="form-label" for="bulkModificationEnd">Fecha final *</label><input type="date" class="form-control" id="bulkModificationEnd"></div>
+                    <div class="col-md-3"><label class="form-label" for="bulkModificationZone">Zona *</label><select class="form-select" id="bulkModificationZone"><option value="">Seleccione una zona</option>@foreach($zones as $zone)<option value="{{ $zone->id }}">{{ $zone->name }}</option>@endforeach</select></div>
+                    <div class="col-md-3"><button type="button" class="btn btn-outline-primary w-100" id="bulkModificationPreview">Consultar vista previa</button></div>
+                </div>
+                <hr>
+                <h6 class="border-bottom pb-2">2. Tipo de cambio y nuevo valor</h6>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3"><label class="form-label" for="bulkModificationType">Tipo de cambio *</label><select class="form-select" id="bulkModificationType"><option value="">Seleccione</option><option value="shift">Turno</option><option value="driver">Conductor</option><option value="helper">Ocupante / ayudante</option><option value="vehicle">Vehículo</option></select></div>
+                    <div class="col-md-3 d-none" id="bulkModificationShiftField"><label class="form-label" for="bulkModificationShift">Nuevo turno *</label><select class="form-select" id="bulkModificationShift"><option value="">Seleccione</option>@foreach($shifts as $shift)<option value="{{ $shift->id }}">{{ $shift->name }}</option>@endforeach</select></div>
+                    <div class="col-md-3 d-none" id="bulkModificationDriverField"><label class="form-label" for="bulkModificationDriver">Nuevo conductor *</label><select class="form-select" id="bulkModificationDriver"><option value="">Seleccione</option></select></div>
+                    <div class="col-md-3 d-none" id="bulkModificationHelperOldField"><label class="form-label" for="bulkModificationHelperOld">Ocupante actual *</label><select class="form-select" id="bulkModificationHelperOld"><option value="">Consulte primero</option></select></div>
+                    <div class="col-md-3 d-none" id="bulkModificationHelperNewField"><label class="form-label" for="bulkModificationHelperNew">Nuevo ocupante *</label><select class="form-select" id="bulkModificationHelperNew"><option value="">Seleccione</option></select></div>
+                    <div class="col-md-3 d-none" id="bulkModificationVehicleField"><label class="form-label" for="bulkModificationVehicle">Nuevo vehículo *</label><select class="form-select" id="bulkModificationVehicle"><option value="">Seleccione</option></select></div>
+                </div>
+                <h6 class="border-bottom pb-2 mt-4">3. Motivo y detalle</h6>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-4"><label class="form-label" for="bulkModificationReason">Motivo *</label><select class="form-select" id="bulkModificationReason"><option value="">Seleccione</option>@foreach($reasons as $reason)<option value="{{ $reason->name }}">{{ $reason->name }}</option>@endforeach</select></div>
+                    <div class="col-md-8"><label class="form-label" for="bulkModificationDescription">Detalle</label><textarea class="form-control" id="bulkModificationDescription" maxlength="1000" rows="2"></textarea></div>
+                    <div class="col-md-4 d-none" id="bulkModificationCustomReasonField"><label class="form-label" for="bulkModificationCustomReason">Especifique el motivo *</label><input class="form-control" id="bulkModificationCustomReason" maxlength="120"></div>
+                </div>
+                <h6 class="border-bottom pb-2 mt-4">4. Vista previa y confirmación</h6>
+                <div class="alert alert-info mt-3 d-none" id="bulkModificationSummary"></div>
+                <div class="alert alert-danger mt-3 d-none" id="bulkModificationConflictSummary"></div>
+                <div class="table-responsive mt-3 d-none" id="bulkModificationReportWrap"><table class="table table-sm table-hover align-middle bulk-modification-preview-table"><thead><tr><th>Fecha</th><th>Turno</th><th>Vehículo</th><th>Conductor</th><th>Ayudantes</th><th>Resultado</th><th>Detalle</th></tr></thead><tbody id="bulkModificationReport"></tbody></table></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button><button type="button" class="btn btn-warning" id="bulkModificationApply" disabled>Confirmar cambio masivo</button></div>
+        </div>
+    </div>
+</div>

@@ -70,29 +70,13 @@ class AttendancesController extends Controller
     public function store(Request $request)
     {
         $data = $this->validatedData($request);
-        $eligible = DB::table('employees')->where('employees.id', $data['employee_id'])
-            ->whereExists(function ($query) use ($data) {
-                $query->selectRaw('1')->from('contracts')
-                    ->whereColumn('contracts.employee_id', 'employees.id')
-                    ->where('contracts.is_active', true)->whereNull('contracts.cancelled_at')
-                    ->whereDate('contracts.start_date', '<=', $data['date'])
-                    ->where(function ($endDate) use ($data) {
-                        $endDate->whereNull('contracts.end_date')->orWhereDate('contracts.end_date', '>=', $data['date']);
-                    });
-            })
-            ->whereNotExists(function ($query) use ($data) {
-                $query->selectRaw('1')->from('vacations')
-                    ->whereColumn('vacations.employee_id', 'employees.id')
-                    ->where('vacations.status', 'Aprobada')
-                    ->whereDate('vacations.start_date', '<=', $data['date'])
-                    ->whereDate('vacations.end_date', '>=', $data['date']);
-            })->exists();
-        if (! $eligible) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['employee_id' => 'El empleado no tiene un contrato vigente para la fecha de asistencia o tiene vacaciones aprobadas.']);
-        }
+        $attendance = DB::transaction(function () use ($data) {
+            $this->lockEmployee($data['employee_id']);
+            $this->assertEligible($data);
+            $this->assertProgrammedAssignment($data);
 
-
-        $attendance = Attendance::create($data);
+            return Attendance::create($data);
+        }, 3);
 
         return response()->json([
             'mensaje' => 'Asistencia registrada correctamente.',
@@ -126,6 +110,26 @@ class AttendancesController extends Controller
     public function update(Request $request, Attendance $attendance)
     {
         $data = $this->validatedData($request);
+        DB::transaction(function () use ($data, $attendance) {
+            $this->lockEmployee($data['employee_id']);
+            $lockedAttendance = Attendance::whereKey($attendance->id)->lockForUpdate()->firstOrFail();
+            $this->assertEligible($data);
+            $this->assertProgrammedAssignment($data);
+            $lockedAttendance->update($data);
+        }, 3);
+
+        return response()->json([
+            'mensaje' => 'Asistencia actualizada correctamente.',
+        ]);
+    }
+
+    private function lockEmployee(int $employeeId): void
+    {
+        DB::table('employees')->where('id', $employeeId)->lockForUpdate()->firstOrFail();
+    }
+
+    private function assertEligible(array $data): void
+    {
         $eligible = DB::table('employees')->where('employees.id', $data['employee_id'])
             ->whereExists(function ($query) use ($data) {
                 $query->selectRaw('1')->from('contracts')
@@ -146,12 +150,24 @@ class AttendancesController extends Controller
         if (! $eligible) {
             throw \Illuminate\Validation\ValidationException::withMessages(['employee_id' => 'El empleado no tiene un contrato vigente para la fecha de asistencia o tiene vacaciones aprobadas.']);
         }
+    }
 
-        $attendance->update($data);
+    private function assertProgrammedAssignment(array $data): void
+    {
+        $assigned = DB::table('programming_employees')
+            ->join('programmings', 'programmings.id', '=', 'programming_employees.programming_id')
+            ->where('programming_employees.employee_id', $data['employee_id'])
+            ->whereDate('programming_employees.date', $data['date'])
+            ->where('programming_employees.shift_id', $data['shift_id'])
+            ->whereIn('programmings.status', ['Programado', 'Finalizado'])
+            ->whereNull('programmings.deleted_at')
+            ->exists();
 
-        return response()->json([
-            'mensaje' => 'Asistencia actualizada correctamente.',
-        ]);
+        if (! $assigned) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'employee_id' => 'El empleado no tiene una programación diaria para la fecha y turno de la asistencia.',
+            ]);
+        }
     }
 
     public function destroy(Attendance $attendance)

@@ -54,6 +54,16 @@ class AttendancesCrudTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        DB::table('contracts')->insert([
+            'employee_id' => $this->employeeId,
+            'type' => 'Permanente',
+            'start_date' => '2026-01-01',
+            'end_date' => null,
+            'salary' => 1500,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->shiftId = DB::table('shifts')->insertGetId([
             'name' => 'Mañana',
@@ -62,6 +72,8 @@ class AttendancesCrudTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $this->createProgramming('2026-10-16');
+        $this->createProgramming('2026-10-17');
     }
 
     public function test_authenticated_user_can_list_attendances(): void
@@ -258,6 +270,57 @@ class AttendancesCrudTest extends TestCase
         $this->assertSame('2026-10-16', Attendance::first()->date->format('Y-m-d'));
     }
 
+    public function test_attendance_requires_a_programmed_assignment_for_the_same_date_and_shift(): void
+    {
+        $this->postJson(route('attendances.store'), $this->validData(['date' => '2026-10-18']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('employee_id');
+        $this->assertDatabaseCount('attendances', 0);
+
+        $otherShiftId = DB::table('shifts')->insertGetId([
+            'name' => 'Noche', 'start_time' => '14:00:00', 'end_time' => '22:00:00',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->createProgramming('2026-10-19', 'Programado', null, $this->employeeId, $otherShiftId);
+        $this->postJson(route('attendances.store'), $this->validData(['date' => '2026-10-19']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('employee_id');
+    }
+
+    public function test_attendance_accepts_a_helper_assignment_and_finished_historical_programming(): void
+    {
+        $helperId = $this->createOtherEmployee();
+        DB::table('contracts')->insert([
+            'employee_id' => $helperId, 'type' => 'Permanente', 'start_date' => '2026-01-01',
+            'end_date' => null, 'salary' => 1500, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $programmingId = DB::table('programmings')->where('date', '2026-10-16')->value('id');
+        DB::table('programming_employees')->insert([
+            'programming_id' => $programmingId, 'employee_id' => $helperId, 'shift_id' => $this->shiftId,
+            'date' => '2026-10-16', 'role' => 'helper',
+        ]);
+
+        $this->postJson(route('attendances.store'), $this->validData(['employee_id' => $helperId]))
+            ->assertCreated();
+
+        $this->createProgramming('2026-10-20', 'Finalizado');
+        $this->postJson(route('attendances.store'), $this->validData(['date' => '2026-10-20']))
+            ->assertCreated();
+    }
+
+    public function test_attendance_rejects_annulled_and_soft_deleted_programmings(): void
+    {
+        $this->createProgramming('2026-10-18', 'Anulado');
+        $this->createProgramming('2026-10-19', 'Programado', now()->toDateTimeString());
+
+        foreach (['2026-10-18', '2026-10-19'] as $date) {
+            $this->postJson(route('attendances.store'), $this->validData(['date' => $date]))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('employee_id');
+        }
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
     public function test_create_and_edit_forms_use_attendance_fields_and_existing_catalogs(): void
     {
         $this->get(route('attendances.create'))
@@ -353,6 +416,25 @@ class AttendancesCrudTest extends TestCase
         $this->assertSame('2026-10-17', $attendance->fresh()->date->format('Y-m-d'));
     }
 
+    public function test_rejected_attendance_edit_does_not_modify_the_existing_record(): void
+    {
+        $attendance = $this->createAttendance();
+        $this->putJson(route('attendances.update', $attendance), $this->validData([
+            'date' => '2026-10-18',
+            'time' => '12:00',
+            'type' => 'Salida',
+            'status' => 'Ausente',
+            'notes' => 'No debe persistir',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('employee_id');
+
+        $saved = $attendance->fresh();
+        $this->assertSame('2026-10-16', $saved->date->format('Y-m-d'));
+        $this->assertSame('08:30', $saved->time);
+        $this->assertSame('Entrada', $saved->type);
+        $this->assertSame('Presente', $saved->status);
+        $this->assertSame('Observación de prueba', $saved->notes);
+    }
+
     public function test_authenticated_user_can_delete_an_attendance(): void
     {
         $attendance = $this->createAttendance();
@@ -424,6 +506,40 @@ class AttendancesCrudTest extends TestCase
     private function createAttendance(array $overrides = []): Attendance
     {
         return Attendance::create($this->validData($overrides));
+    }
+
+    private function createProgramming(string $date, string $status = 'Programado', ?string $deletedAt = null, ?int $employeeId = null, ?int $shiftId = null): void
+    {
+        $employeeId ??= $this->employeeId;
+        $shiftId ??= $this->shiftId;
+        $sequence = DB::table('departments')->count() + 1;
+        $department = DB::table('departments')->insertGetId(['code' => str_pad((string) $sequence, 2, '0', STR_PAD_LEFT), 'name' => 'Departamento '.$sequence, 'created_at' => now(), 'updated_at' => now()]);
+        $province = DB::table('provinces')->insertGetId(['department_id' => $department, 'code' => str_pad((string) $sequence, 4, '0', STR_PAD_LEFT), 'name' => 'Provincia '.$sequence, 'created_at' => now(), 'updated_at' => now()]);
+        $district = DB::table('districts')->insertGetId(['province_id' => $province, 'code' => str_pad((string) $sequence, 6, '0', STR_PAD_LEFT), 'name' => 'Distrito '.$sequence, 'created_at' => now(), 'updated_at' => now()]);
+        $zone = DB::table('zones')->insertGetId(['name' => 'Zona '.$sequence, 'district_id' => $district, 'created_at' => now(), 'updated_at' => now()]);
+        $brand = DB::table('brands')->insertGetId(['name' => 'Marca '.$sequence, 'created_at' => now(), 'updated_at' => now()]);
+        $model = DB::table('brandmodels')->insertGetId(['name' => 'Modelo '.$sequence, 'brand_id' => $brand, 'created_at' => now(), 'updated_at' => now()]);
+        $vehicleType = DB::table('vehicletypes')->insertGetId(['name' => 'Tipo '.$sequence, 'created_at' => now(), 'updated_at' => now()]);
+        $color = DB::table('color')->insertGetId(['name' => 'Color '.$sequence, 'code' => '#123456', 'created_at' => now(), 'updated_at' => now()]);
+        $vehicle = DB::table('vehicles')->insertGetId([
+            'code' => 'V-'.$sequence, 'name' => 'Vehículo '.$sequence, 'plate' => 'ABC-'.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT),
+            'year' => 2026, 'load_capacity' => 5, 'occupats_capacity' => 3, 'fuel_capacity' => 10, 'compact_capacity' => 5,
+            'type_id' => $vehicleType, 'brand_id' => $brand, 'model_id' => $model, 'color_id' => $color,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $group = DB::table('staff_groups')->insertGetId([
+            'name' => 'Grupo '.$sequence, 'shift_id' => $shiftId, 'zone_id' => $zone, 'vehicle_id' => $vehicle,
+            'driver_id' => $employeeId, 'state' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $programming = DB::table('programmings')->insertGetId([
+            'staff_group_id' => $group, 'zone_id' => $zone, 'shift_id' => $shiftId, 'vehicle_id' => $vehicle,
+            'driver_id' => $employeeId, 'date' => $date, 'status' => $status, 'snapshot' => json_encode([]),
+            'deleted_at' => $deletedAt, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('programming_employees')->insert([
+            'programming_id' => $programming, 'employee_id' => $employeeId, 'shift_id' => $shiftId,
+            'date' => $date, 'role' => 'driver',
+        ]);
     }
 
     private function createOtherEmployee(): int

@@ -86,3 +86,19 @@
     .programming-module #programmingModificationsModal .modal-body { padding: 1rem; }
     .programming-module .programming-change-card .card-body { padding: .9rem; }
 }
+.bulk-modification-preview-table { min-width: 930px; }
+.bulk-modification-preview-table td { vertical-align: top; white-space: normal !important; }
+.bulk-preview-value { display: block; min-width: 110px; overflow-wrap: anywhere; }
+.bulk-preview-change { display: grid; min-width: 150px; gap: .2rem; }
+.bulk-preview-change small { display: block; color: var(--bs-secondary-color); font-size: .68rem; font-weight: 600; text-transform: uppercase; }
+.bulk-preview-old, .bulk-preview-new { display: block; padding: .25rem .4rem; border-radius: .3rem; overflow-wrap: anywhere; }
+.bulk-preview-old { background: var(--bs-tertiary-bg); color: var(--bs-secondary-color); }
+.bulk-preview-new { background: rgba(var(--bs-success-rgb), .12); color: var(--bs-success-text-emphasis); font-weight: 600; }
+.bulk-preview-same { min-width: 150px; padding: .35rem .45rem; border: 1px dashed var(--bs-warning-border-subtle); border-radius: .3rem; color: var(--bs-warning-text-emphasis); overflow-wrap: anywhere; }
+.bulk-preview-same small { display: block; font-size: .68rem; font-weight: 600; text-transform: uppercase; }
+.bulk-preview-arrow { color: var(--bs-secondary-color); font-size: .75rem; line-height: 1; }
+.bulk-preview-errors { min-width: 220px; }
+@media (max-width: 767.98px) {
+    .bulk-modification-preview-table { min-width: 760px; }
+    .bulk-preview-change { min-width: 125px; }
+}
