@@ -36,7 +36,8 @@ class ProgrammingService
         if (count(array_unique($ids)) !== count($ids)) {
             $this->reject('Una persona no puede ocupar dos plazas del mismo equipo.');
         }
-        if (count($ids) > (int) $group->vehicle->occupats_capacity) {
+        $vehicle = Vehicle::findOrFail((int) ($data['vehicle_id'] ?? $group->vehicle_id));
+        if (count($ids) > (int) $vehicle->occupats_capacity) {
             $this->reject('El equipo supera la capacidad de ocupantes del vehículo.');
         }
         $people = Employee::with(['contracts', 'vacations'])->whereIn('id', $ids)->get()->keyBy('id');
@@ -85,10 +86,10 @@ class ProgrammingService
                 }
             }
         }
-        $vehicleDates = $occupied->where('vehicle_id', $group->vehicle_id)->pluck('date')->map(fn ($date) => $date->toDateString())->values()->all();
+        $vehicleDates = $occupied->where('vehicle_id', $vehicle->id)->pluck('date')->map(fn ($date) => $date->toDateString())->values()->all();
         if ($vehicleDates) {
-            $issues[] = ['person' => $group->vehicle->name, 'reason' => 'Vehículo asignado en la misma fecha y turno', 'dates' => $vehicleDates,
-                'routes' => $occupied->where('vehicle_id', $group->vehicle_id)->map($routeContext)->values()->all()];
+            $issues[] = ['person' => $vehicle->name, 'reason' => 'Vehículo asignado en la misma fecha y turno', 'dates' => $vehicleDates,
+                'routes' => $occupied->where('vehicle_id', $vehicle->id)->map($routeContext)->values()->all()];
         }
         $suggestions = [];
         if ($issues && $dates) {
@@ -110,7 +111,7 @@ class ProgrammingService
             }
         }
 
-        return compact('group', 'people', 'dates', 'issues', 'suggestions', 'omittedHolidays', 'omittedDuplicates', 'includedHolidays', 'holidayRecords');
+        return compact('group', 'vehicle', 'people', 'dates', 'issues', 'suggestions', 'omittedHolidays', 'omittedDuplicates', 'includedHolidays', 'holidayRecords');
     }
 
     public function availablePeople(array $data, ?Programming $editing = null): array
@@ -223,7 +224,7 @@ class ProgrammingService
                     $editing = Programming::whereKey($editing->id)->lockForUpdate()->firstOrFail();
                 }
                 $group = StaffGroup::findOrFail($data['staff_group_id']);
-                Vehicle::whereKey($group->vehicle_id)->lockForUpdate()->firstOrFail();
+                Vehicle::whereKey((int) ($data['vehicle_id'] ?? $group->vehicle_id))->lockForUpdate()->firstOrFail();
                 Employee::whereIn('id', array_merge([$data['driver_id']], $data['helpers'] ?? []))->orderBy('id')->lockForUpdate()->get();
                 $result = $this->inspect($data, $editing);
                 if ($groupFingerprint && ! hash_equals($groupFingerprint, $this->groupFingerprint($result['group']))) {
@@ -238,7 +239,7 @@ class ProgrammingService
                 $snapshot = [
                     'group' => $result['group']->name, 'zone' => $result['group']->zone->name,
                     'shift' => $result['group']->shift->name, 'hours' => substr($result['group']->shift->start_time, 0, 5).' - '.substr($result['group']->shift->end_time, 0, 5),
-                    'vehicle' => $result['group']->vehicle->name, 'plate' => $result['group']->vehicle->plate,
+                    'vehicle' => $result['vehicle']->name, 'plate' => $result['vehicle']->plate,
                     'driver' => $this->name($result['people'][$data['driver_id']]),
                     'helpers' => collect($data['helpers'] ?? [])->map(fn ($id) => $this->name($result['people'][$id]))->values()->all(),
                 ];
@@ -255,9 +256,9 @@ class ProgrammingService
                     $before = $editing ? $row->toArray() : null;
                     $row->fill([
                         'staff_group_id' => $group->id, 'zone_id' => $group->zone_id, 'shift_id' => $group->shift_id,
-                        'vehicle_id' => $group->vehicle_id, 'driver_id' => $data['driver_id'], 'date' => $date,
+                        'vehicle_id' => $result['vehicle']->id, 'driver_id' => $data['driver_id'], 'date' => $date,
                         'notes' => $data['notes'] ?? null, 'snapshot' => $dailySnapshot,
-                        'group_date_key' => $group->id.':'.$date, 'vehicle_date_key' => $date.':'.$group->shift_id.':'.$group->vehicle_id,
+                        'group_date_key' => $group->id.':'.$date, 'vehicle_date_key' => $date.':'.$group->shift_id.':'.$result['vehicle']->id,
                     ]);
                     if (! $row->exists) {
                         $row->created_by = $userId;
@@ -272,7 +273,7 @@ class ProgrammingService
                     $row->changes()->create(['user_id' => $userId, 'action' => $editing ? 'Modificación' : 'Creación', 'before' => $before, 'after' => $row->toArray()]);
                 }
 
-                return ['created' => count($result['dates']), 'omitted_holidays' => $result['omittedHolidays'], 'omitted_duplicates' => $result['omittedDuplicates'], 'included_holidays' => $result['includedHolidays']];
+                return ['created' => count($result['dates']), 'created_ids' => Programming::where('created_by', $userId)->whereIn('group_date_key', collect($result['dates'])->map(fn ($date) => $group->id.':'.$date))->pluck('id')->all(), 'omitted_holidays' => $result['omittedHolidays'], 'omitted_duplicates' => $result['omittedDuplicates'], 'included_holidays' => $result['includedHolidays']];
             }, 3);
         } catch (QueryException $exception) {
             if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {

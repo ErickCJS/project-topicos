@@ -26,6 +26,10 @@ Route::get('programming', [ProgrammingController::class, 'index'])->name('progra
 Route::get('programming/holidays', [ProgrammingController::class, 'holidays'])->name('programming.holidays');
 Route::get('programming/people', [ProgrammingController::class, 'people'])->name('programming.people');
 Route::get('programming/groups/{staffGroup}', [ProgrammingController::class, 'group'])->name('programming.group');
+Route::post('programming/bulk/context', [ProgrammingController::class, 'bulkContext'])->name('programming.bulk.context');
+Route::post('programming/bulk/check', [ProgrammingController::class, 'bulkCheck'])->name('programming.bulk.check');
+Route::post('programming/bulk/generate', [ProgrammingController::class, 'bulkGenerate'])->name('programming.bulk.generate');
+Route::post('programming/bulk/undo', [ProgrammingController::class, 'bulkUndo'])->name('programming.bulk.undo');
 Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
 Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
 Route::get('programming/{id}/history', [ProgrammingController::class, 'history'])->name('programming.history');

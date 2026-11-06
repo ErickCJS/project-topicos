@@ -61,6 +61,7 @@
     </div></div>
 
     @include('admin.programming.partials.form-modal')
+    @include('admin.programming.partials.bulk-modal')
     @include('admin.programming.partials.modifications-modal')
 
     <div class="modal fade" id="programmingDetailModal" tabindex="-1" aria-labelledby="programmingDetailTitle" aria-hidden="true">
@@ -76,4 +77,5 @@
 @section('js')
 <script src="{{ asset('js/programming-reports.js') }}"></script>
 <script src="{{ asset('js/programming.js') }}"></script>
+<script src="{{ asset('js/bulk-programming.js') }}"></script>
 @stop

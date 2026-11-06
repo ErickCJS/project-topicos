@@ -8,6 +8,8 @@ use App\Models\admin\Programming;
 use App\Models\admin\Shift;
 use App\Models\admin\StaffGroup;
 use App\Models\admin\Zone;
+use App\Models\admin\Employee;
+use App\Models\admin\Vehicle;
 use App\Services\ProgrammingService;
 use App\Services\ProgrammingModificationService;
 use Carbon\CarbonImmutable;
@@ -92,6 +94,93 @@ class ProgrammingController extends Controller
         $editing = $data['programming_id'] ? Programming::findOrFail($data['programming_id']) : null;
 
         return response()->json($this->service->availablePeople($data, $editing));
+    }
+
+    /** Data for the modal. It intentionally reads configuration but never writes it. */
+    public function bulkContext(Request $request)
+    {
+        $dates = $request->validate(['start_date' => ['required','date_format:Y-m-d','after_or_equal:'.today('America/Lima')->toDateString()], 'end_date' => ['required','date_format:Y-m-d','after_or_equal:start_date']]);
+        $groups = StaffGroup::with(['zone','shift','vehicle','driver','helpers','days'])->where('state', true)->orderBy('name')->get();
+        return response()->json([
+            'holidays' => Holiday::where('state', true)->whereBetween('date', [$dates['start_date'], $dates['end_date']])->orderBy('date')->get()->map(fn ($h) => ['date' => $h->date->toDateString(), 'name' => $h->name]),
+            'groups' => $groups->map(fn ($g) => ['id'=>$g->id,'name'=>$g->name,'zone'=>$g->zone->name,'shift'=>$g->shift->name,'shift_id'=>$g->shift_id,'days'=>$g->days->pluck('day')->values(), 'vehicle_id'=>$g->vehicle_id,'driver_id'=>$g->driver_id,'helpers'=>$g->helpers->pluck('id')->values(), 'capacity'=>(int)$g->vehicle->occupats_capacity]),
+            'vehicles' => Vehicle::orderBy('name')->get(['id','code','name','plate','occupats_capacity']),
+            // Solo se muestra personal disponible para el período solicitado. La
+            // validación final se repite por grupo y fecha antes de guardar.
+            'people' => Employee::with(['contracts', 'vacations'])->where('status','Activo')->orderBy('last_name')->orderBy('first_name')->get()
+                ->filter(function (Employee $person) use ($dates) {
+                    $hasContract = $person->contracts->contains(fn ($contract) => $contract->is_active && ! $contract->cancelled_at
+                        && $contract->start_date->toDateString() <= $dates['start_date']
+                        && (! $contract->end_date || $contract->end_date->toDateString() >= $dates['end_date']));
+                    $hasVacation = $person->vacations->contains(fn ($vacation) => $vacation->status === 'Aprobada' && $vacation->start_date && $vacation->end_date
+                        && $vacation->start_date->toDateString() <= $dates['end_date'] && $vacation->end_date->toDateString() >= $dates['start_date']);
+                    return $hasContract && ! $hasVacation;
+                })->map(fn ($p) => ['id'=>$p->id,'name'=>trim($p->first_name.' '.$p->last_name),'dni'=>$p->dni,'is_driver'=>(int)$p->employee_type_id === 1])->values(),
+        ]);
+    }
+
+    public function bulkCheck(Request $request)
+    {
+        $data = $this->validatedBulk($request);
+        $reports = []; $valid = true; $reservations = []; $totalDates = 0;
+        foreach ($data['groups'] as $item) {
+            $result = $this->service->inspect($this->bulkItem($data, $item));
+            $index = count($reports);
+            $issues = $result['issues'];
+            $warnings = collect($result['omittedDuplicates'])->map(fn ($d) => ['reason'=>'Ya existe una programación previa','dates'=>[$d]])->values()->all();
+            if (! count($result['dates'])) {
+                if ($result['omittedHolidays']) {
+                    $warnings[] = ['reason' => 'Este grupo no se programará porque sus fechas laborales son feriados excluidos', 'dates' => $result['omittedHolidays']];
+                }
+                if ($result['omittedDuplicates']) {
+                    $warnings[] = ['reason' => 'Este grupo no se programará porque ya tiene programaciones previas', 'dates' => $result['omittedDuplicates']];
+                }
+                if (! $result['omittedHolidays'] && ! $result['omittedDuplicates']) {
+                    $names = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves', 5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
+                    $workdays = $result['group']->days->pluck('day')->map(fn ($day) => $names[(int) $day] ?? '—')->implode(', ');
+                    $warnings[] = ['reason' => 'Este grupo no se programará en este rango; trabaja: '.$workdays, 'dates' => []];
+                }
+            }
+            $totalDates += count($result['dates']);
+            $reports[] = ['group_id'=>$item['staff_group_id'], 'errors'=>$issues, 'warnings'=>$warnings, 'dates'=>$result['dates']];
+            foreach ($result['dates'] as $date) foreach (array_merge(['v:'.$item['vehicle_id']], array_map(fn ($id) => 'p:'.$id, array_merge([$item['driver_id']], $item['helpers']))) as $resource) {
+                $key = $date.':'.$result['group']->shift_id.':'.$resource;
+                $resourceName = str_starts_with($resource, 'v:')
+                    ? ($result['vehicle']->name.' · '.$result['vehicle']->plate)
+                    : $this->service->name($result['people'][(int) substr($resource, 2)]);
+                if (isset($reservations[$key])) {
+                    $other = $reservations[$key];
+                    $type = str_starts_with($resource, 'v:') ? 'El vehículo' : 'La persona';
+                    $reports[$index]['errors'][] = ['reason'=>$type.' '.$resourceName.' también está asignado al grupo '.$other['group'], 'dates'=>[$date]];
+                    $reports[$other['index']]['errors'][] = ['reason'=>$type.' '.$resourceName.' también está asignado al grupo '.$result['group']->name, 'dates'=>[$date]];
+                } else {
+                    $reservations[$key] = ['index'=>$index, 'group'=>$result['group']->name];
+                }
+            }
+            $valid = $valid && ! count($issues);
+        }
+        $valid = $valid && $totalDates > 0 && ! collect($reports)->contains(fn ($report) => count($report['errors']));
+        $token = null;
+        if ($valid) { $token = Str::random(64); $request->session()->put('programming.bulk', ['token'=>$token,'hash'=>$this->fingerprint($data),'expires'=>now()->addMinutes(15)->timestamp]); }
+        else { $request->session()->forget('programming.bulk'); }
+        return response()->json(['valid'=>$valid, 'reports'=>$reports, 'validation_token'=>$token, 'message'=>$totalDates ? null : 'No hay fechas programables para los turnos y el período seleccionados.']);
+    }
+
+    public function bulkGenerate(Request $request)
+    {
+        $data = $this->validatedBulk($request);
+        $saved = $request->session()->get('programming.bulk');
+        if (! $saved || $saved['expires'] < now()->timestamp || ! hash_equals($saved['token'], (string) $request->input('validation_token')) || ! hash_equals($saved['hash'], $this->fingerprint($data))) $this->reject('Valide nuevamente la programación masiva antes de generarla.');
+        $ids = DB::transaction(function () use ($data, $request) { $ids=[]; foreach ($data['groups'] as $item) { $itemData = $this->bulkItem($data, $item); if (! $this->service->inspect($itemData)['dates']) continue; $out=$this->service->save($itemData, (int)$request->user()->id); $ids=array_merge($ids,$out['created_ids']); } return $ids; }, 3);
+        $request->session()->forget('programming.bulk');
+        return response()->json(['message'=>count($ids).' programación(es) creada(s).', 'ids'=>$ids]);
+    }
+
+    public function bulkUndo(Request $request)
+    {
+        $ids = $request->validate(['ids'=>['required','array','min:1','max:1000'], 'ids.*'=>['integer','distinct','exists:programmings,id']])['ids'];
+        DB::transaction(function () use ($ids, $request) { foreach (Programming::whereIn('id',$ids)->lockForUpdate()->get() as $row) { if ($row->created_by !== $request->user()->id || $row->status !== 'Programado') $this->reject('Solo puede deshacer programaciones masivas propias que sigan pendientes.'); $before=$row->toArray(); $row->employees()->detach(); $row->update(['status'=>'Anulado','group_date_key'=>null,'vehicle_date_key'=>null]); $row->changes()->create(['user_id'=>$request->user()->id,'action'=>'Reversión masiva','before'=>$before,'after'=>$row->toArray()]); } }, 3);
+        return response()->json(['message'=>'Programación masiva deshecha.']);
     }
 
     public function check(Request $request)
@@ -318,6 +407,57 @@ class ProgrammingController extends Controller
     private function fingerprint(array $data): string
     {
         return hash('sha256', json_encode($data, JSON_THROW_ON_ERROR));
+    }
+
+    private function validatedBulk(Request $request): array
+    {
+        $data = $request->validate([
+            'start_date'=>['required','date_format:Y-m-d','after_or_equal:'.today('America/Lima')->toDateString()], 'end_date'=>['required','date_format:Y-m-d','after_or_equal:start_date'],
+            'excluded_holidays'=>['sometimes','array'], 'excluded_holidays.*'=>['date_format:Y-m-d','distinct'],
+            'groups'=>['required','array','min:1'], 'groups.*.staff_group_id'=>['required','integer','distinct','exists:staff_groups,id'], 'groups.*.vehicle_id'=>['required','integer','exists:vehicles,id'], 'groups.*.driver_id'=>['required','integer','exists:employees,id'], 'groups.*.helpers'=>['present','array'], 'groups.*.helpers.*'=>['integer','exists:employees,id'],
+        ], [
+            'groups.required' => 'Debe incluir al menos un grupo de trabajo.',
+            'groups.*.staff_group_id.required' => 'El grupo de trabajo es obligatorio.',
+            'groups.*.staff_group_id.exists' => 'El grupo de trabajo seleccionado no existe.',
+            'groups.*.vehicle_id.required' => 'El vehículo es obligatorio.',
+            'groups.*.vehicle_id.exists' => 'El vehículo seleccionado no existe.',
+            'groups.*.driver_id.required' => 'El conductor es obligatorio.',
+            'groups.*.driver_id.exists' => 'El conductor seleccionado no es válido.',
+            'groups.*.helpers.array' => 'Los ayudantes seleccionados no son válidos.',
+            'groups.*.helpers.*.exists' => 'Uno de los ayudantes seleccionados no es válido.',
+            'start_date.required' => 'La fecha de inicio es obligatoria.',
+            'end_date.required' => 'La fecha de fin es obligatoria.',
+            'end_date.after_or_equal' => 'La fecha final no puede ser anterior a la fecha inicial.',
+        ]);
+        if (CarbonImmutable::parse($data['start_date'])->diffInDays(CarbonImmutable::parse($data['end_date'])) > 365) $this->reject('Seleccione un período máximo de 366 días por operación.');
+        $data['excluded_holidays'] = $data['excluded_holidays'] ?? [];
+        foreach ($data['groups'] as &$group) {
+            $group['helpers']=array_map('intval',$group['helpers']); $group['staff_group_id']=(int)$group['staff_group_id']; $group['vehicle_id']=(int)$group['vehicle_id']; $group['driver_id']=(int)$group['driver_id'];
+            $groupName = StaffGroup::find($group['staff_group_id'])?->name ?? 'seleccionado';
+            $repeated = collect($group['helpers'])->duplicates()->first();
+            if ($repeated !== null) {
+                $employee = Employee::find($repeated);
+                $this->reject('Grupo '.$groupName.': el ayudante '.($employee ? $this->service->name($employee) : 'seleccionado').' está repetido dentro del mismo grupo.');
+            }
+            if (in_array($group['driver_id'], $group['helpers'], true)) {
+                $employee = Employee::find($group['driver_id']);
+                $this->reject('Grupo '.$groupName.': '.($employee ? $this->service->name($employee) : 'la persona seleccionada').' no puede ser conductor y ayudante a la vez.');
+            }
+            $vehicle = Vehicle::findOrFail($group['vehicle_id']);
+            $requiredHelpers = max(0, (int) $vehicle->occupats_capacity - 1);
+            if (count($group['helpers']) !== $requiredHelpers) {
+                $this->reject('El grupo '.$groupName.' requiere exactamente '.$requiredHelpers.' ayudante(s) para completar el vehículo.');
+            }
+        }
+        unset($group); sort($data['excluded_holidays']);
+        return $data;
+    }
+
+    private function bulkItem(array $bulk, array $item): array
+    {
+        $group = StaffGroup::with('days')->findOrFail($item['staff_group_id']);
+        $workHolidays = Holiday::where('state', true)->whereBetween('date', [$bulk['start_date'], $bulk['end_date']])->get()->pluck('date')->map(fn ($date) => $date->toDateString())->reject(fn ($date) => in_array($date, $bulk['excluded_holidays'], true))->values()->all();
+        return ['staff_group_id'=>$item['staff_group_id'], 'vehicle_id'=>$item['vehicle_id'], 'driver_id'=>$item['driver_id'], 'helpers'=>$item['helpers'], 'start_date'=>$bulk['start_date'], 'end_date'=>$bulk['end_date'], 'days'=>$group->days->pluck('day')->map(fn($day)=>(int)$day)->all(), 'work_holidays'=>$workHolidays, 'notes'=>null, 'programming_id'=>null];
     }
 
     private function reject(string $message): never

@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             ShiftSeeder::class,
             EmployeeSeeder::class,
             ContractSeeder::class,
+            BulkProgrammingStaffSeeder::class,
             VacationSeeder::class,
             HolidaySeeder::class,
             AttendanceSeeder::class,
