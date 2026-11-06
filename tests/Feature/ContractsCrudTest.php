@@ -174,6 +174,87 @@ class ContractsCrudTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('type');
     }
 
+    public function test_edit_rejects_programmed_driver_outside_new_end_date_without_updating_contract(): void
+    {
+        $contract = $this->previous(['type' => 'Temporal', 'end_date' => '2026-12-12', 'salary' => '1500.00']);
+        $this->programmingFor($this->employeeId, '2026-12-01', '2026-12-01');
+
+        $this->putJson(route('contracts.update', $contract), $this->data([
+            'type' => 'Temporal', 'start_date' => '2026-06-01', 'end_date' => '2026-11-30', 'salary' => '1700.00',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('end_date');
+
+        $saved = $contract->fresh();
+        $this->assertSame('Temporal', $saved->type);
+        $this->assertSame('2026-12-12', $saved->end_date->toDateString());
+        $this->assertSame('1500.00', $saved->salary);
+    }
+
+    public function test_edit_rejects_programmed_helper_using_pivot_date(): void
+    {
+        $contract = $this->previous(['end_date' => '2026-12-12']);
+        $helperType = DB::table('employee_types')->insertGetId(['name' => 'Ayudante']);
+        $helperId = DB::table('employees')->insertGetId([
+            'employee_type_id' => $helperType, 'dni' => '87654321', 'first_name' => 'Luis',
+            'last_name' => 'Gomez', 'birthdate' => '1990-01-01', 'email' => 'luis@example.test',
+            'password' => bcrypt('test-password'),
+        ]);
+        $this->programmingFor($this->employeeId, '2026-11-01', '2026-12-20', $helperId);
+
+        $this->putJson(route('contracts.update', $contract), $this->data([
+            'start_date' => '2026-06-01', 'end_date' => '2026-12-12',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('end_date');
+    }
+
+    public function test_edit_allows_programming_on_contract_limits_and_ignores_non_active_or_deleted_rows(): void
+    {
+        $contract = $this->previous(['start_date' => '2026-10-12', 'end_date' => '2026-12-12']);
+        $this->programmingFor($this->employeeId, '2026-10-12', '2026-10-12');
+        $this->programmingFor($this->employeeId, '2026-12-12', '2026-12-12', null, 'Finalizado');
+        $this->programmingFor($this->employeeId, '2026-12-13', '2026-12-13', null, 'Anulado');
+        $this->programmingFor($this->employeeId, '2026-12-14', '2026-12-14', null, 'Programado', now()->toDateTimeString());
+
+        $this->putJson(route('contracts.update', $contract), $this->data([
+            'start_date' => '2026-10-12', 'end_date' => '2026-12-12',
+        ]))->assertOk();
+        $this->assertSame('2026-12-12', $contract->fresh()->end_date->toDateString());
+    }
+
+    private function programmingFor(int $driverId, string $programmingDate, string $assignmentDate, ?int $helperId = null, string $status = 'Programado', ?string $deletedAt = null): void
+    {
+        $sequence = DB::table('departments')->count() + 1;
+        $department = DB::table('departments')->insertGetId(['code' => '14'.str_pad((string) $sequence, 2, '0', STR_PAD_LEFT), 'name' => 'Departamento '.$sequence]);
+        $province = DB::table('provinces')->insertGetId(['department_id' => $department, 'code' => '14'.str_pad((string) $sequence, 2, '0', STR_PAD_LEFT), 'name' => 'Provincia '.$sequence]);
+        $district = DB::table('districts')->insertGetId(['province_id' => $province, 'code' => '14'.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT), 'name' => 'Distrito '.$sequence]);
+        $zone = DB::table('zones')->insertGetId(['name' => 'Zona '.uniqid(), 'district_id' => $district]);
+        $shift = DB::table('shifts')->insertGetId(['name' => 'Turno '.uniqid(), 'start_time' => '06:00', 'end_time' => '14:00', 'created_at' => now(), 'updated_at' => now()]);
+        $brand = DB::table('brands')->insertGetId(['name' => 'Marca '.uniqid(), 'created_at' => now(), 'updated_at' => now()]);
+        $model = DB::table('brandmodels')->insertGetId(['name' => 'Modelo '.uniqid(), 'brand_id' => $brand, 'created_at' => now(), 'updated_at' => now()]);
+        $vehicleType = DB::table('vehicletypes')->insertGetId(['name' => 'Tipo '.uniqid(), 'created_at' => now(), 'updated_at' => now()]);
+        $color = DB::table('color')->insertGetId(['name' => 'Color '.uniqid(), 'code' => '#123456', 'created_at' => now(), 'updated_at' => now()]);
+        $vehicle = DB::table('vehicles')->insertGetId([
+            'code' => 'V'.random_int(100, 999), 'name' => 'Vehiculo '.uniqid(), 'plate' => 'ABC-'.random_int(100, 999),
+            'year' => 2026, 'load_capacity' => 5, 'occupats_capacity' => 3, 'fuel_capacity' => 10,
+            'compact_capacity' => 5, 'type_id' => $vehicleType, 'brand_id' => $brand, 'model_id' => $model,
+            'color_id' => $color, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $group = DB::table('staff_groups')->insertGetId([
+            'name' => 'Grupo '.uniqid(), 'shift_id' => $shift, 'zone_id' => $zone, 'vehicle_id' => $vehicle,
+            'driver_id' => $driverId, 'state' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $programming = DB::table('programmings')->insertGetId([
+            'staff_group_id' => $group, 'zone_id' => $zone, 'shift_id' => $shift, 'vehicle_id' => $vehicle,
+            'driver_id' => $driverId, 'date' => $programmingDate, 'status' => $status,
+            'snapshot' => json_encode(['group' => 'Grupo']), 'deleted_at' => $deletedAt,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        if ($helperId) {
+            DB::table('programming_employees')->insert([
+                'programming_id' => $programming, 'employee_id' => $helperId, 'shift_id' => $shift,
+                'date' => $assignmentDate, 'role' => 'helper',
+            ]);
+        }
+    }
+
     public function test_list_search_order_pagination_and_form_rendering(): void
     {
         $this->previous();

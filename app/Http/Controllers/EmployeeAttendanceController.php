@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\admin\Attendance;
 use App\Models\admin\Employee;
-use App\Models\admin\StaffGroup;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -43,36 +42,12 @@ class EmployeeAttendanceController extends Controller
                 $previousDate = $now->subDay()->toDateString();
 
                 $assignments = $this->assignments($employee->id, $date);
+                $previousExitCandidates = $this->pendingOvernightExits($employee->id, $previousDate, $date);
+                $todayExitCandidates = $this->pendingExits($employee->id, $date);
 
-                $previousOvernightAssignments = $this->assignments($employee->id, $previousDate)
-                    ->filter(function ($assignment) {
-                        $startTime = substr((string) $assignment->shift->start_time, 0, 8);
-                        $endTime = substr((string) $assignment->shift->end_time, 0, 8);
-
-                        return $endTime <= $startTime;
-                    })
-                    ->values();
-
-                $previousExitCandidates = $previousOvernightAssignments->filter(function ($assignment) use ($employee, $previousDate, $date) {
-                    $base = Attendance::where('employee_id', $employee->id)
-                        ->where('shift_id', $assignment->shift_id);
-
-                    $entryExists = (clone $base)
-                        ->whereDate('date', $previousDate)
-                        ->where('type', 'Entrada')
-                        ->exists();
-
-                    $exitExists = (clone $base)
-                        ->whereDate('date', $date)
-                        ->where('type', 'Salida')
-                        ->exists();
-
-                    return $entryExists && ! $exitExists;
-                })->values();
-
-                if ($assignments->isEmpty() && $previousExitCandidates->isEmpty()) {
+                if ($assignments->isEmpty() && $todayExitCandidates->isEmpty() && $previousExitCandidates->isEmpty()) {
                     throw ValidationException::withMessages([
-                        'attendance' => 'No tienes programación asignada para hoy.',
+                        'attendance' => 'No tienes una programación asignada para esta fecha. Comunícate con administración o tu supervisor.',
                     ]);
                 }
 
@@ -107,15 +82,6 @@ class EmployeeAttendanceController extends Controller
                     $type = 'Entrada';
                     $assignment = $entryCandidates->first();
                 } else {
-                    $todayExitCandidates = $assignments->filter(function ($assignment) use ($employee, $date) {
-                        $base = Attendance::where('employee_id', $employee->id)
-                            ->where('shift_id', $assignment->shift_id)
-                            ->whereDate('date', $date);
-
-                        return (clone $base)->where('type', 'Entrada')->exists()
-                            && ! (clone $base)->where('type', 'Salida')->exists();
-                    })->values();
-
                     $exitCandidates = $todayExitCandidates
                         ->concat($previousExitCandidates)
                         ->values();
@@ -203,18 +169,75 @@ class EmployeeAttendanceController extends Controller
 
     private function assignments(int $employeeId, string $date)
     {
-        $day = CarbonImmutable::parse($date)->dayOfWeekIso;
+        return DB::table('programming_employees')
+            ->join('programmings', 'programmings.id', '=', 'programming_employees.programming_id')
+            ->join('shifts', 'shifts.id', '=', 'programming_employees.shift_id')
+            ->where('programming_employees.employee_id', $employeeId)
+            ->whereDate('programming_employees.date', $date)
+            ->whereColumn('programming_employees.date', 'programmings.date')
+            ->whereColumn('programming_employees.shift_id', 'programmings.shift_id')
+            ->where('programmings.status', 'Programado')
+            ->whereNull('programmings.deleted_at')
+            ->select([
+                'programming_employees.shift_id',
+                'shifts.start_time',
+                'shifts.end_time',
+            ])
+            ->distinct()
+            ->get()
+            ->map(fn ($assignment) => (object) [
+                'shift_id' => $assignment->shift_id,
+                'shift' => (object) [
+                    'start_time' => $assignment->start_time,
+                    'end_time' => $assignment->end_time,
+                ],
+            ])->values();
+    }
 
-        return StaffGroup::query()
+    private function pendingExits(int $employeeId, string $date)
+    {
+        return Attendance::query()
             ->with('shift')
-            ->where('state', true)
-            ->whereHas('days', fn ($query) => $query->where('day', $day))
-            ->where(function ($query) use ($employeeId) {
-                $query->where('driver_id', $employeeId)
-                    ->orWhereHas('helpers', fn ($helperQuery) => $helperQuery->whereKey($employeeId));
+            ->where('employee_id', $employeeId)
+            ->whereDate('date', $date)
+            ->where('type', 'Entrada')
+            ->whereNotExists(function ($query) use ($date) {
+                $query->selectRaw('1')
+                    ->from('attendances as exits')
+                    ->whereColumn('exits.employee_id', 'attendances.employee_id')
+                    ->whereColumn('exits.shift_id', 'attendances.shift_id')
+                    ->whereDate('exits.date', $date)
+                    ->where('exits.type', 'Salida');
             })
             ->get()
-            ->unique('shift_id')
-            ->values();
+            ->map(fn (Attendance $attendance) => (object) [
+                'shift_id' => $attendance->shift_id,
+                'shift' => $attendance->shift,
+            ])->unique('shift_id')->values();
+    }
+
+    private function pendingOvernightExits(int $employeeId, string $previousDate, string $date)
+    {
+        return Attendance::query()
+            ->with('shift')
+            ->where('employee_id', $employeeId)
+            ->whereDate('date', $previousDate)
+            ->where('type', 'Entrada')
+            ->whereHas('shift', function ($query) {
+                $query->whereColumn('shifts.end_time', '<=', 'shifts.start_time');
+            })
+            ->whereNotExists(function ($query) use ($date) {
+                $query->selectRaw('1')
+                    ->from('attendances as exits')
+                    ->whereColumn('exits.employee_id', 'attendances.employee_id')
+                    ->whereColumn('exits.shift_id', 'attendances.shift_id')
+                    ->whereDate('exits.date', $date)
+                    ->where('exits.type', 'Salida');
+            })
+            ->get()
+            ->map(fn (Attendance $attendance) => (object) [
+                'shift_id' => $attendance->shift_id,
+                'shift' => $attendance->shift,
+            ])->unique('shift_id')->values();
     }
 }

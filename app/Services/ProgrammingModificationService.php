@@ -199,7 +199,7 @@ class ProgrammingModificationService
         }
     }
 
-    private function validateAvailability(Programming $row, Shift $shift, Vehicle $vehicle, Collection $employees, int $driverId, array $helperIds): void
+    public function validateAvailability(Programming $row, Shift $shift, Vehicle $vehicle, Collection $employees, int $driverId, array $helperIds, ?Collection $conflictingRoutes = null): void
     {
         $date = $row->date->toDateString();
         $ids = array_merge([$driverId], $helperIds);
@@ -209,7 +209,7 @@ class ProgrammingModificationService
         if (count($ids) > (int) $vehicle->occupats_capacity) {
             $this->reject('El nuevo vehículo no tiene capacidad suficiente para el personal asignado.');
         }
-        $conflictingRoutes = $this->overlappingRoutes($row, $shift);
+        $conflictingRoutes ??= $this->overlappingRoutes($row, $shift);
         if ($conflictingRoutes->contains(fn (Programming $route) => (int) $route->vehicle_id === (int) $vehicle->id)) {
             $this->reject('No se puede aplicar el cambio: el vehículo seleccionado ya está asignado a otro recorrido cuyo horario se cruza con este servicio. Elija otro vehículo disponible.');
         }
@@ -240,7 +240,7 @@ class ProgrammingModificationService
         }
     }
 
-    private function overlappingRoutes(Programming $programming, Shift $targetShift): Collection
+    public function overlappingRoutes(Programming $programming, Shift $targetShift, array $excludedIds = []): Collection
     {
         $date = CarbonImmutable::parse($programming->date->toDateString());
         [$targetStart, $targetEnd] = $this->interval($date, $targetShift);
@@ -250,6 +250,7 @@ class ProgrammingModificationService
             ->where('status', '!=', 'Anulado')
             ->whereDate('date', '>=', $date->subDay()->toDateString())
             ->whereDate('date', '<=', $date->toDateString())
+            ->when($excludedIds, fn ($query) => $query->whereNotIn('id', $excludedIds))
             ->whereKeyNot($programming->id)
             ->get()
             ->filter(function (Programming $route) use ($targetStart, $targetEnd): bool {
@@ -265,7 +266,7 @@ class ProgrammingModificationService
             })->values();
     }
 
-    private function interval(CarbonImmutable $date, Shift $shift): array
+    public function interval(CarbonImmutable $date, Shift $shift): array
     {
         $start = CarbonImmutable::parse($date->toDateString().' '.$shift->start_time);
         $end = CarbonImmutable::parse($date->toDateString().' '.$shift->end_time);
@@ -276,7 +277,7 @@ class ProgrammingModificationService
         return [$start, $end];
     }
 
-    private function validateReason(array $change): void
+    public function validateReason(array $change): void
     {
         if (! Reason::query()->where('name', $change['reason'])->exists()) {
             $this->reject('El motivo seleccionado ya no está disponible. Actualice el catálogo y vuelva a intentar.');

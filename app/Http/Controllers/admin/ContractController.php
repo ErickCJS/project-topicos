@@ -98,6 +98,7 @@ class ContractController extends Controller
             $contract = Contract::whereKey($original->id)->lockForUpdate()->firstOrFail();
             $this->assertOpen($contract);
             $rules->validate($data, $employee->contracts()->where('id', '!=', $contract->id)->get(), false, CarbonImmutable::today());
+            $this->assertProgrammingDatesWithinContract($employee->id, $data, $contract);
             if ($contract->allowsVacations() && $data['type'] === 'Temporal' &&
                 DB::table('vacations')->where('employee_id', $employee->id)->exists()) {
                 throw ValidationException::withMessages(['type' => 'No puede cambiar a Temporal mientras el trabajador tenga registros de vacaciones.']);
@@ -106,6 +107,50 @@ class ContractController extends Controller
         });
 
         return response()->json(['mensaje' => 'Contrato actualizado correctamente']);
+    }
+
+    private function assertProgrammingDatesWithinContract(int $employeeId, array $data, Contract $contract): void
+    {
+        if ($data['start_date'] === $contract->start_date->toDateString() &&
+            $data['end_date'] === $contract->end_date?->toDateString()) {
+            return;
+        }
+
+        $outsideRange = function ($query, string $operator, string $date) use ($employeeId): void {
+            $query->where('status', 'Programado')
+                ->whereNull('deleted_at')
+                ->where(function ($participantQuery) use ($employeeId, $operator, $date) {
+                    $participantQuery->where(function ($driverQuery) use ($employeeId, $operator, $date) {
+                        $driverQuery->where('driver_id', $employeeId)
+                            ->where('programmings.date', $operator, $date);
+                    })
+                        ->orWhereExists(function ($pivotQuery) use ($employeeId, $operator, $date) {
+                            $pivotQuery->select(DB::raw(1))
+                                ->from('programming_employees')
+                                ->whereColumn('programming_employees.programming_id', 'programmings.id')
+                                ->where('programming_employees.employee_id', $employeeId)
+                                ->where('programming_employees.date', $operator, $date);
+                        });
+                });
+        };
+
+        $startConflict = Programming::query();
+        $outsideRange($startConflict, '<', $data['start_date']);
+        $endConflict = Programming::query();
+        if ($data['end_date'] !== null) {
+            $outsideRange($endConflict, '>', $data['end_date']);
+        }
+
+        $errors = [];
+        if ($startConflict->exists()) {
+            $errors['start_date'] = 'La fecha de inicio no puede dejar programaciones programadas fuera de la vigencia contractual.';
+        }
+        if ($data['end_date'] !== null && $endConflict->exists()) {
+            $errors['end_date'] = 'La fecha de término no puede dejar programaciones programadas fuera de la vigencia contractual.';
+        }
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     public function cancel(string $id)

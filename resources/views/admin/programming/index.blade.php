@@ -16,7 +16,7 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('admin.home') }}" class="btn btn-outline-secondary"><i class="bi bi-grid me-1"></i>Ir al Dashboard</a>
             <button type="button" class="btn btn-success" id="newProgramming"><i class="bi bi-plus-circle me-1"></i>Nueva programación</button>
-            <button type="button" class="btn btn-outline-secondary" id="bulkProgramming"><i class="bi bi-stack me-1"></i>Programación masiva</button>
+            <button type="button" class="btn btn-outline-warning" id="bulkModification"><i class="bi bi-pencil-square me-1"></i>Cambio masivo</button><button type="button" class="btn btn-outline-secondary" id="bulkProgramming"><i class="bi bi-stack me-1"></i>Programación masiva</button>
         </div>
     </div>
     @if($groups->isEmpty())
@@ -63,6 +63,7 @@
     @include('admin.programming.partials.form-modal')
     @include('admin.programming.partials.bulk-modal')
     @include('admin.programming.partials.modifications-modal')
+    @include('admin.programming.partials.bulk-modifications-modal')
 
     <div class="modal fade" id="programmingDetailModal" tabindex="-1" aria-labelledby="programmingDetailTitle" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
@@ -78,4 +79,6 @@
 <script src="{{ asset('js/programming-reports.js') }}"></script>
 <script src="{{ asset('js/programming.js') }}"></script>
 <script src="{{ asset('js/bulk-programming.js') }}"></script>
+<script>window.programmingBulkReasons = @json($reasons);</script>
+<script src="{{ asset('js/bulk-programming-modifications.js') }}"></script>
 @stop

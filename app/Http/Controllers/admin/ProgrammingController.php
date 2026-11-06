@@ -10,8 +10,10 @@ use App\Models\admin\StaffGroup;
 use App\Models\admin\Zone;
 use App\Models\admin\Employee;
 use App\Models\admin\Vehicle;
+use App\Models\admin\Reason;
 use App\Services\ProgrammingService;
 use App\Services\ProgrammingModificationService;
+use App\Services\BulkProgrammingModificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +23,7 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ProgrammingController extends Controller
 {
-    public function __construct(private ProgrammingService $service, private ProgrammingModificationService $modificationService) {}
+    public function __construct(private ProgrammingService $service, private ProgrammingModificationService $modificationService, private BulkProgrammingModificationService $bulkModificationService) {}
 
     public function index(Request $request)
     {
@@ -50,7 +52,8 @@ class ProgrammingController extends Controller
         $zones = Zone::orderBy('name')->get();
         $shifts = Shift::orderBy('name')->get();
 
-        return view('admin.programming.index', compact('groups', 'zones', 'shifts'));
+        $reasons = Reason::query()->orderBy('name')->get(['id', 'name']);
+        return view('admin.programming.index', compact('groups', 'zones', 'shifts', 'reasons'));
     }
 
     public function holidays(Request $request)
@@ -181,6 +184,63 @@ class ProgrammingController extends Controller
         $ids = $request->validate(['ids'=>['required','array','min:1','max:1000'], 'ids.*'=>['integer','distinct','exists:programmings,id']])['ids'];
         DB::transaction(function () use ($ids, $request) { foreach (Programming::whereIn('id',$ids)->lockForUpdate()->get() as $row) { if ($row->created_by !== $request->user()->id || $row->status !== 'Programado') $this->reject('Solo puede deshacer programaciones masivas propias que sigan pendientes.'); $before=$row->toArray(); $row->employees()->detach(); $row->update(['status'=>'Anulado','group_date_key'=>null,'vehicle_date_key'=>null]); $row->changes()->create(['user_id'=>$request->user()->id,'action'=>'Reversión masiva','before'=>$before,'after'=>$row->toArray()]); } }, 3);
         return response()->json(['message'=>'Programación masiva deshecha.']);
+    }
+
+    public function bulkModificationCheck(Request $request)
+    {
+        $request->session()->forget('programming.bulk-modification');
+        $data = $this->validatedBulkModification($request, false);
+        $result = $this->bulkModificationService->preview($data);
+        if ($result['valid']) {
+            // The preview discovers the affected rows. Bind that exact set to
+            // the confirmation token without requiring it on the preview call.
+            $data['ids'] = array_values(array_map('intval', $result['ids'] ?? []));
+            $token = Str::random(64);
+            $request->session()->put('programming.bulk-modification', [
+                'token' => $token,
+                'hash' => $this->bulkModificationFingerprint($data),
+                'operation_id' => (string) Str::uuid(),
+                'expires' => now()->addMinutes(15)->timestamp,
+            ]);
+            $result['validation_token'] = $token;
+        } else {
+            $result['validation_token'] = null;
+        }
+
+        return response()->json($result);
+    }
+
+    public function bulkModificationOptions(Request $request)
+    {
+        $data = $request->validate([
+            'start_date' => ['required', 'date_format:Y-m-d'],
+            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'zone_id' => ['required', 'integer', 'exists:zones,id'],
+            'type' => ['required', 'in:shift,driver,helper,vehicle'],
+        ], ['end_date.after_or_equal' => 'La fecha final no puede ser anterior a la fecha inicial.']);
+        $rows = Programming::with('employees')->where('status', 'Programado')->where('zone_id', $data['zone_id'])
+            ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->get();
+        $helperIds = $rows->flatMap(fn (Programming $row) => $row->employees->where('pivot.role', 'helper')->pluck('id'))->unique()->values();
+        $people = Employee::where('status', 'Activo')->when($data['type'] === 'driver', fn ($q) => $q->where('employee_type_id', 1))->when($data['type'] === 'helper', fn ($q) => $q->where('employee_type_id', '!=', 1))->orderBy('last_name')->orderBy('first_name')->get()
+            ->map(fn (Employee $employee) => ['id' => $employee->id, 'name' => trim($employee->first_name.' '.$employee->last_name), 'dni' => $employee->dni]);
+        $oldHelpers = Employee::whereIn('id', $helperIds)->orderBy('last_name')->orderBy('first_name')->get()->map(fn (Employee $employee) => ['id' => $employee->id, 'name' => trim($employee->first_name.' '.$employee->last_name), 'dni' => $employee->dni])->values();
+        return response()->json(['count' => $rows->count(), 'people' => $people->values(), 'old_helpers' => $oldHelpers, 'vehicles' => Vehicle::orderBy('name')->get(['id', 'name', 'code', 'plate', 'occupats_capacity'])]);
+    }
+
+    public function bulkModificationApply(Request $request)
+    {
+        $saved = $request->session()->get('programming.bulk-modification');
+        $request->session()->forget('programming.bulk-modification');
+        $data = $this->validatedBulkModification($request);
+        if (! $saved || $saved['expires'] < now()->timestamp
+            || ! hash_equals($saved['token'], (string) $request->input('validation_token'))
+            || ! hash_equals($saved['hash'], $this->bulkModificationFingerprint($data))) {
+            $this->reject('La vista previa expiró o los datos cambiaron. Consulte nuevamente antes de confirmar.');
+        }
+
+        $count = $this->bulkModificationService->apply($data, (int) $request->user()->id, $saved['operation_id']);
+
+        return response()->json(['message' => $count.' programación(es) modificada(s) correctamente.', 'count' => $count]);
     }
 
     public function check(Request $request)
@@ -409,6 +469,12 @@ class ProgrammingController extends Controller
         return hash('sha256', json_encode($data, JSON_THROW_ON_ERROR));
     }
 
+    private function bulkModificationFingerprint(array $data): string
+    {
+        ksort($data);
+        return $this->fingerprint($data);
+    }
+
     private function validatedBulk(Request $request): array
     {
         $data = $request->validate([
@@ -444,9 +510,9 @@ class ProgrammingController extends Controller
                 $this->reject('Grupo '.$groupName.': '.($employee ? $this->service->name($employee) : 'la persona seleccionada').' no puede ser conductor y ayudante a la vez.');
             }
             $vehicle = Vehicle::findOrFail($group['vehicle_id']);
-            $requiredHelpers = max(0, (int) $vehicle->occupats_capacity - 1);
-            if (count($group['helpers']) !== $requiredHelpers) {
-                $this->reject('El grupo '.$groupName.' requiere exactamente '.$requiredHelpers.' ayudante(s) para completar el vehículo.');
+            $maximumHelpers = max(0, (int) $vehicle->occupats_capacity - 1);
+            if (count($group['helpers']) > $maximumHelpers) {
+                $this->reject('El grupo '.$groupName.' supera la capacidad del vehículo. Se permiten como máximo '.$maximumHelpers.' ayudante(s).');
             }
         }
         unset($group); sort($data['excluded_holidays']);
@@ -458,6 +524,61 @@ class ProgrammingController extends Controller
         $group = StaffGroup::with('days')->findOrFail($item['staff_group_id']);
         $workHolidays = Holiday::where('state', true)->whereBetween('date', [$bulk['start_date'], $bulk['end_date']])->get()->pluck('date')->map(fn ($date) => $date->toDateString())->reject(fn ($date) => in_array($date, $bulk['excluded_holidays'], true))->values()->all();
         return ['staff_group_id'=>$item['staff_group_id'], 'vehicle_id'=>$item['vehicle_id'], 'driver_id'=>$item['driver_id'], 'helpers'=>$item['helpers'], 'start_date'=>$bulk['start_date'], 'end_date'=>$bulk['end_date'], 'days'=>$group->days->pluck('day')->map(fn($day)=>(int)$day)->all(), 'work_holidays'=>$workHolidays, 'notes'=>null, 'programming_id'=>null];
+    }
+
+    private function validatedBulkModification(Request $request, bool $requireIds = true): array
+    {
+        $data = $request->validate([
+            'start_date' => ['required', 'date_format:Y-m-d'],
+            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'zone_id' => ['required', 'integer', 'exists:zones,id'],
+            'type' => ['required', 'in:shift,driver,helper,vehicle'],
+            'new_shift_id' => ['required_if:type,shift', 'exclude_unless:type,shift', 'integer', 'exists:shifts,id'],
+            'new_driver_id' => ['required_if:type,driver', 'exclude_unless:type,driver', 'integer', 'exists:employees,id'],
+            'old_employee_id' => ['required_if:type,helper', 'exclude_unless:type,helper', 'integer', 'exists:employees,id'],
+            'new_employee_id' => ['required_if:type,helper', 'exclude_unless:type,helper', 'integer', 'exists:employees,id', 'different:old_employee_id'],
+            'new_vehicle_id' => ['required_if:type,vehicle', 'exclude_unless:type,vehicle', 'integer', 'exists:vehicles,id'],
+            'ids' => $requireIds ? ['required', 'array', 'min:1'] : ['sometimes', 'array'],
+            'ids.*' => ['integer', 'distinct', 'exists:programmings,id'],
+            'reason' => ['required', 'string', 'max:100', 'exists:reason,name'],
+            'custom_reason' => ['nullable', 'string', 'max:120', 'required_if:reason,Otro'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'validation_token' => ['nullable', 'string'],
+        ], [
+            'start_date.required' => 'La fecha inicial es obligatoria.',
+            'end_date.required' => 'La fecha final es obligatoria.',
+            'end_date.after_or_equal' => 'La fecha final no puede ser anterior a la fecha inicial.',
+            'zone_id.required' => 'La zona es obligatoria.',
+            'type.required' => 'Seleccione el tipo de cambio.',
+            'ids.required' => 'Consulte las programaciones antes de confirmar.',
+            'reason.required' => 'El motivo es obligatorio.',
+            'custom_reason.required_if' => 'Especifique el motivo cuando seleccione “Otro”.',
+            'new_driver_id.required_if' => 'Seleccione un conductor.',
+            'new_driver_id.integer' => 'El conductor seleccionado no es válido.',
+            'new_driver_id.exists' => 'El conductor seleccionado no existe.',
+            'new_employee_id.required_if' => 'Seleccione el nuevo ocupante.',
+            'new_employee_id.integer' => 'El nuevo ocupante seleccionado no es válido.',
+            'new_employee_id.exists' => 'El nuevo ocupante seleccionado no existe.',
+            'old_employee_id.required_if' => 'Seleccione el ocupante actual.',
+            'old_employee_id.exists' => 'El ocupante actual no existe.',
+            'new_vehicle_id.required_if' => 'Seleccione un vehículo.',
+            'new_vehicle_id.exists' => 'El vehículo seleccionado no existe.',
+            'new_shift_id.required_if' => 'Seleccione un turno.',
+            'new_shift_id.exists' => 'El turno seleccionado no existe.',
+        ]);
+        if ($requireIds) {
+            $data['ids'] = array_values(array_map('intval', $data['ids']));
+        } else {
+            unset($data['ids']);
+        }
+        $data['zone_id'] = (int) $data['zone_id'];
+        $data['description'] = trim($data['description'] ?? '');
+        $data['custom_reason'] = trim($data['custom_reason'] ?? '');
+        foreach (['new_shift_id', 'new_driver_id', 'old_employee_id', 'new_employee_id', 'new_vehicle_id'] as $key) {
+            if (array_key_exists($key, $data) && $data[$key] !== null) $data[$key] = (int) $data[$key];
+        }
+        unset($data['validation_token']);
+        return $data;
     }
 
     private function reject(string $message): never

@@ -22,6 +22,11 @@ class EmployeeAttendanceTest extends TestCase
         Carbon::setTestNow('2026-10-30 08:00:00');
         $type = DB::table('employee_types')->insertGetId(['name' => 'Operario', 'created_at' => now(), 'updated_at' => now()]);
         $this->employeeId = $this->createEmployee($type, '87654321', 'Ana', 'Pérez', 'employee@test.local', 'secret123');
+        DB::table('contracts')->insert([
+            'employee_id' => $this->employeeId, 'type' => 'Permanente', 'start_date' => '2026-01-01',
+            'end_date' => null, 'salary' => 1500, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $this->shiftId = DB::table('shifts')->insertGetId([
             'name' => 'Mañana', 'start_time' => '05:00:00', 'end_time' => '13:00:00',
             'created_at' => now(), 'updated_at' => now(),
@@ -232,7 +237,7 @@ class EmployeeAttendanceTest extends TestCase
     {
         Carbon::setTestNow('2026-10-30 05:00:00');
         $this->schedule();
-        $this->schedule();
+        $this->schedule(null, $this->shiftId, $this->employeeId, false, null, false);
 
         $this->postJson(route('employee.authenticate'), $this->credentials())
             ->assertOk()->assertJsonPath('type', 'Entrada')
@@ -244,7 +249,7 @@ class EmployeeAttendanceTest extends TestCase
     {
         Carbon::setTestNow('2026-10-30 05:00:00');
         $driver = $this->createEmployee(DB::table('employee_types')->value('id'), '11223344', 'Conductor', 'Grupo', 'driver@test.local', 'driver123');
-        $this->schedule(null, $this->shiftId, $this->employeeId, true);
+        $this->schedule(null, $this->shiftId, $this->employeeId, true, $driver);
 
         $this->postJson(route('employee.authenticate'), $this->credentials())
             ->assertOk()->assertJsonPath('type', 'Entrada');
@@ -310,6 +315,112 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertDatabaseCount('attendances', 0);
     }
 
+    public function test_staff_group_without_daily_programming_cannot_mark(): void
+    {
+        Carbon::setTestNow('2026-10-30 05:00:00');
+        $this->schedule();
+        DB::table('programming_employees')->delete();
+        DB::table('programmings')->delete();
+
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.attendance.0', 'No tienes una programación asignada para esta fecha. Comunícate con administración o tu supervisor.');
+    }
+
+    public function test_annulled_deleted_and_finished_programmings_do_not_authorize_new_entries(): void
+    {
+        foreach (['Anulado', 'Finalizado'] as $status) {
+            Carbon::setTestNow('2026-10-30 05:00:00');
+            $this->schedule();
+            DB::table('programmings')->update(['status' => $status]);
+
+            $this->postJson(route('employee.authenticate'), $this->credentials())
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('attendance');
+
+            DB::table('programming_employees')->delete();
+            DB::table('programmings')->delete();
+        }
+
+        Carbon::setTestNow('2026-10-30 05:00:00');
+        $this->schedule();
+        DB::table('programmings')->update(['deleted_at' => now()]);
+
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('attendance');
+    }
+
+    public function test_daily_programming_authorizes_worker_even_without_current_staff_group_membership(): void
+    {
+        Carbon::setTestNow('2026-10-30 05:00:00');
+        $this->schedule();
+        DB::table('staff_groups')->update(['state' => false, 'driver_id' => null]);
+        DB::table('staff_group_days')->delete();
+        DB::table('staff_group_helpers')->delete();
+
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertOk()->assertJsonPath('type', 'Entrada');
+    }
+
+    public function test_daily_programming_shift_is_used_instead_of_staff_group_shift(): void
+    {
+        Carbon::setTestNow('2026-10-30 10:00:00');
+        $this->schedule();
+        $dailyShiftId = DB::table('shifts')->insertGetId([
+            'name' => 'Diario', 'start_time' => '10:00:00', 'end_time' => '18:00:00',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('programmings')->update(['shift_id' => $dailyShiftId]);
+        DB::table('programming_employees')->update(['shift_id' => $dailyShiftId]);
+
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertOk()
+            ->assertJsonPath('type', 'Entrada')
+            ->assertJsonPath('shift_id', $dailyShiftId);
+        $this->assertDatabaseHas('attendances', ['shift_id' => $dailyShiftId]);
+    }
+
+    public function test_worker_removed_from_daily_programming_cannot_mark(): void
+    {
+        Carbon::setTestNow('2026-10-30 05:00:00');
+        $this->schedule();
+        DB::table('programming_employees')->where('employee_id', $this->employeeId)->delete();
+
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('attendance');
+    }
+
+    public function test_finished_programming_after_entry_still_allows_exit(): void
+    {
+        Carbon::setTestNow('2026-10-30 05:00:00');
+        $this->schedule();
+        $this->postJson(route('employee.authenticate'), $this->credentials())->assertOk();
+        DB::table('programmings')->update(['status' => 'Finalizado']);
+        Carbon::setTestNow('2026-10-30 15:00:00');
+
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertOk()->assertJsonPath('type', 'Salida');
+    }
+
+    public function test_overnight_exit_uses_previous_day_entry_without_current_programming(): void
+    {
+        $overnightShiftId = DB::table('shifts')->insertGetId([
+            'name' => 'Noche', 'start_time' => '22:00:00', 'end_time' => '06:00:00',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        Carbon::setTestNow('2026-10-29 21:30:00');
+        $this->schedule('2026-10-29', $overnightShiftId);
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertOk()->assertJsonPath('type', 'Entrada');
+        Carbon::setTestNow('2026-10-30 06:00:00');
+
+        $this->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertOk()->assertJsonPath('type', 'Salida')
+            ->assertJsonPath('shift_id', $overnightShiftId);
+    }
+
     public function test_completed_attendance_cannot_be_duplicated(): void
     {
         Carbon::setTestNow('2026-10-30 05:00:00');
@@ -367,11 +478,12 @@ class EmployeeAttendanceTest extends TestCase
         ]);
     }
 
-    private function schedule(?string $date = null, ?int $shiftId = null, ?int $employeeId = null, bool $helper = false): void
+    private function schedule(?string $date = null, ?int $shiftId = null, ?int $employeeId = null, bool $helper = false, ?int $driverId = null, bool $daily = true): void
     {
         $date ??= now()->toDateString();
         $shiftId ??= $this->shiftId;
         $employeeId ??= $this->employeeId;
+        $driverId ??= $helper ? $employeeId : $employeeId;
         $sequence = DB::table('departments')->count() + 1;
         $department = DB::table('departments')->insertGetId(['code' => str_pad((string) $sequence, 2, '0', STR_PAD_LEFT), 'name' => 'Lima '.$sequence, 'created_at' => now(), 'updated_at' => now()]);
         $province = DB::table('provinces')->insertGetId(['department_id' => $department, 'code' => str_pad((string) $sequence, 4, '0', STR_PAD_LEFT), 'name' => 'Lima '.$sequence, 'created_at' => now(), 'updated_at' => now()]);
@@ -389,7 +501,7 @@ class EmployeeAttendanceTest extends TestCase
         ]);
         $group = DB::table('staff_groups')->insertGetId([
             'name' => 'Grupo '.$sequence, 'shift_id' => $shiftId, 'zone_id' => $zone,
-            'vehicle_id' => $vehicle, 'driver_id' => $helper ? null : $employeeId,
+            'vehicle_id' => $vehicle, 'driver_id' => $helper ? $driverId : $employeeId,
             'state' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('staff_group_days')->insert([
@@ -402,6 +514,24 @@ class EmployeeAttendanceTest extends TestCase
                 'staff_group_id' => $group, 'employee_id' => $employeeId,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
+        }
+        if ($daily) {
+            $programming = DB::table('programmings')->insertGetId([
+                'staff_group_id' => $group, 'zone_id' => $zone, 'shift_id' => $shiftId,
+                'vehicle_id' => $vehicle, 'driver_id' => $helper ? $driverId : $employeeId,
+                'date' => $date, 'status' => 'Programado', 'snapshot' => json_encode([]),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('programming_employees')->insert([
+                'programming_id' => $programming, 'employee_id' => $helper ? $driverId : $employeeId,
+                'shift_id' => $shiftId, 'date' => $date, 'role' => 'driver',
+            ]);
+            if ($helper) {
+                DB::table('programming_employees')->insert([
+                    'programming_id' => $programming, 'employee_id' => $employeeId,
+                    'shift_id' => $shiftId, 'date' => $date, 'role' => 'helper',
+                ]);
+            }
         }
     }
 }

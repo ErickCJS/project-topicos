@@ -30,10 +30,18 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertOk()
             ->assertSee('Lista de Programaciones')
             ->assertSee('programmingFormModal')
+            ->assertSee('Cambio masivo de programaciones')
+            ->assertSee('bulkModificationStart')
+            ->assertSee('bulkModificationEnd')
+            ->assertSee('bulkModificationZone')
+            ->assertSee('type="button" class="btn btn-outline-primary w-100" id="bulkModificationPreview"', false)
+            ->assertSee('type="button" class="btn btn-warning" id="bulkModificationApply" disabled', false)
+            ->assertSee('bulkModificationApply')
             ->assertSee('Validar disponibilidad')
             ->assertSee('Feriados del período')
             ->assertSee('programHolidayOptions')
             ->assertSee('js/programming.js')
+            ->assertSee('js/bulk-programming-modifications.js')
             ->assertSee('css/programming.css');
     }
 }
