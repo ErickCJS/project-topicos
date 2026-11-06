@@ -148,15 +148,13 @@ class StaffGroupsController extends Controller
             'days' => ['required', 'array', 'min:1'],
             'days.*' => ['required', 'integer', 'distinct', 'between:1,7'],
             'driver_id' => ['required', 'integer', Rule::exists('employees', 'id')->where('employee_type_id', 1)->where('status', 'Activo')],
-            'helpers' => ['required', 'array', 'min:1'],
+            'helpers' => ['sometimes', 'nullable', 'array'],
             'helpers.*' => ['nullable', 'integer', 'distinct', Rule::exists('employees', 'id')->whereNot('employee_type_id', 1)->where('status', 'Activo')],
         ], [
             'name.unique' => 'Ya existe un grupo de personal con ese nombre.',
             'driver_id.required' => 'Debe seleccionar un conductor para el grupo.',
             'driver_id.exists' => 'Seleccione un conductor activo con el cargo correspondiente.',
             'helpers.*.exists' => 'Seleccione ayudantes activos con el cargo correspondiente.',
-            'helpers.required' => 'Debe seleccionar al menos un ayudante para el grupo.',
-            'helpers.min' => 'Debe seleccionar al menos un ayudante para el grupo.',
             'helpers.*.distinct' => 'No puede seleccionar al mismo ayudante más de una vez.',
             'days.required' => 'Seleccione al menos un día de trabajo.',
             'days.min' => 'Seleccione al menos un día de trabajo.',
@@ -164,9 +162,6 @@ class StaffGroupsController extends Controller
         ], ['name' => 'nombre del grupo', 'shift_id' => 'turno', 'zone_id' => 'zona', 'vehicle_id' => 'vehículo', 'days' => 'días de trabajo', 'driver_id' => 'conductor', 'helpers' => 'ayudantes', 'state' => 'estado']);
 
         $data['helpers'] = array_values(array_filter($data['helpers'] ?? [], fn ($id) => $id !== null && $id !== ''));
-        if (! $data['helpers']) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['helpers' => 'Debe seleccionar al menos un ayudante para el grupo.']);
-        }
         $data['state'] = (bool) ($data['state'] ?? $group?->state ?? true);
         $vehicle = Vehicle::whereKey($data['vehicle_id'])->lockForUpdate()->firstOrFail();
         Employee::whereIn('id', array_merge([$data['driver_id']], $data['helpers']))->orderBy('id')->lockForUpdate()->get();
