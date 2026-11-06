@@ -4,6 +4,9 @@ namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\admin\ProgrammingChange;
+use App\Models\admin\Zone;
+use App\Models\admin\Shift;
+use App\Models\admin\Reason;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
@@ -65,12 +68,18 @@ class CambioController extends Controller
                 ->addColumn('before_summary', fn (ProgrammingChange $change) => $this->summary($change->before))
                 ->addColumn('after_summary', fn (ProgrammingChange $change) => $this->summary($change->after))
                 ->addColumn('reason_label', fn (ProgrammingChange $change) => $change->reason ?: ($change->after['reason'] ?? '—'))
-                ->addColumn('actions', fn (ProgrammingChange $change) => '<a class="btn btn-outline-primary btn-sm" href="'.e(route('cambios.show', $change)).'" title="Ver detalle" aria-label="Ver detalle del cambio"><i class="bi bi-eye" aria-hidden="true"></i></a>')
+                ->addColumn('actions', fn (ProgrammingChange $change) =>
+                    '<button type="button" class="btn btn-outline-primary btn-sm btn-ver-cambio" data-url="'.e(route('cambios.show', $change)).'" title="Ver detalle" aria-label="Ver detalle del cambio"><i class="bi bi-eye" aria-hidden="true"></i></button>'
+                )
                 ->rawColumns(['actions'])
                 ->toJson();
         }
 
-        return view('admin.change-management.cambios.index');
+        return view('admin.change-management.cambios.index', [
+            'zones' => Zone::orderBy('name')->get(),
+            'shifts' => Shift::orderBy('name')->get(),
+            'reasons' => Reason::query()->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
     public function create() { return redirect()->route('cambios.index'); }

@@ -6,13 +6,14 @@
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 <link rel="stylesheet" href="{{ asset('css/programming.css') }}">
+@include('admin.programming.partials.bulk-modifications-modal', ['embedded' => true])
 @stop
 
 @section('content')
 <div class="change-management-module">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
         <h4 class="mb-0"><i class="bi bi-arrow-left-right me-2" aria-hidden="true"></i>Cambios</h4>
-        <a href="{{ route('cambios.bulk.index') }}" class="btn btn-success"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Nuevo cambio masivo</a>
+        <button type="button" class="btn btn-success" id="bulkModification"><i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Nuevo cambio masivo</button>
     </div>
     <div class="card mb-3"><div class="card-body">
         <form id="changeFilters" class="row g-3 align-items-end" novalidate>
@@ -30,7 +31,18 @@
         </table>
     </div></div></div>
 </div>
-@stop
+
+    <div class="modal fade" id="changeDetailModal" tabindex="-1"
+        aria-labelledby="changeDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content" id="changeDetailContent">
+                <div class="modal-body text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 mb-0">Cargando detalle...</p>
+                </div>
+            </div>
+        </div>
+    </div>@stop
 
 @section('js')
 <script>
@@ -71,5 +83,58 @@ $(function () {
     form.on('change', 'input, select', () => { if (validRange()) table.ajax.reload(); });
     form.on('reset', () => setTimeout(() => { validRange(); table.ajax.reload(); }, 0));
 });
+
+    // Detalle del cambio mediante modal AJAX
+    const detailModalElement = document.getElementById('changeDetailModal');
+    const detailModal = bootstrap.Modal.getOrCreateInstance(detailModalElement);
+    const detailContent = $('#changeDetailContent');
+
+    $('#changesTable').on('click', '.btn-ver-cambio', function () {
+        const url = $(this).data('url');
+
+        detailContent.html(`
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary"></div>
+                <p class="mt-2">Cargando detalle...</p>
+            </div>
+        `);
+
+        detailModal.show();
+
+        $.ajax({
+            url: url,
+            method: 'GET',
+            dataType: 'html',
+            success: function (html) {
+                detailContent.html(html);
+            },
+            error: function () {
+                detailContent.html(`
+                    <div class="modal-header">
+                        <h5 class="modal-title">Detalle del cambio</h5>
+                        <button type="button" class="btn-close"
+                            data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger mb-0">
+                            No se pudo cargar el detalle del cambio.
+                        </div>
+                    </div>
+                `);
+            }
+        });
+    });
 </script>
+<script>
+document.getElementById('bulkModificationModal')?.setAttribute(
+    'data-endpoint-base',
+    @json(url('/admin/cambios/masivos'))
+);
+document.getElementById('bulkModificationModal')?.setAttribute(
+    'data-reload-url',
+    @json(route('cambios.index'))
+);
+window.programmingBulkReasons = @json($reasons);
+</script>
+<script src="{{ asset('js/bulk-programming-modifications.js') }}"></script>
 @stop
