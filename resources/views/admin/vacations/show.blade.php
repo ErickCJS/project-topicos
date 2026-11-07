@@ -2,7 +2,7 @@
     $status = $vacation->statusLabel();
     $statusClass = match ($status) {
         'Aprobada' => 'text-bg-success',
-        'Rechazada' => 'text-bg-secondary',
+        'Rechazada', 'Anulada' => 'text-bg-secondary',
         default => 'text-bg-warning',
     };
 @endphp
@@ -21,9 +21,9 @@
             Este registro histórico está <strong>pendiente de regularización</strong>. Sus días ya forman parte del saldo aprobado.
         </div>
     @endif
-    @if($vacation->isRejected())
+    @if($vacation->isRejected() || $status === 'Anulada')
         <div class="alert alert-secondary" role="alert">
-            <strong>Motivo del rechazo:</strong> {{ $vacation->rejection_reason ?: 'Sin motivo registrado.' }}
+            <strong>{{ $status === 'Anulada' ? 'Motivo de anulación:' : 'Motivo del rechazo:' }}</strong> {{ $vacation->rejection_reason ?: 'Sin motivo registrado.' }}
         </div>
     @endif
     <div class="row g-3">

@@ -141,6 +141,35 @@ class VacationService
         }, 5);
     }
 
+    // The caller holds the employee lock and the contract cancellation transaction.
+    public function closeForContractCancellation(int $employeeId, string $date, string $affectedFrom): void
+    {
+        $affected = Vacation::query()
+            ->where('employee_id', $employeeId)
+            ->whereIn('status', ['Pendiente', 'Aprobada'])
+            ->whereNotNull('start_date')
+            ->whereDate('end_date', '>=', $affectedFrom)
+            ->lockForUpdate()
+            ->get();
+
+        if ($affected->contains(fn (Vacation $vacation) => $vacation->isApproved()
+            && $vacation->start_date->toDateString() <= $date)) {
+            $this->reject('contract', 'No se puede anular el contrato mientras el trabajador esté de vacaciones aprobadas.');
+        }
+
+        foreach ($affected as $vacation) {
+            $vacation->update([
+                'status' => $vacation->isApproved() ? 'Anulada' : 'Rechazada',
+                'rejection_reason' => 'Anulación del contrato del trabajador.',
+                'reviewed_at' => now(),
+            ]);
+        }
+
+        foreach ($affected->pluck('year')->unique() as $year) {
+            $this->syncAnnualBalance($employeeId, $year);
+        }
+    }
+
     public function rejectRequest(Vacation $original, string $reason): Vacation
     {
         return DB::transaction(function () use ($original, $reason) {

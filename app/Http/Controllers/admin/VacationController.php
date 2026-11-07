@@ -51,7 +51,7 @@ class VacationController extends Controller
                     $status = $vacation->statusLabel();
                     $class = match ($status) {
                         'Aprobada' => 'text-bg-success',
-                        'Rechazada' => 'text-bg-secondary',
+                        'Rechazada', 'Anulada' => 'text-bg-secondary',
                         default => 'text-bg-warning',
                     };
 
