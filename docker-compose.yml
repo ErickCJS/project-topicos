@@ -1,10 +1,7 @@
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-    image: laravel-project:1.0
+    image: eltiti07/project_rsu:latest
     container_name: laravel_app
     restart: unless-stopped
     env_file:
@@ -24,10 +21,7 @@ services:
       - db
 
   nginx:
-    build:
-      context: .
-      dockerfile: docker/nginx/Dockerfile
-    image: nginx-laravel:1.0
+    image: eltiti07/nginx-laravel:1.0
     container_name: laravel_nginx
     restart: unless-stopped
     ports:
