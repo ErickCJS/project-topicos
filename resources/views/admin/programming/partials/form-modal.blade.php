@@ -10,14 +10,15 @@
                 <div class="row g-3">
                     <div class="col-12 col-md-4"><label class="form-label" for="programStart">Fecha de inicio *</label><input type="date" class="form-control" id="programStart" min="{{ today('America/Lima')->toDateString() }}" required><div class="form-text">Seleccione hoy o una fecha futura.</div></div>
                     <div class="col-12 col-md-4"><label class="form-label" for="programEnd">Fecha de fin *</label><input type="date" class="form-control" id="programEnd" min="{{ today('America/Lima')->toDateString() }}" required></div>
-                    <div class="col-12 col-md-4 d-flex align-items-end"><button type="button" class="btn btn-outline-success w-100" id="validateProgramming"><i class="bi bi-check2 me-1"></i>Validar disponibilidad</button></div>
+                    <div class="col-12 col-md-4 programming-validate-wrap"><button type="button" class="btn btn-outline-success w-100" id="validateProgramming"><i class="bi bi-check2 me-1"></i>Validar disponibilidad</button></div>
                     <div class="col-12"><label class="form-label" for="programGroup">Grupo de personal *</label><select class="form-select" id="programGroup" required><option value="">Seleccione un grupo</option>@foreach($groups as $group)<option value="{{ $group->id }}">{{ $group->name }} · {{ $group->zone->name }} · {{ $group->shift->name }}</option>@endforeach</select><div class="form-text">Busque por nombre, zona o turno.</div></div>
                 </div>
                 <div id="programValidation" class="alert alert-info mt-3 mb-0" role="status" aria-live="polite">Seleccione un grupo y valide la disponibilidad antes de guardar.</div>
                 <div id="programGroupSummary" class="programming-summary mt-3" hidden></div>
                 <div class="row g-3 mt-0">
-                    <div class="col-12 col-md-4"><label class="form-label" for="programDriver">Conductor *</label><select class="form-select" id="programDriver" required disabled><option value="">Seleccione un conductor</option></select></div>
-                    <div class="col-12 col-md-8"><div id="programHelpers" class="row g-3"></div><div class="form-text">Las plazas de ayudantes dependen de la capacidad del vehículo. Puede dejar plazas opcionales sin asignar.</div></div>
+                    <div class="col-12 col-md-6"><label class="form-label" for="programVehicle">Vehículo *</label><select class="form-select" id="programVehicle" required disabled><option value="">Seleccione un vehículo disponible</option></select></div>
+                    <div class="col-12 col-md-6"><label class="form-label" for="programDriver">Conductor *</label><select class="form-select" id="programDriver" required disabled><option value="">Seleccione un conductor</option></select></div>
+                    <div class="col-12"><div id="programHelpers" class="row g-3"></div><div class="form-text">Las plazas de ayudantes dependen de la capacidad del vehículo. Puede dejar plazas opcionales sin asignar.</div></div>
                     <div class="col-12"><div id="programPeopleNote" class="form-text" role="status" aria-live="polite">Seleccione un grupo y un período para consultar el personal disponible.</div></div>
                     <fieldset class="col-12"><legend class="form-label">Días de trabajo *</legend><div class="d-flex flex-wrap gap-3">
                         @foreach(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] as $day)

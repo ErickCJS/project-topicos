@@ -6,11 +6,13 @@ use App\Models\admin\Employee;
 use App\Models\admin\Holiday;
 use App\Models\admin\Programming;
 use App\Models\admin\StaffGroup;
+use App\Models\admin\Shift;
 use App\Models\admin\Vehicle;
 use App\Models\User;
 use Carbon\CarbonPeriod;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -22,7 +24,7 @@ class ProgrammingService
         if (! $group->state) {
             $this->reject('El grupo seleccionado está inactivo.');
         }
-        if ($editing && $editing->status !== 'Programado') {
+        if ($editing && ! in_array($editing->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
             $this->reject('Solo se puede modificar una programación pendiente.');
         }
         if ($editing && $data['start_date'] !== $data['end_date']) {
@@ -55,8 +57,8 @@ class ProgrammingService
             'includedHolidays' => $includedHolidays, 'holidayRecords' => $holidayRecords] = $this->calendar($data, $group, $editing);
         // Editing checks reservations on the destination even before a holiday is enabled.
         $reservationDates = $editing ? [$data['start_date']] : $dates;
-        $occupied = Programming::with('employees')->where('status', '!=', 'Anulado')->where('shift_id', $group->shift_id)->whereIn('date', $reservationDates)
-            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))->get();
+        $occupiedByDate = $this->overlappingRoutesForDates($reservationDates, $group->shift, $editing);
+        $occupied = $occupiedByDate->flatten(1)->unique('id')->values();
         $authorNames = User::whereIn('id', $occupied->map(fn ($row) => $row->snapshot['holiday_work']['authorized_by'] ?? null)->filter())->pluck('name', 'id');
         $routeContext = fn ($row) => [
             'id' => $row->id, 'group' => $row->snapshot['group'], 'shift' => $row->snapshot['shift'],
@@ -70,11 +72,11 @@ class ProgrammingService
         }
         foreach ($people as $person) {
             foreach (['contract' => 'Sin contrato vigente', 'vacation' => 'Vacaciones aprobadas', 'conflict' => 'Asignación en la misma fecha y turno'] as $kind => $reason) {
-                $affected = array_values(array_filter($kind === 'conflict' ? $reservationDates : $dates, function ($date) use ($person, $kind, $occupied) {
+                $affected = array_values(array_filter($kind === 'conflict' ? $reservationDates : $dates, function ($date) use ($person, $kind, $occupiedByDate) {
                     return match ($kind) {
                         'contract' => ! $this->hasContract($person, $date),
                         'vacation' => $this->onVacation($person, $date),
-                        default => $occupied->contains(fn ($row) => $row->date->toDateString() === $date && $row->employees->contains('id', $person->id)),
+                        default => $occupiedByDate->get($date, collect())->contains(fn ($row) => $row->employees->contains('id', $person->id)),
                     };
                 }));
                 if ($affected) {
@@ -86,7 +88,8 @@ class ProgrammingService
                 }
             }
         }
-        $vehicleDates = $occupied->where('vehicle_id', $vehicle->id)->pluck('date')->map(fn ($date) => $date->toDateString())->values()->all();
+        $vehicleDates = collect($reservationDates)->filter(fn ($date) => $occupiedByDate->get($date, collect())
+            ->contains(fn ($row) => (int) $row->vehicle_id === (int) $vehicle->id))->values()->all();
         if ($vehicleDates) {
             $issues[] = ['person' => $vehicle->name, 'reason' => 'Vehículo asignado en la misma fecha y turno', 'dates' => $vehicleDates,
                 'routes' => $occupied->where('vehicle_id', $vehicle->id)->map($routeContext)->values()->all()];
@@ -96,12 +99,12 @@ class ProgrammingService
             $candidates = Employee::with(['contracts', 'vacations'])->where('status', 'Activo')->whereNotIn('id', $ids)->get();
             foreach (collect($issues)->pluck('employee_id')->filter()->unique() as $id) {
                 $role = (int) $people[$id]->employee_type_id === 1;
-                $suggestions[$id] = $candidates->filter(function ($candidate) use ($role, $dates, $occupied) {
+                $suggestions[$id] = $candidates->filter(function ($candidate) use ($role, $dates, $occupiedByDate) {
                     if (((int) $candidate->employee_type_id === 1) !== $role) {
                         return false;
                     }
                     foreach ($dates as $date) {
-                        if (! $this->hasContract($candidate, $date) || $this->onVacation($candidate, $date) || $occupied->contains(fn ($row) => $row->date->toDateString() === $date && $row->employees->contains('id', $candidate->id))) {
+                        if (! $this->hasContract($candidate, $date) || $this->onVacation($candidate, $date) || $occupiedByDate->get($date, collect())->contains(fn ($row) => $row->employees->contains('id', $candidate->id))) {
                             return false;
                         }
                     }
@@ -116,26 +119,25 @@ class ProgrammingService
 
     public function availablePeople(array $data, ?Programming $editing = null): array
     {
-        $group = StaffGroup::with('days')->findOrFail($data['staff_group_id']);
+        $group = StaffGroup::with(['days', 'shift'])->findOrFail($data['staff_group_id']);
         if (! $group->state) {
             $this->reject('El grupo seleccionado está inactivo.');
         }
-        if ($editing && ($editing->status !== 'Programado' || $data['start_date'] !== $data['end_date']
+        if ($editing && (! in_array($editing->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true) || $data['start_date'] !== $data['end_date']
             || ! in_array(CarbonImmutable::parse($data['start_date'])->dayOfWeekIso, array_map('intval', $data['days']), true))) {
             $this->reject('Seleccione una fecha y día válidos para modificar el recorrido pendiente.');
         }
         $dates = $this->calendar($data, $group, $editing)['dates'];
-        $occupied = Programming::with('employees')->where('status', '!=', 'Anulado')->where('shift_id', $group->shift_id)->whereIn('date', $dates)
-            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))->get();
+        $occupiedByDate = $this->overlappingRoutesForDates($dates, $group->shift, $editing);
         $people = Employee::with(['contracts', 'vacations'])->where('status', 'Activo')
             ->orderBy('last_name')->orderBy('first_name')->get()
-            ->filter(function ($person) use ($dates, $occupied) {
+            ->filter(function ($person) use ($dates, $occupiedByDate) {
                 if (! $dates) {
                     return false;
                 }
                 foreach ($dates as $date) {
                     if (! $this->hasContract($person, $date) || $this->onVacation($person, $date)
-                        || $occupied->contains(fn ($row) => $row->date->toDateString() === $date && $row->employees->contains('id', $person->id))) {
+                        || $occupiedByDate->get($date, collect())->contains(fn ($row) => $row->employees->contains('id', $person->id))) {
                         return false;
                     }
                 }
@@ -143,12 +145,75 @@ class ProgrammingService
                 return true;
             });
         $option = fn ($person) => ['id' => $person->id, 'name' => $person->dni.' — '.$this->name($person)];
+        $vehicles = Vehicle::query()->orderBy('name')->get(['id', 'name', 'code', 'plate', 'occupats_capacity'])
+            ->filter(fn (Vehicle $vehicle) => $dates && collect($dates)->every(fn ($date) => ! $occupiedByDate->get($date, collect())
+                ->contains(fn (Programming $route) => (int) $route->vehicle_id === (int) $vehicle->id)))
+            ->map(fn (Vehicle $vehicle) => [
+                'id' => $vehicle->id,
+                'name' => $vehicle->name,
+                'code' => $vehicle->code,
+                'plate' => $vehicle->plate,
+                'capacity' => (int) $vehicle->occupats_capacity,
+            ])->values()->all();
 
         return [
             'drivers' => $people->filter(fn ($person) => (int) $person->employee_type_id === 1)->map($option)->values()->all(),
             'helpers' => $people->filter(fn ($person) => (int) $person->employee_type_id !== 1)->map($option)->values()->all(),
+            'vehicles' => $vehicles,
             'dates' => $dates,
         ];
+    }
+
+    public function overlappingRoutes(CarbonImmutable $date, Shift $shift, ?Programming $editing = null, array $excludedIds = []): Collection
+    {
+        return $this->overlappingRoutesForDates([$date], $shift, $editing, $excludedIds)
+            ->get($date->toDateString(), collect());
+    }
+
+    public function overlappingRoutesForDates(array $dates, Shift $shift, ?Programming $editing = null, array $excludedIds = []): Collection
+    {
+        $targetDates = collect($dates)
+            ->map(fn ($date) => CarbonImmutable::parse($date))
+            ->sortBy(fn (CarbonImmutable $date) => $date->toDateString())
+            ->values();
+        if ($targetDates->isEmpty()) {
+            return collect();
+        }
+        $firstDate = $targetDates->first();
+        $lastDate = $targetDates->last();
+        $routes = Programming::query()
+            ->with(['shift:id,start_time,end_time', 'employees:id'])
+            ->where('status', '!=', Programming::STATUS_CANCELLED)
+            ->whereDate('date', '>=', $firstDate->subDay()->toDateString())
+            ->whereDate('date', '<=', $lastDate->addDay()->toDateString())
+            ->when($excludedIds, fn ($query) => $query->whereNotIn('id', $excludedIds))
+            ->when($editing, fn ($query) => $query->whereKeyNot($editing->id))
+            ->get();
+
+        return $targetDates->mapWithKeys(function (CarbonImmutable $targetDate) use ($routes, $shift) {
+            [$targetStart, $targetEnd] = $this->interval($targetDate, $shift);
+            $matches = $routes->filter(function (Programming $route) use ($targetStart, $targetEnd): bool {
+                if (! $route->shift) {
+                    return false;
+                }
+                [$routeStart, $routeEnd] = $this->interval(CarbonImmutable::parse($route->date->toDateString()), $route->shift);
+
+                return $routeStart < $targetEnd && $targetStart < $routeEnd;
+            })->values();
+
+            return [$targetDate->toDateString() => $matches];
+        });
+    }
+
+    public function interval(CarbonImmutable $date, Shift $shift): array
+    {
+        $start = CarbonImmutable::parse($date->toDateString().' '.$shift->start_time);
+        $end = CarbonImmutable::parse($date->toDateString().' '.$shift->end_time);
+        if ($end <= $start) {
+            $end = $end->addDay();
+        }
+
+        return [$start, $end];
     }
 
     private function calendar(array $data, StaffGroup $group, ?Programming $editing): array
@@ -221,7 +286,7 @@ class ProgrammingService
                 // Serialize shared resources; unique reservation keys are a second concurrency guard.
                 StaffGroup::whereKey($data['staff_group_id'])->lockForUpdate()->firstOrFail();
                 if ($editing) {
-                    $editing = Programming::whereKey($editing->id)->lockForUpdate()->firstOrFail();
+                    $editing = Programming::whereKey($editing->id)->with('employees')->lockForUpdate()->firstOrFail();
                 }
                 $group = StaffGroup::findOrFail($data['staff_group_id']);
                 Vehicle::whereKey((int) ($data['vehicle_id'] ?? $group->vehicle_id))->lockForUpdate()->firstOrFail();
@@ -243,6 +308,17 @@ class ProgrammingService
                     'driver' => $this->name($result['people'][$data['driver_id']]),
                     'helpers' => collect($data['helpers'] ?? [])->map(fn ($id) => $this->name($result['people'][$id]))->values()->all(),
                 ];
+                $previousHelperIds = $editing?->employees->where('pivot.role', 'helper')->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all() ?? [];
+                $nextHelperIds = array_map('intval', $data['helpers'] ?? []);
+                sort($nextHelperIds);
+                $hasProgrammingChanges = $editing && (
+                    (int) $editing->staff_group_id !== (int) $group->id
+                    || $editing->date->toDateString() !== $data['start_date']
+                    || (int) $editing->shift_id !== (int) $group->shift_id
+                    || (int) $editing->vehicle_id !== (int) $result['vehicle']->id
+                    || (int) $editing->driver_id !== (int) $data['driver_id']
+                    || $previousHelperIds !== $nextHelperIds
+                );
                 foreach ($result['dates'] as $date) {
                     $dailySnapshot = $snapshot;
                     if (in_array($date, $result['includedHolidays'], true)) {
@@ -260,6 +336,9 @@ class ProgrammingService
                         'notes' => $data['notes'] ?? null, 'snapshot' => $dailySnapshot,
                         'group_date_key' => $group->id.':'.$date, 'vehicle_date_key' => $date.':'.$group->shift_id.':'.$result['vehicle']->id,
                     ]);
+                    if ($hasProgrammingChanges) {
+                        $row->status = Programming::STATUS_RESCHEDULED;
+                    }
                     if (! $row->exists) {
                         $row->created_by = $userId;
                     }

@@ -16,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 class ProgrammingModificationService
 {
+    public function __construct(private ProgrammingService $programmingService) {}
+
     public function options(Programming $programming, int $shiftId): array
     {
         $shift = Shift::findOrFail($shiftId);
@@ -24,7 +26,9 @@ class ProgrammingModificationService
         $busyEmployees = $conflictingRoutes->flatMap(fn (Programming $route) => $route->employees->pluck('id'))
             ->map(fn ($id) => (int) $id)->unique()->values()->all();
         $currentHelperIds = $programming->employees()->wherePivot('role', 'helper')->pluck('employees.id')->map(fn ($id) => (int) $id)->all();
+        $currentEmployeeIds = array_merge([(int) $programming->driver_id], $currentHelperIds);
         $employeeQuery = Employee::query()->where('status', 'Activo')
+            ->whereNotIn('id', $currentEmployeeIds)
             ->whereHas('employeeType', fn ($query) => $query->whereIn('name', ['Conductor', 'Ayudante']))
             ->whereHas('contracts', fn ($query) => $query->where('is_active', true)->whereNull('cancelled_at')
                 ->whereDate('start_date', '<=', $programming->date->toDateString())
@@ -34,12 +38,13 @@ class ProgrammingModificationService
                 ->whereDate('end_date', '>=', $programming->date->toDateString()));
 
         $employees = (clone $employeeQuery)->with('employeeType')->orderBy('last_name')->orderBy('first_name')->get()
+            ->reject(fn (Employee $employee) => in_array((int) $employee->id, $busyEmployees, true))
             ->map(fn (Employee $employee) => [
                 'id' => $employee->id,
                 'name' => trim($employee->first_name.' '.$employee->last_name),
                 'dni' => $employee->dni,
                 'role' => (int) $employee->employee_type_id === 1 ? 'driver' : 'helper',
-                'available' => ! in_array((int) $employee->id, $busyEmployees, true),
+                'available' => true,
             ]);
 
         $retainerIds = Attendance::query()
@@ -73,6 +78,7 @@ class ProgrammingModificationService
                 'capacity' => (int) $vehicle->occupats_capacity,
                 'available' => ! in_array((int) $vehicle->id, $busyVehicles, true),
             ])
+            ->filter(fn (array $vehicle) => $vehicle['available'])
             ->filter(fn (array $vehicle) => $vehicle['capacity'] === $currentVehicleCapacity)
             ->values();
         return [
@@ -90,7 +96,7 @@ class ProgrammingModificationService
         try {
             return DB::transaction(function () use ($programming, $changes, $userId) {
                 $row = Programming::query()->whereKey($programming->id)->lockForUpdate()->firstOrFail();
-                if ($row->status !== 'Programado') {
+                if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
                     $this->reject('Solo se puede modificar un recorrido programado.');
                 }
 
@@ -177,6 +183,7 @@ class ProgrammingModificationService
                     'helpers' => collect($nextHelperIds)->map(fn ($id) => $this->employeeName($employees[$id]))->values()->all(),
                 ];
                 $row->vehicle_date_key = $row->date->toDateString().':'.$nextShiftId.':'.$nextVehicleId;
+                $row->status = Programming::STATUS_RESCHEDULED;
                 $row->save();
                 $row->employees()->detach();
                 $assignments = [];
@@ -333,39 +340,17 @@ class ProgrammingModificationService
 
     public function overlappingRoutes(Programming $programming, Shift $targetShift, array $excludedIds = []): Collection
     {
-        $date = CarbonImmutable::parse($programming->date->toDateString());
-        [$targetStart, $targetEnd] = $this->interval($date, $targetShift);
-
-        return Programming::query()
-            ->with(['shift:id,start_time,end_time', 'employees:id'])
-            ->where('status', '!=', 'Anulado')
-            ->whereDate('date', '>=', $date->subDay()->toDateString())
-            ->whereDate('date', '<=', $date->toDateString())
-            ->when($excludedIds, fn ($query) => $query->whereNotIn('id', $excludedIds))
-            ->whereKeyNot($programming->id)
-            ->get()
-            ->filter(function (Programming $route) use ($targetStart, $targetEnd): bool {
-                if (! $route->shift) {
-                    return false;
-                }
-                [$routeStart, $routeEnd] = $this->interval(
-                    CarbonImmutable::parse($route->date->toDateString()),
-                    $route->shift,
-                );
-
-                return $routeStart < $targetEnd && $targetStart < $routeEnd;
-            })->values();
+        return $this->programmingService->overlappingRoutes(
+            CarbonImmutable::parse($programming->date->toDateString()),
+            $targetShift,
+            $programming,
+            $excludedIds,
+        );
     }
 
     public function interval(CarbonImmutable $date, Shift $shift): array
     {
-        $start = CarbonImmutable::parse($date->toDateString().' '.$shift->start_time);
-        $end = CarbonImmutable::parse($date->toDateString().' '.$shift->end_time);
-        if ($end <= $start) {
-            $end = $end->addDay();
-        }
-
-        return [$start, $end];
+        return $this->programmingService->interval($date, $shift);
     }
 
     public function validateReason(array $change): void

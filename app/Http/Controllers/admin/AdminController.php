@@ -97,7 +97,7 @@ class AdminController extends Controller
                     ->where('programming_employees.employee_id', $attendance->employee_id)
                     ->whereDate('programming_employees.date', $fechaSeleccionada)
                     ->where('programming_employees.shift_id', $attendance->shift_id)
-                    ->where('programmings.status', 'Programado')
+                    ->whereIn('programmings.status', [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED])
                     ->whereNull('programmings.deleted_at')
                     ->exists();
 

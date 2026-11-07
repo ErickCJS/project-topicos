@@ -507,6 +507,66 @@ class ProgrammingBackendTest extends TestCase
         $this->getJson(route('programming.people', $query))->assertOk()->assertJsonCount(1, 'drivers')->assertJsonCount(1, 'helpers');
     }
 
+    public function test_new_programming_options_use_real_overlapping_overnight_intervals(): void
+    {
+        $overnight = Shift::create(['name' => 'Turno madrugada', 'start_time' => '22:00', 'end_time' => '02:00']);
+        $this->group->update(['shift_id' => $overnight->id]);
+        $this->generate(['start_date' => '2026-11-01', 'end_date' => '2026-11-01', 'days' => [7]]);
+
+        $early = Shift::create(['name' => 'Turno temprano', 'start_time' => '01:00', 'end_time' => '03:00']);
+        $vehicle = $this->alternativeVehicle('Vehiculo temprano', 'RSU-9', 'EAR-123');
+        $targetGroup = $this->group->replicate();
+        $targetGroup->name = 'Equipo temprano';
+        $targetGroup->shift_id = $early->id;
+        $targetGroup->vehicle_id = $vehicle->id;
+        $targetGroup->save();
+        $this->copyWorkingDaysTo($targetGroup);
+
+        $query = ['staff_group_id' => $targetGroup->id, 'start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]];
+        $options = $this->getJson(route('programming.people', $query))->assertOk()
+            ->assertJsonCount(0, 'drivers')->assertJsonCount(0, 'helpers');
+        $vehicleIds = collect($options->json('vehicles'))->pluck('id')->all();
+        $this->assertNotContains($this->group->vehicle_id, $vehicleIds);
+        $this->assertContains($vehicle->id, $vehicleIds);
+
+        $this->postJson(route('programming.check'), $this->data([
+            'staff_group_id' => $targetGroup->id,
+            'vehicle_id' => $vehicle->id,
+            'start_date' => '2026-11-02',
+            'end_date' => '2026-11-02',
+            'days' => [1],
+        ]))->assertOk()->assertJsonPath('valid', false);
+
+        $futureShift = Shift::create(['name' => 'Turno despues de medianoche', 'start_time' => '01:00', 'end_time' => '05:00']);
+        $futureRoute = Programming::firstOrFail()->replicate();
+        $futureRoute->date = '2026-11-03';
+        $futureRoute->shift_id = $futureShift->id;
+        $futureRoute->group_date_key = $this->group->id.':2026-11-03';
+        $futureRoute->vehicle_date_key = '2026-11-03:'.$futureShift->id.':'.$this->group->vehicle_id;
+        $futureRoute->save();
+        $futureRoute->employees()->attach([
+            $this->driver->id => ['date' => '2026-11-03', 'shift_id' => $futureShift->id, 'role' => 'driver'],
+            $this->helper->id => ['date' => '2026-11-03', 'shift_id' => $futureShift->id, 'role' => 'helper'],
+        ]);
+        $lateShift = Shift::create(['name' => 'Turno nocturno', 'start_time' => '22:00', 'end_time' => '02:00']);
+        $targetGroup->update(['shift_id' => $lateShift->id]);
+        $targetGroup->days()->delete();
+        $targetGroup->days()->create(['day' => 2]);
+        $query = ['staff_group_id' => $targetGroup->id, 'start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [2]];
+        $options = $this->getJson(route('programming.people', $query))->assertOk()
+            ->assertJsonCount(0, 'drivers')->assertJsonCount(0, 'helpers');
+        $vehicleIds = collect($options->json('vehicles'))->pluck('id')->all();
+        $this->assertNotContains($this->group->vehicle_id, $vehicleIds);
+        $this->assertContains($vehicle->id, $vehicleIds);
+        $this->postJson(route('programming.check'), $this->data([
+            'staff_group_id' => $targetGroup->id,
+            'vehicle_id' => $vehicle->id,
+            'start_date' => '2026-11-02',
+            'end_date' => '2026-11-02',
+            'days' => [2],
+        ]))->assertOk()->assertJsonPath('valid', false);
+    }
+
     public function test_people_options_validate_period_group_and_authentication(): void
     {
         foreach ([['start_date' => '2026-10-29'], ['end_date' => '2026-11-01'], ['days' => []], ['days' => [8]], ['end_date' => '2028-01-01']] as $changes) {
@@ -1021,11 +1081,43 @@ class ProgrammingBackendTest extends TestCase
         $data = $this->checked($this->data(['programming_id' => $row->id, 'end_date' => '2026-11-02', 'notes' => 'Cambio registrado']));
         $this->putJson(route('programming.update', $row), $data)->assertOk();
         $this->assertSame('Cambio registrado', $row->fresh()->notes);
+        $this->assertSame(Programming::STATUS_PROGRAMMED, $row->fresh()->status);
         $this->postJson(route('programming.finish', $row))->assertOk();
         $this->assertSame('Finalizado', $row->fresh()->status);
         $this->assertNotNull($row->fresh()->finished_at);
         $this->getJson(route('programming.history', $row->id))->assertOk()->assertJsonCount(3, 'data')->assertJsonPath('data.1.before.notes', 'Recorrido real')->assertJsonPath('data.1.after.notes', 'Cambio registrado');
         $this->deleteJson(route('programming.destroy', $row))->assertUnprocessable();
+    }
+
+    public function test_real_resource_edits_set_rescheduled_status_and_note_only_edits_preserve_it(): void
+    {
+        $this->generate(['end_date' => '2026-11-02']);
+        $row = Programming::firstOrFail();
+        $vehicle = $this->alternativeVehicle('Vehiculo alternativo', 'RSU-10', 'ALT-123');
+        $data = $this->checked($this->data([
+            'programming_id' => $row->id,
+            'end_date' => '2026-11-02',
+            'vehicle_id' => $vehicle->id,
+        ]));
+
+        $this->putJson(route('programming.update', $row), $data)->assertOk();
+        $this->assertSame(Programming::STATUS_RESCHEDULED, $row->fresh()->status);
+        $options = $this->getJson(route('programming.people', $this->data([
+            'programming_id' => $row->id,
+            'end_date' => '2026-11-02',
+        ])))->assertOk();
+        $options->assertJsonPath('drivers.0.id', $this->driver->id)->assertJsonPath('helpers.0.id', $this->helper->id);
+        $this->assertContains($vehicle->id, collect($options->json('vehicles'))->pluck('id')->all());
+
+        $noteOnly = $this->checked($this->data([
+            'programming_id' => $row->id,
+            'end_date' => '2026-11-02',
+            'vehicle_id' => $vehicle->id,
+            'notes' => 'Observacion actualizada',
+        ]));
+        $this->putJson(route('programming.update', $row), $noteOnly)->assertOk();
+        $this->assertSame(Programming::STATUS_RESCHEDULED, $row->fresh()->status);
+        $this->assertSame(3, $row->changes()->count());
     }
 
     public function test_deletion_preserves_history_and_releases_reservations(): void
@@ -1101,6 +1193,7 @@ class ProgrammingBackendTest extends TestCase
             ->assertOk()->assertJsonPath('count', 4);
 
         $row->refresh();
+        $this->assertSame(Programming::STATUS_RESCHEDULED, $row->status);
         $this->assertSame($newShift->id, $row->shift_id);
         $this->assertSame($newVehicle->id, $row->vehicle_id);
         $this->assertSame($newDriver->id, $row->driver_id);
@@ -1205,9 +1298,9 @@ class ProgrammingBackendTest extends TestCase
             'programming' => $row->id, 'shift_id' => $overlapShift->id,
         ]))->assertOk();
         $helperOption = collect($options->json('helpers'))->firstWhere('id', $this->helper->id);
-        $this->assertFalse($helperOption['available']);
+        $this->assertNull($helperOption);
         $vehicleOption = collect($options->json('vehicles'))->firstWhere('id', $otherVehicle->id);
-        $this->assertFalse($vehicleOption['available']);
+        $this->assertNull($vehicleOption);
 
         $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
             'type' => 'shift', 'new_id' => $overlapShift->id, 'reason' => 'Necesidad operativa',
@@ -1422,8 +1515,8 @@ class ProgrammingBackendTest extends TestCase
             'programming' => $row->id, 'shift_id' => $earlyShift->id,
         ]))->assertOk();
         $helperOption = collect($options->json('helpers'))->firstWhere('id', $this->helper->id);
-        $this->assertFalse($helperOption['available']);
-        $this->assertFalse(collect($options->json('vehicles'))->firstWhere('id', $otherVehicle->id)['available']);
+        $this->assertNull($helperOption);
+        $this->assertNull(collect($options->json('vehicles'))->firstWhere('id', $otherVehicle->id));
 
         $this->patchJson(route('programming.update-modifications', $row), ['changes' => [[
             'type' => 'shift', 'new_id' => $earlyShift->id, 'reason' => 'Necesidad operativa',

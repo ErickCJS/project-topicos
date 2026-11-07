@@ -20,17 +20,35 @@ class ProgrammingReschedulingService
 {
     public function __construct(private ProgrammingService $programmingService) {}
 
-    public function options(Programming $programming): array
+    public function options(Programming $programming, ?string $date = null, ?int $shiftId = null): array
     {
         $this->assertOrigin($programming);
         $programming->loadMissing('employees');
-        $employees = Employee::where('status', 'Activo')->orderBy('last_name')->orderBy('first_name')->get()
-            ->map(fn (Employee $employee) => ['id' => $employee->id, 'name' => $this->programmingService->name($employee), 'dni' => $employee->dni, 'is_driver' => (int) $employee->employee_type_id === 1])->values();
+        $employees = collect();
+        $vehicles = collect();
+        if ($date && $shiftId) {
+            $day = CarbonImmutable::parse($date)->toDateString();
+            $shift = Shift::findOrFail($shiftId);
+            $rows = Programming::with(['employees', 'shift'])->whereKeyNot($programming->id)
+                ->where('status', '!=', Programming::STATUS_CANCELLED)
+                ->whereDate('date', '>=', CarbonImmutable::parse($day)->subDay())
+                ->whereDate('date', '<=', CarbonImmutable::parse($day)->addDay())->get();
+            $conflicts = $rows->filter(fn (Programming $row) => $this->overlap(CarbonImmutable::parse($day), $shift, $row->date, $row->shift));
+            $busyIds = $conflicts->flatMap(fn (Programming $row) => $row->employees->pluck('id'))->map(fn ($id) => (int) $id)->unique();
+            $employees = Employee::with(['contracts', 'vacations'])->where('status', 'Activo')->orderBy('last_name')->orderBy('first_name')->get()
+                ->filter(fn (Employee $employee) => ! $busyIds->contains((int) $employee->id)
+                    && $employee->contracts->contains(fn ($contract) => $contract->is_active && ! $contract->cancelled_at && $contract->start_date->toDateString() <= $day && (! $contract->end_date || $contract->end_date->toDateString() >= $day))
+                    && ! $employee->vacations->contains(fn ($vacation) => $vacation->status === 'Aprobada' && $vacation->start_date && $vacation->end_date && $vacation->start_date->toDateString() <= $day && $vacation->end_date->toDateString() >= $day))
+                ->map(fn (Employee $employee) => ['id' => $employee->id, 'name' => $this->programmingService->name($employee), 'dni' => $employee->dni, 'is_driver' => (int) $employee->employee_type_id === 1])->values();
+            $vehicles = Vehicle::orderBy('name')->get(['id', 'name', 'code', 'plate', 'occupats_capacity'])
+                ->filter(fn ($vehicle) => (int) $vehicle->occupats_capacity >= $programming->employees->unique('id')->count()
+                    && ! $conflicts->contains(fn (Programming $row) => (int) $row->vehicle_id === (int) $vehicle->id))->values();
+        }
 
         return [
             'origin' => $this->summary($programming),
             'shifts' => Shift::orderBy('name')->get(['id', 'name', 'start_time', 'end_time']),
-            'vehicles' => Vehicle::orderBy('name')->get(['id', 'name', 'code', 'plate', 'occupats_capacity']),
+            'vehicles' => $vehicles,
             'drivers' => $employees->where('is_driver', true)->values(),
             'helpers' => $employees->where('is_driver', false)->values(),
             'reasons' => Reason::orderBy('name')->get(['id', 'name']),

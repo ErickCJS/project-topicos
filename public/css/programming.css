@@ -7,6 +7,7 @@
 .programming-module .table th, .programming-module .table td { padding: .7rem .8rem; white-space: nowrap; }
 .programming-module .programming-status { display: inline-block; padding: .4rem .65rem; border-radius: 6px; font-size: .75rem; font-weight: 600; }
 .programming-module .programming-status--scheduled { color: #084c61; background: #d9f0f7; }
+.programming-module .programming-status--rescheduled { color: #075f65; background: #d9f3f1; }
 .programming-module .programming-status--finished { color: #176542; background: #e0f1e8; }
 .programming-module .programming-status--annulled { color: #76283b; background: #f3e1e6; }
 .programming-module .programming-status--default { color: var(--bs-secondary-color); background: var(--bs-tertiary-bg); }
@@ -101,4 +102,37 @@
 @media (max-width: 767.98px) {
     .bulk-modification-preview-table { min-width: 760px; }
     .bulk-preview-change { min-width: 125px; }
+}
+.programming-module #programmingFormModal .modal-dialog { width: min(1140px, calc(100vw - 2rem)); max-width: none; }
+.programming-module #programmingFormModal .modal-content { max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem); }
+.programming-module #programmingForm .modal-body { min-width: 0; overflow-x: hidden; padding: clamp(1rem, 2.2vw, 1.75rem); }
+.programming-module #programmingForm .row { min-width: 0; }
+.programming-module #programmingForm .form-control,
+.programming-module #programmingForm .form-select,
+.programming-module #programmingForm .select2-container { min-width: 0; }
+.programming-module #programmingForm .form-control,
+.programming-module #programmingForm .form-select { min-height: 42px; border-color: #d8e0e8; border-radius: 6px; }
+.programming-module #programmingForm .select2-container--bootstrap-5 .select2-selection--single { min-height: 42px; border-color: #d8e0e8; border-radius: 6px; }
+.programming-module #programHelpers { min-width: 0; }
+.programming-module .programming-helper-select { width: 100%; }
+.programming-module #programPeopleNote { overflow-wrap: anywhere; }
+.programming-module .programming-validate-wrap { display: flex; align-items: flex-start; padding-top: 1.9rem; }
+.programming-module #validateProgramming { min-height: 42px; white-space: normal; }
+.programming-module #programGroupSummary { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+.programming-module #programHolidayOptions { overflow-wrap: anywhere; }
+@media (max-width: 767.98px) {
+    .programming-module #programmingFormModal .modal-dialog { width: calc(100vw - 1rem); margin: .5rem auto; }
+    .programming-module #programmingFormModal .modal-content { max-height: calc(100vh - 1rem); max-height: calc(100dvh - 1rem); }
+    .programming-module .programming-validate-wrap { padding-top: 0; }
+    .programming-module #validateProgramming { width: 100%; }
+    .programming-module #programDriver, .programming-module .programming-helper-select { min-height: 44px; }
+}
+@media (max-width: 575.98px) {
+    .programming-module #programmingFormModal .modal-dialog { width: calc(100vw - .5rem); margin: .25rem auto; }
+    .programming-module #programmingForm .modal-header,
+    .programming-module #programmingForm .modal-footer { padding: .9rem 1rem; }
+    .programming-module #programmingForm .modal-body { padding: 1rem; }
+    .programming-module #programHelpers > div { width: 100%; }
+    .programming-module #programGroupSummary { grid-template-columns: minmax(0, 1fr); }
+    .programming-module #programHolidayOptions { padding: .75rem !important; }
 }

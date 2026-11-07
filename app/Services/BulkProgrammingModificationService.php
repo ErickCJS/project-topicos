@@ -90,6 +90,7 @@ class BulkProgrammingModificationService
                     $snapshot['helpers'] = collect($state['helper_ids'])->map(fn ($id) => $this->employeeName($employees[$id]))->values()->all();
 
                     $row->update([
+                        'status' => Programming::STATUS_RESCHEDULED,
                         'shift_id' => $state['shift']->id,
                         'vehicle_id' => $state['vehicle']->id,
                         'driver_id' => $state['driver_id'],
@@ -127,7 +128,7 @@ class BulkProgrammingModificationService
     private function queryRows(array $data)
     {
         return Programming::query()
-            ->where('status', 'Programado')
+            ->whereIn('status', [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED])
             ->where('zone_id', $data['zone_id'])
             ->whereDate('date', '>=', $data['start_date'])
             ->whereDate('date', '<=', $data['end_date'])

@@ -18,7 +18,7 @@ $(function () {
     let checking = false, saving = false;
     let holidayRequest = null, holidayRevision = 0, holidaysReady = false;
     let peopleRequest = null, peopleRevision = 0, peopleReady = false;
-    let preferredPeople = {driver: '', helpers: []};
+    let preferredPeople = {driver: '', helpers: []}, preferredVehicle = '', currentGroupCapacity = 1;
     let modificationId = null, modificationCurrent = null, modificationHistory = [], modificationOptions = null;
 
     function request(method, path, data = {}) {
@@ -50,7 +50,8 @@ $(function () {
             {data:'status',render:(v,t) => {
                 const statusClass = v === 'Anulado' ? 'programming-status--annulled'
                     : v === 'Finalizado' ? 'programming-status--finished'
-                        : v === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
+                        : v === 'Reprogramado' ? 'programming-status--rescheduled'
+                            : v === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
                 return t === 'display' ? `<span class="programming-status ${statusClass}">${escape(v)}</span>` : v;
             }},
             {data:'zone',render:$.fn.dataTable.render.text()},
@@ -58,7 +59,7 @@ $(function () {
             {data:'vehicle',render:(v,t,row) => t === 'display' ? `<span class="programming-vehicle">${escape(v)}<small>${escape(row.plate)}</small></span>` : `${v} ${row.plate}`},
             {data:'driver',render:$.fn.dataTable.render.text()},
             {data:'helpers',render:(v,t) => t === 'display' ? v.map(name => `<span class="programming-helper">${escape(name)}</span>`).join('') : v.join(', ')},
-            { data: null, orderable: false, searchable: false, render: row => `<div class="programming-actions table-action-buttons d-flex justify-content-center" data-id="${row.id}">${row.status === 'Programado' ? button('edit', 'pencil-square', 'Modificar programación', 'outline-warning') + button('reschedule','calendar-plus','Reprogramar recorrido','outline-info') + button('annul','bi bi-ban','Anular programación','outline-danger') + button('group','people','Ver grupo asociado','outline-primary') + button('finish','check-circle','Aceptar y finalizar recorrido','outline-success') : button('detail','eye','Ver detalle','outline-primary')}</div>`}
+            { data: null, orderable: false, searchable: false, render: row => `<div class="programming-actions table-action-buttons d-flex justify-content-center" data-id="${row.id}">${['Programado','Reprogramado'].includes(row.status) ? button('edit', 'pencil-square', 'Modificar programación', 'outline-warning') + button('annul','ban','Anular programación','outline-danger') + button('group','people','Ver grupo asociado','outline-primary') + button('finish','check-circle','Aceptar y finalizar recorrido','outline-success') : button('detail','eye','Ver detalle','outline-primary')}</div>`}
         ],
         language:{search:'Buscar:',lengthMenu:'Mostrar _MENU_ registros',info:'Mostrando _START_ a _END_ de _TOTAL_ registros',infoEmpty:'Sin registros',infoFiltered:'(filtrado de _MAX_ registros)',zeroRecords:'No se encontraron programaciones',emptyTable:'No hay programaciones para las fechas seleccionadas',paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}
     });
@@ -69,7 +70,7 @@ $(function () {
             'Zona: ' + $('#filterZone option:selected').text(), 'Turno: ' + $('#filterShift option:selected').text()];
         if (table.search()) filters.push('Búsqueda: ' + table.search());
         return {issued:new Intl.DateTimeFormat('es-PE',{dateStyle:'short',timeStyle:'short',timeZone:'America/Lima'}).format(new Date()),count:rows.length,
-            scheduled:rows.filter(r => r.status === 'Programado').length,finished:rows.filter(r => r.status === 'Finalizado').length,filters};
+            scheduled:rows.filter(r => ['Programado','Reprogramado'].includes(r.status)).length,finished:rows.filter(r => r.status === 'Finalizado').length,filters};
     }
     new $.fn.dataTable.Buttons(table,{buttons:[
         {extend:'excelHtml5',text:'<i class="bi bi-file-earmark-excel me-1"></i>Excel',title:'Programaciones | SGRS JLO',exportOptions},
@@ -109,15 +110,26 @@ $(function () {
             select.id = 'programHelper' + index; label.htmlFor = select.id; label.textContent = 'Ayudante ' + (index + 1);
             select.value = ids[index] || ''; container.appendChild(node);
         }
+        syncHelperOptions();
+    }
+    function syncHelperOptions() {
+        const selected = $('.programming-helper-select').map((i, element) => element.value).get().filter(Boolean);
+        $('.programming-helper-select').each(function () {
+            const current = this.value;
+            Array.from(this.options).forEach(option => {
+                if (option.value) option.disabled = selected.includes(option.value) && option.value !== current;
+            });
+        });
     }
     function resetPeople(message) {
         if (peopleReady) {
             preferredPeople = {driver: $('#programDriver').val(), helpers: $('.programming-helper-select').map((i, el) => el.value).get()};
+            preferredVehicle = $('#programVehicle').val() || preferredVehicle;
         }
         peopleReady = false; peopleRevision++;
         if (peopleRequest) peopleRequest.abort();
         peopleRequest = null;
-        $('#programDriver, .programming-helper-select').each(function () {
+        $('#programVehicle, #programDriver, .programming-helper-select').each(function () {
             this.replaceChildren(new Option(message, '')); this.disabled = true;
         });
         $('#programPeopleNote').text(message);
@@ -137,10 +149,26 @@ $(function () {
                 if (selected && !eligible) cleared = true;
                 select.disabled = false;
             }
+            const vehicleSelect = document.getElementById('programVehicle');
+            vehicleSelect.replaceChildren(new Option('Seleccione un vehículo disponible', ''));
+            result.vehicles.forEach(vehicle => {
+                const option = new Option([vehicle.code, vehicle.name, vehicle.plate].filter(Boolean).join(' \u00b7 '), vehicle.id);
+                option.dataset.capacity = vehicle.capacity;
+                vehicleSelect.add(option);
+            });
+            const selectedVehicleAvailable = result.vehicles.some(vehicle => String(vehicle.id) === String(preferredVehicle));
+            vehicleSelect.value = selectedVehicleAvailable ? preferredVehicle : '';
+            vehicleSelect.disabled = false;
+            if (preferredVehicle && !selectedVehicleAvailable) cleared = true;
+            const selectedVehicle = result.vehicles.find(vehicle => String(vehicle.id) === String(vehicleSelect.value));
+            const selectedCapacity = selectedVehicle ? Number(selectedVehicle.capacity) : currentGroupCapacity;
+            if (preferredPeople.helpers.slice(Math.max(0, selectedCapacity - 1)).some(Boolean)) cleared = true;
+            helpers(selectedCapacity, preferredPeople.helpers);
             fill(document.getElementById('programDriver'), result.drivers, preferredPeople.driver, 'Seleccione un conductor');
             $('.programming-helper-select').each(function (index) {
                 fill(this, result.helpers, preferredPeople.helpers[index], 'Sin asignar');
             });
+            syncHelperOptions();
             peopleReady = true;
             invalidate();
             $('#programPeopleNote').text(!result.dates.length ? 'No hay fechas nuevas para programar. Revise los días y feriados seleccionados.'
@@ -155,6 +183,7 @@ $(function () {
     }
     $('#programPeopleNote').on('click', '#retryProgrammingPeople', loadPeople);
     $(form).on('change', '.programming-work-holiday', loadPeople);
+    $(form).on('change', '.programming-helper-select', syncHelperOptions);
     function loadHolidays(selected = null) {
         resetPeople('Seleccione un grupo, un período válido y días de trabajo.');
         const chosen = selected || $('.programming-work-holiday:checked').map((i, el) => el.value).get();
@@ -204,7 +233,9 @@ $(function () {
         $('#validateProgramming').prop('disabled',true);
         groupRequest = request('GET','/groups/' + id).done(group => {
             if (String($('#programGroup').val()) !== String(id)) return;
-            $('#programGroupSummary').html([['Grupo',group.name],['Zona',group.zone],['Turno',`${group.shift} (${group.hours})`],['Vehículo',`${group.vehicle} · ${group.plate}`]].map(([label,value]) => `<div><small>${label}</small><strong>${escape(value)}</strong></div>`).join('')).prop('hidden',false);
+            currentGroupCapacity = Number(group.capacity || 1);
+            preferredVehicle = row ? row.vehicle_id : group.vehicle_id;
+            $('#programGroupSummary').html([['Grupo',group.name],['Zona',group.zone],['Turno',`${group.shift} (${group.hours})`],['Vehículo del grupo',`${group.vehicle} · ${group.plate}`]].map(([label,value]) => `<div><small>${label}</small><strong>${escape(value)}</strong></div>`).join('')).prop('hidden',false);
             preferredPeople = {driver: row ? row.driver_id : group.driver_id, helpers: row ? row.helper_ids : group.helpers};
             helpers(group.capacity,row ? row.helper_ids : group.helpers);
             $('.programming-helper-select').prop('disabled', true);
@@ -218,6 +249,13 @@ $(function () {
         }).fail(xhr => {if(xhr.statusText !== 'abort') errors(xhr);}).always(() => $('#validateProgramming').prop('disabled',false));
     }
     $('#programGroup').on('change',function(){loadGroup(this.value);});
+    $('#programVehicle').on('change',function(){
+        if (!peopleReady) return;
+        preferredPeople = {driver: $('#programDriver').val(), helpers: $('.programming-helper-select').map((i, element) => element.value).get()};
+        preferredVehicle = this.value;
+        peopleReady = false;
+        loadPeople();
+    });
     $('#programmingForm').on('input change','input,select,textarea',invalidate);
     $('#programStart').on('change',function(){
         $('#programEnd').attr('min',this.value > todayInLima() ? this.value : todayInLima());
@@ -225,7 +263,7 @@ $(function () {
         loadHolidays();
     });
     function openForm(row = null) {
-        form.reset(); editing = row ? row.id : null;
+        form.reset(); editing = row ? row.id : null; preferredVehicle = ''; currentGroupCapacity = 1;
         $('#programGroupDaysNote').text('Seleccione un grupo para cargar sus días de trabajo como selección inicial.');
         loadHolidays([]);
         $('#programStart, #programEnd').attr('min',todayInLima());
@@ -239,7 +277,7 @@ $(function () {
     $('#newProgramming').on('click',() => openForm());
     $('#programmingFormModal').on('hidden.bs.modal',() => {if(groupRequest) groupRequest.abort();holidayRevision++;if(holidayRequest) holidayRequest.abort();holidayRequest=null;holidaysReady=false;resetPeople('Seleccione un grupo y un período.');invalidate();});
     function payload() {
-        return {staff_group_id:$('#programGroup').val(),driver_id:$('#programDriver').val(),helpers:$('.programming-helper-select').map((i,el) => el.value).get().filter(Boolean),
+        return {staff_group_id:$('#programGroup').val(),vehicle_id:$('#programVehicle').val(),driver_id:$('#programDriver').val(),helpers:$('.programming-helper-select').map((i,el) => el.value).get().filter(Boolean),
             start_date:$('#programStart').val(),end_date:$('#programEnd').val(),days:$(form).find('[name="workdays"]:checked').map((i,el) => el.value).get(),notes:$('#programNotes').val(),programming_id:editing,
             work_holidays:$('.programming-work-holiday:checked').map((i,el) => el.value).get()};
     }
@@ -308,7 +346,8 @@ $(function () {
         const helpers = Array.isArray(row.helpers) ? row.helpers : [];
         const statusClass = row.status === 'Anulado' ? 'programming-status--annulled'
             : row.status === 'Finalizado' ? 'programming-status--finished'
-                : row.status === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
+                : row.status === 'Reprogramado' ? 'programming-status--rescheduled'
+                    : row.status === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
         const facts = [
             ['Fecha',dateLabel(row.date)], ['Estado',`<span class="programming-status ${statusClass}">${escape(row.status)}</span>`],
             ['Grupo',row.group], ['Zona',row.zone], ['Turno',`${row.shift} · ${row.hours}`],
@@ -531,7 +570,6 @@ $(function () {
     $('#programmingTable').on('click','[data-action]',async function(){
         const id = Number(this.closest('[data-id]').dataset.id), action = this.dataset.action;
         if(action === 'edit') {openModificationModule(id);return;}
-        if(action === 'reschedule') { openRescheduling(id); return; }
         if(action === 'detail' || action === 'group') {
             $('#programmingDetailTitle').text('Detalle de programación y grupo');
             $('#programmingDetailBody').html('<div class="text-center text-body-secondary py-5"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cargando datos e historial…</div>');
@@ -550,20 +588,4 @@ $(function () {
         }).fail(errors);
     });
 
-    function openRescheduling(id) {
-        request('GET','/' + id + '/rescheduling/options').done(options => {
-            const origin = options.origin || {};
-            const opts = (items, selected) => (items || []).map(item => `<option value="${item.id}" ${String(item.id) === String(selected) ? 'selected' : ''}>${escape(item.name || item.code || item.plate)}</option>`).join('');
-            Swal.fire({title:'Reprogramar recorrido', width:700, html:`<label class="d-block text-start mb-2">Fecha destino<input id="rsDate" type="date" class="form-control" min="${todayInLima()}"></label><label class="d-block text-start mb-2">Turno<select id="rsShift" class="form-select">${opts(options.shifts, origin.shift_id)}</select></label><label class="d-block text-start mb-2">Vehículo<select id="rsVehicle" class="form-select">${opts(options.vehicles, origin.vehicle_id)}</select></label><label class="d-block text-start mb-2">Conductor<select id="rsDriver" class="form-select">${opts(options.drivers, origin.driver_id)}</select></label><label class="d-block text-start mb-2">Ayudantes<select id="rsHelpers" class="form-select" multiple>${opts(options.helpers)}</select></label><label class="d-block text-start mb-2">Motivo<select id="rsReason" class="form-select"><option value="">Seleccione</option>${opts(options.reasons)}</select></label><textarea id="rsDescription" class="form-control" maxlength="1000" placeholder="Descripción (opcional)"></textarea>`, showCancelButton:true, confirmButtonText:'Validar', cancelButtonText:'Cancelar', preConfirm:() => ({destination_date:$('#rsDate').val(),shift_id:Number($('#rsShift').val()),vehicle_id:Number($('#rsVehicle').val()),driver_id:Number($('#rsDriver').val()),helpers:$('#rsHelpers').val() || [],reason_id:Number($('#rsReason').val()),description:$('#rsDescription').val()})}).then(result => {
-                if (!result.isConfirmed) return;
-                const data = result.value;
-                data.destination_date = String(data.destination_date || '').trim();
-                data.reason = $('#rsReason option:selected').text().trim();
-                request('POST','/' + id + '/rescheduling/check', data).done(check => {
-                    if (!check.valid) { Swal.fire({icon:'error',title:'No se puede reprogramar',text:(check.issues || []).map(issue => issue.message).join('\n') || 'Revise los datos.'}); return; }
-                    Swal.fire({icon:'warning',title:'Confirmar reprogramación',text:'Se liberarán las reservas originales y se creará un nuevo recorrido.',showCancelButton:true,confirmButtonText:'Confirmar',cancelButtonText:'Cancelar'}).then(confirm => { if (!confirm.isConfirmed) return; request('POST','/' + id + '/rescheduling',{...data,validation_token:check.validation_token}).done(response => { table.ajax.reload(null,false); Swal.fire({icon:'success',title:'Reprogramación confirmada',text:`Nuevo recorrido #${response.destination_id}`}); }).fail(errors); });
-                }).fail(errors);
-            });
-        }).fail(errors);
-    }
 });

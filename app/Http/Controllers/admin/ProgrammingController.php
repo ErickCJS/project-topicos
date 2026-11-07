@@ -87,7 +87,7 @@ class ProgrammingController extends Controller
             'shift' => $staffGroup->shift->name,
             'hours' => substr($staffGroup->shift->start_time, 0, 5).' - '.substr($staffGroup->shift->end_time, 0, 5),
             'vehicle' => $staffGroup->vehicle->name, 'plate' => $staffGroup->vehicle->plate,
-            'capacity' => (int) $staffGroup->vehicle->occupats_capacity, 'driver_id' => $staffGroup->driver_id,
+            'capacity' => (int) $staffGroup->vehicle->occupats_capacity, 'vehicle_id' => $staffGroup->vehicle_id, 'driver_id' => $staffGroup->driver_id,
             'helpers' => $staffGroup->helpers->pluck('id'), 'days' => $staffGroup->days->pluck('day'),
         ]);
     }
@@ -219,7 +219,7 @@ class ProgrammingController extends Controller
             'zone_id' => ['required', 'integer', 'exists:zones,id'],
             'type' => ['required', 'in:shift,driver,helper,vehicle'],
         ], ['end_date.after_or_equal' => 'La fecha final no puede ser anterior a la fecha inicial.']);
-        $rows = Programming::with('employees')->where('status', 'Programado')->where('zone_id', $data['zone_id'])
+        $rows = Programming::with('employees')->whereIn('status', [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED])->where('zone_id', $data['zone_id'])
             ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->get();
         $helperIds = $rows->flatMap(fn (Programming $row) => $row->employees->where('pivot.role', 'helper')->pluck('id'))->unique()->values();
         $people = Employee::where('status', 'Activo')->when($data['type'] === 'driver', fn ($q) => $q->where('employee_type_id', 1))->when($data['type'] === 'helper', fn ($q) => $q->where('employee_type_id', '!=', 1))->orderBy('last_name')->orderBy('first_name')->get()
@@ -277,9 +277,13 @@ class ProgrammingController extends Controller
         return $this->persist($request, $programming);
     }
 
-    public function reschedulingOptions(Programming $programming)
+    public function reschedulingOptions(Request $request, Programming $programming)
     {
-        return response()->json($this->reschedulingService->options($programming));
+        $data = $request->validate([
+            'destination_date' => ['nullable', 'date_format:Y-m-d'],
+            'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
+        ]);
+        return response()->json($this->reschedulingService->options($programming, $data['destination_date'] ?? null, isset($data['shift_id']) ? (int) $data['shift_id'] : null));
     }
 
     public function reschedulingCheck(Request $request, Programming $programming)
@@ -356,6 +360,17 @@ class ProgrammingController extends Controller
     public function modifications(Programming $programming)
     {
         $programming->load('employees');
+        $employeeIds = $programming->employees->pluck('id');
+        $presentIds = \App\Models\admin\Attendance::query()->whereDate('date', $programming->date)
+            ->where('shift_id', $programming->shift_id)->whereIn('employee_id', $employeeIds)
+            ->where('status', 'Presente')->distinct()->pluck('employee_id')->map(fn ($id) => (int) $id)->all();
+        $people = $programming->employees->unique('id')->map(fn ($employee) => [
+            'id' => (int) $employee->id,
+            'name' => trim($employee->first_name.' '.$employee->last_name),
+            'role' => $employee->pivot->role,
+            'present' => in_array((int) $employee->id, $presentIds, true),
+        ])->values();
+        $driver = $programming->employees->firstWhere('id', $programming->driver_id);
 
         return response()->json([
             'current' => [...$this->row($programming),
@@ -365,7 +380,14 @@ class ProgrammingController extends Controller
                 'helper_ids' => $programming->employees->where('pivot.role', 'helper')->pluck('id')->values(),
                 'helper_people' => $programming->employees->where('pivot.role', 'helper')->map(fn ($employee) => [
                     'id' => $employee->id, 'name' => trim($employee->first_name.' '.$employee->last_name),
+                    'present' => in_array((int) $employee->id, $presentIds, true),
                 ])->values(),
+                'driver' => $programming->snapshot['driver'] ?? ($driver ? trim($driver->first_name.' '.$driver->last_name) : 'Sin conductor'),
+                'people' => $people,
+                'present' => $people->where('present', true)->values(),
+                'missing' => $people->where('present', false)->values(),
+                'present_count' => $people->where('present', true)->count(),
+                'missing_count' => $people->where('present', false)->count(),
             ],
             'options' => $this->modificationService->options($programming, (int) request('shift_id', $programming->shift_id)),
             'history' => $programming->changes()->with('user:id,name')->orderByDesc('id')->get()
@@ -411,7 +433,7 @@ class ProgrammingController extends Controller
     {
         DB::transaction(function () use ($programming, $request) {
             $row = Programming::whereKey($programming->id)->lockForUpdate()->firstOrFail();
-            if ($row->status !== 'Programado') {
+            if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
                 $this->reject('El recorrido ya está finalizado.');
             }
             $before = $row->toArray();
@@ -426,7 +448,7 @@ class ProgrammingController extends Controller
     {
         DB::transaction(function () use ($programming, $request) {
             $row = Programming::whereKey($programming->id)->lockForUpdate()->firstOrFail();
-            if ($row->status !== 'Programado') {
+            if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
                 $this->reject('Solo se puede anular un recorrido programado.');
             }
             $before = $row->toArray();
@@ -442,7 +464,7 @@ class ProgrammingController extends Controller
     {
         DB::transaction(function () use ($programming, $request) {
             $row = Programming::whereKey($programming->id)->lockForUpdate()->firstOrFail();
-            if ($row->status !== 'Programado') {
+            if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
                 $this->reject('No se puede eliminar un recorrido finalizado.');
             }
             $before = $row->toArray();
@@ -473,6 +495,7 @@ class ProgrammingController extends Controller
             'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'days' => ['required', 'array', 'min:1'], 'days.*' => ['required', 'integer', 'distinct', 'between:1,7'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'vehicle_id' => ['nullable', 'integer', 'exists:vehicles,id'],
             'programming_id' => ['nullable', 'integer', 'exists:programmings,id'],
             'work_holidays' => ['sometimes', 'array', 'max:366'],
             'work_holidays.*' => ['required', 'date_format:Y-m-d', 'distinct'],
@@ -492,6 +515,7 @@ class ProgrammingController extends Controller
         }
         $data['staff_group_id'] = (int) $data['staff_group_id'];
         $data['driver_id'] = (int) ($data['driver_id'] ?? 0);
+        $data['vehicle_id'] = empty($data['vehicle_id']) ? null : (int) $data['vehicle_id'];
         $data['programming_id'] = empty($data['programming_id']) ? null : (int) $data['programming_id'];
         $data['helpers'] = array_map('intval', $data['helpers'] ?? []);
         $data['days'] = array_map('intval', $data['days']);
