@@ -437,19 +437,86 @@ class ContractsCrudTest extends TestCase
         $this->get(route('contracts.create'))->assertOk()->assertSee('min="2026-10-12"', false);
     }
 
-    public function test_salary_must_be_at_least_1350_on_create_and_update(): void
+    public function test_salary_accepts_zero_but_rejects_negative_values(): void
     {
-        foreach (['0', '-1', '1349.99'] as $salary) {
-            $this->postJson(route('contracts.store'), $this->data(['salary' => $salary]))
-                ->assertUnprocessable()->assertJsonValidationErrors('salary');
-        }
-        $this->postJson(route('contracts.store'), $this->data(['salary' => '1350.00']))->assertCreated();
-        $contract = Contract::first();
-        $this->putJson(route('contracts.update', $contract), $this->data(['salary' => '1349.99']))
+        $this->postJson(route('contracts.store'), $this->data(['salary' => '-0.01']))
             ->assertUnprocessable()->assertJsonValidationErrors('salary');
-        $this->assertSame('1350.00', $contract->fresh()->salary);
-        $this->putJson(route('contracts.update', $contract), $this->data(['salary' => '1350.01']))->assertOk();
-        $this->assertSame('1350.01', $contract->fresh()->salary);
+        $this->postJson(route('contracts.store'), $this->data(['salary' => '0']))
+            ->assertCreated();
+        $contract = Contract::firstOrFail();
+        $this->assertSame('0.00', $contract->salary);
+
+        $this->putJson(route('contracts.update', $contract), $this->data(['salary' => '-1']))
+            ->assertUnprocessable()->assertJsonValidationErrors('salary');
+        $this->putJson(route('contracts.update', $contract), $this->data(['salary' => '1349.99']))
+            ->assertOk();
+        $this->assertSame('1349.99', $contract->fresh()->salary);
+    }
+
+    public function test_temporal_contract_type_is_locked_in_the_form_and_on_update(): void
+    {
+        $contract = Contract::create($this->data());
+        $this->get(route('contracts.edit', $contract))->assertOk()
+            ->assertSee('name="type_display"', false)
+            ->assertSee('id="contract_type" disabled', false);
+        $this->putJson(route('contracts.update', $contract), $this->data([
+            'type' => 'Permanente', 'end_date' => null,
+        ]))->assertUnprocessable()->assertJsonValidationErrors('type');
+        $this->assertSame('Temporal', $contract->fresh()->type);
+    }
+
+    public function test_cancellation_blocks_a_pending_driver_route_but_ignores_past_routes(): void
+    {
+        $contract = $this->previous(['type' => 'Nombrado', 'end_date' => null]);
+        $this->programmingFor($this->employeeId, '2026-10-11', '2026-10-11');
+        $this->programmingFor($this->employeeId, '2026-10-12', '2026-10-12');
+        $this->patchJson(route('contracts.cancel', $contract))
+            ->assertUnprocessable()->assertJsonValidationErrors('contract');
+        DB::table('programmings')->where('date', '2026-10-12')->update(['status' => 'Anulado']);
+        $this->patchJson(route('contracts.cancel', $contract))->assertOk();
+        $this->assertFalse($contract->fresh()->is_active);
+    }
+
+    public function test_cancellation_blocks_a_helper_using_the_assignment_date(): void
+    {
+        $contract = $this->previous(['type' => 'Permanente', 'end_date' => null]);
+        $driver = DB::table('employees')->insertGetId([
+            'employee_type_id' => DB::table('employee_types')->value('id'), 'dni' => '12345679',
+            'first_name' => 'Luis', 'last_name' => 'Perez', 'birthdate' => '1990-01-01',
+            'email' => 'driver@example.test', 'password' => bcrypt('test-password'),
+        ]);
+        $this->programmingFor($driver, '2026-10-11', '2026-10-13', $this->employeeId);
+        $this->patchJson(route('contracts.cancel', $contract))
+            ->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->assertTrue($contract->fresh()->is_active);
+    }
+
+    public function test_cancellation_rejects_pending_requests_and_annuls_future_approved_vacations(): void
+    {
+        $contract = $this->previous(['type' => 'Permanente', 'end_date' => null]);
+        $base = ['employee_id' => $this->employeeId, 'year' => 2026, 'scheduled_days' => 2, 'pending_days' => 26];
+        $current = DB::table('vacations')->insertGetId($base + [
+            'status' => 'Aprobada', 'start_date' => '2026-10-11', 'end_date' => '2026-10-12',
+        ]);
+        $future = DB::table('vacations')->insertGetId($base + [
+            'status' => 'Aprobada', 'start_date' => '2026-10-15', 'end_date' => '2026-10-16',
+        ]);
+        $pending = DB::table('vacations')->insertGetId($base + [
+            'status' => 'Pendiente', 'start_date' => '2026-10-20', 'end_date' => '2026-10-21',
+        ]);
+
+        $this->patchJson(route('contracts.cancel', $contract))
+            ->assertUnprocessable()->assertJsonValidationErrors('contract');
+        $this->assertTrue($contract->fresh()->is_active);
+        $this->assertDatabaseHas('vacations', ['id' => $future, 'status' => 'Aprobada']);
+        $this->assertDatabaseHas('vacations', ['id' => $pending, 'status' => 'Pendiente']);
+
+        $this->travel(1)->days();
+        $this->patchJson(route('contracts.cancel', $contract))->assertOk();
+        $this->assertFalse($contract->fresh()->is_active);
+        $this->assertDatabaseHas('vacations', ['id' => $current, 'status' => 'Aprobada', 'pending_days' => 28]);
+        $this->assertDatabaseHas('vacations', ['id' => $future, 'status' => 'Anulada', 'pending_days' => 28]);
+        $this->assertDatabaseHas('vacations', ['id' => $pending, 'status' => 'Rechazada', 'pending_days' => 28]);
     }
 
     public function test_expired_contract_cannot_be_edited_cancelled_or_reactivated(): void

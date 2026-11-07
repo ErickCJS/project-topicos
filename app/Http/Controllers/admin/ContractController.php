@@ -7,6 +7,7 @@ use App\Models\admin\Contract;
 use App\Models\admin\Employee;
 use App\Models\admin\Programming;
 use App\Services\ContractRules;
+use App\Services\VacationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -97,6 +98,9 @@ class ContractController extends Controller
             $employee = Employee::whereKey($original->employee_id)->lockForUpdate()->firstOrFail();
             $contract = Contract::whereKey($original->id)->lockForUpdate()->firstOrFail();
             $this->assertOpen($contract);
+            if ($contract->type === 'Temporal' && $data['type'] !== 'Temporal') {
+                throw ValidationException::withMessages(['type' => 'El tipo de un contrato temporal registrado no se puede cambiar.']);
+            }
             $rules->validate($data, $employee->contracts()->where('id', '!=', $contract->id)->get(), false, CarbonImmutable::today());
             $this->assertProgrammingDatesWithinContract($employee->id, $data, $contract);
             if ($contract->allowsVacations() && $data['type'] === 'Temporal' &&
@@ -153,28 +157,46 @@ class ContractController extends Controller
         }
     }
 
-    public function cancel(string $id)
+    public function cancel(string $id, VacationService $vacations)
     {
         $original = Contract::findOrFail($id);
-        DB::transaction(function () use ($original) {
+        $closedAt = DB::transaction(function () use ($original, $vacations) {
             Employee::whereKey($original->employee_id)->lockForUpdate()->firstOrFail();
             $contract = Contract::whereKey($original->id)->lockForUpdate()->firstOrFail();
             $this->assertOpen($contract);
-            if (DB::table('vacations')->where('employee_id', $contract->employee_id)->where('status', 'Aprobada')->whereDate('end_date', '>=', today())->exists()) {
-                throw ValidationException::withMessages(['contract' => 'No se puede anular el contrato mientras el trabajador tenga vacaciones aprobadas vigentes o futuras.']);
+
+            $closedAt = now();
+            $today = $closedAt->toDateString();
+            $affectedFrom = max($today, $contract->start_date->toDateString());
+            $end = $contract->end_date?->toDateString();
+            $affectedDates = function ($query, string $column) use ($affectedFrom, $end) {
+                return $query->whereDate($column, '>=', $affectedFrom)
+                    ->when($end, fn ($query, $date) => $query->whereDate($column, '<=', $date));
+            };
+
+            $hasProgramming = Programming::query()->where('status', Programming::STATUS_PROGRAMMED)
+                ->where(function ($query) use ($contract, $affectedDates) {
+                    $query->where(fn ($driver) => $affectedDates(
+                        $driver->where('driver_id', $contract->employee_id), 'programmings.date'
+                    ))->orWhereHas('employees', fn ($helper) => $affectedDates(
+                        $helper->whereKey($contract->employee_id)->where('programming_employees.role', 'helper'),
+                        'programming_employees.date'
+                    ));
+                })->exists();
+
+            if ($hasProgramming) {
+                throw ValidationException::withMessages(['contract' => 'No se puede anular el contrato mientras el trabajador tenga una programación pendiente desde la fecha de cierre.']);
             }
-            if (Programming::query()->where('status', 'Programado')
-                ->where(function ($query) use ($contract) {
-                    $query->where('driver_id', $contract->employee_id)
-                        ->orWhereHas('employees', fn ($employeeQuery) => $employeeQuery
-                            ->whereKey($contract->employee_id)->wherePivot('role', 'helper'));
-                })->exists()) {
-                throw ValidationException::withMessages(['contract' => 'No se puede anular el contrato mientras el trabajador participe en una programaci?n programada.']);
+
+            if ($contract->allowsVacations()) {
+                $vacations->closeForContractCancellation($contract->employee_id, $today, $affectedFrom);
             }
-            $contract->forceFill(['cancelled_at' => now(), 'is_active' => false])->save();
+            $contract->forceFill(['cancelled_at' => $closedAt, 'is_active' => false])->save();
+
+            return $closedAt;
         });
 
-        return response()->json(['mensaje' => 'Contrato anulado correctamente. La fecha de cierre es '.today()->format('d/m/Y').'.']);
+        return response()->json(['mensaje' => 'Contrato anulado correctamente. La fecha de cierre es '.$closedAt->format('d/m/Y').'.']);
     }
 
     private function assertOpen(Contract $contract): void
@@ -205,7 +227,7 @@ class ContractController extends Controller
             'start_date' => $startRules,
             'end_date' => ['nullable', 'required_if:type,Temporal', 'prohibited_unless:type,Temporal', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             // Salary is required by the existing database schema. Trial period is intentionally not exposed.
-            'salary' => ['required', 'numeric', 'min:1350', 'max:999999.99', 'decimal:0,2'],
+            'salary' => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
         ], [
             'employee_id.required' => 'Seleccione un trabajador.',
             'employee_id.exists' => 'El trabajador seleccionado no existe.',
@@ -220,7 +242,7 @@ class ContractController extends Controller
             'end_date.after_or_equal' => 'La fecha de término no puede ser anterior a la fecha de inicio.',
             'salary.required' => 'Ingrese el sueldo.',
             'salary.numeric' => 'El sueldo debe ser un número.',
-            'salary.min' => 'El sueldo mínimo es S/ 1,350.00.',
+            'salary.min' => 'El sueldo debe ser mayor o igual a cero.',
             'salary.max' => 'El sueldo no puede superar 999999.99.',
             'salary.decimal' => 'El sueldo admite hasta dos decimales.',
         ]);
