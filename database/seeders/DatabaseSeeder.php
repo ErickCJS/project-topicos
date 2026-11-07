@@ -16,10 +16,13 @@ class DatabaseSeeder extends Seeder
             ShiftSeeder::class,
             EmployeeSeeder::class,
             ContractSeeder::class,
+            BulkProgrammingStaffSeeder::class,
+            OperationalStaffSeeder::class,
             VacationSeeder::class,
             HolidaySeeder::class,
             AttendanceSeeder::class,
             CatalogSeeder::class,
+            ReasonSeeder::class,
         ]);
     }
 }

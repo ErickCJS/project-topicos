@@ -95,6 +95,15 @@ class EmployeeTypeController extends Controller
     {
         $type = EmployeeType::findOrFail($id);
 
+        // Los tipos base del sistema no pueden eliminarse.
+        $protectedTypes = ['conductor', 'ayudante'];
+
+        if (in_array(mb_strtolower(trim($type->name)), $protectedTypes, true)) {
+            return response()->json([
+                'message' => 'Conductor y Ayudante son tipos de personal permanentes y no pueden eliminarse.',
+            ], 409);
+        }
+
         if (DB::table('employees')->where('employee_type_id', $id)->exists()) {
             return response()->json([
                 'message' => 'No se puede eliminar porque tiene personal relacionado',

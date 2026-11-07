@@ -5,7 +5,9 @@ namespace App\Http\Controllers\admin;
 use App\Http\Controllers\Controller;
 use App\Models\admin\Contract;
 use App\Models\admin\Employee;
+use App\Models\admin\Programming;
 use App\Services\ContractRules;
+use App\Services\VacationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,11 +37,11 @@ class ContractController extends Controller
                     ? $contract->effectiveEndDate()->copy()->addMonthsNoOverflow(2)->format('d/m/Y') : 'No corresponde')
                 ->addColumn('status', fn ($contract) => $contract->statusLabel())
                 ->addColumn('edit', function (Contract $contract) {
-                    $actions = '<button type="button" class="btn btn-info btn-sm contract-action-btn btnVer" data-url="'.e(route('contracts.show', $contract)).'" title="Ver" aria-label="Ver contrato"><i class="bi bi-eye" aria-hidden="true"></i></button>';
+                    $actions = '<button type="button" class="btn btn-outline-primary btn-sm contract-action-btn btnVer" data-url="'.e(route('contracts.show', $contract)).'" title="Ver" aria-label="Ver contrato"><i class="bi bi-eye" aria-hidden="true"></i></button>';
 
                     if (! $contract->isClosed()) {
-                        $actions .= '<button type="button" class="btn btn-warning btn-sm contract-action-btn btnEditar" data-url="'.e(route('contracts.edit', $contract)).'" title="Editar" aria-label="Editar contrato"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
-                        $actions .= '<button type="button" class="btn btn-danger btn-sm contract-action-btn btnAnular" data-url="'.e(route('contracts.cancel', $contract)).'" title="Anular" aria-label="Anular contrato"><i class="bi bi-ban" aria-hidden="true"></i></button>';
+                        $actions .= '<button type="button" class="btn btn-outline-warning btn-sm contract-action-btn btnEditar" data-url="'.e(route('contracts.edit', $contract)).'" title="Editar" aria-label="Editar contrato"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+                        $actions .= '<button type="button" class="btn btn-outline-danger btn-sm contract-action-btn btnAnular" data-url="'.e(route('contracts.cancel', $contract)).'" title="Anular" aria-label="Anular contrato"><i class="bi bi-ban" aria-hidden="true"></i></button>';
                     }
 
                     return '<div class="contract-actions">'.$actions.'</div>';
@@ -96,7 +98,11 @@ class ContractController extends Controller
             $employee = Employee::whereKey($original->employee_id)->lockForUpdate()->firstOrFail();
             $contract = Contract::whereKey($original->id)->lockForUpdate()->firstOrFail();
             $this->assertOpen($contract);
+            if ($contract->type === 'Temporal' && $data['type'] !== 'Temporal') {
+                throw ValidationException::withMessages(['type' => 'El tipo de un contrato temporal registrado no se puede cambiar.']);
+            }
             $rules->validate($data, $employee->contracts()->where('id', '!=', $contract->id)->get(), false, CarbonImmutable::today());
+            $this->assertProgrammingDatesWithinContract($employee->id, $data, $contract);
             if ($contract->allowsVacations() && $data['type'] === 'Temporal' &&
                 DB::table('vacations')->where('employee_id', $employee->id)->exists()) {
                 throw ValidationException::withMessages(['type' => 'No puede cambiar a Temporal mientras el trabajador tenga registros de vacaciones.']);
@@ -107,17 +113,90 @@ class ContractController extends Controller
         return response()->json(['mensaje' => 'Contrato actualizado correctamente']);
     }
 
-    public function cancel(string $id)
+    private function assertProgrammingDatesWithinContract(int $employeeId, array $data, Contract $contract): void
+    {
+        if ($data['start_date'] === $contract->start_date->toDateString() &&
+            $data['end_date'] === $contract->end_date?->toDateString()) {
+            return;
+        }
+
+        $outsideRange = function ($query, string $operator, string $date) use ($employeeId): void {
+            $query->where('status', 'Programado')
+                ->whereNull('deleted_at')
+                ->where(function ($participantQuery) use ($employeeId, $operator, $date) {
+                    $participantQuery->where(function ($driverQuery) use ($employeeId, $operator, $date) {
+                        $driverQuery->where('driver_id', $employeeId)
+                            ->where('programmings.date', $operator, $date);
+                    })
+                        ->orWhereExists(function ($pivotQuery) use ($employeeId, $operator, $date) {
+                            $pivotQuery->select(DB::raw(1))
+                                ->from('programming_employees')
+                                ->whereColumn('programming_employees.programming_id', 'programmings.id')
+                                ->where('programming_employees.employee_id', $employeeId)
+                                ->where('programming_employees.date', $operator, $date);
+                        });
+                });
+        };
+
+        $startConflict = Programming::query();
+        $outsideRange($startConflict, '<', $data['start_date']);
+        $endConflict = Programming::query();
+        if ($data['end_date'] !== null) {
+            $outsideRange($endConflict, '>', $data['end_date']);
+        }
+
+        $errors = [];
+        if ($startConflict->exists()) {
+            $errors['start_date'] = 'La fecha de inicio no puede dejar programaciones programadas fuera de la vigencia contractual.';
+        }
+        if ($data['end_date'] !== null && $endConflict->exists()) {
+            $errors['end_date'] = 'La fecha de término no puede dejar programaciones programadas fuera de la vigencia contractual.';
+        }
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    public function cancel(string $id, VacationService $vacations)
     {
         $original = Contract::findOrFail($id);
-        DB::transaction(function () use ($original) {
+        $closedAt = DB::transaction(function () use ($original, $vacations) {
             Employee::whereKey($original->employee_id)->lockForUpdate()->firstOrFail();
             $contract = Contract::whereKey($original->id)->lockForUpdate()->firstOrFail();
             $this->assertOpen($contract);
-            $contract->forceFill(['cancelled_at' => now(), 'is_active' => false])->save();
+
+            $closedAt = now();
+            $today = $closedAt->toDateString();
+            $affectedFrom = max($today, $contract->start_date->toDateString());
+            $end = $contract->end_date?->toDateString();
+            $affectedDates = function ($query, string $column) use ($affectedFrom, $end) {
+                return $query->whereDate($column, '>=', $affectedFrom)
+                    ->when($end, fn ($query, $date) => $query->whereDate($column, '<=', $date));
+            };
+
+            $hasProgramming = Programming::query()->where('status', Programming::STATUS_PROGRAMMED)
+                ->where(function ($query) use ($contract, $affectedDates) {
+                    $query->where(fn ($driver) => $affectedDates(
+                        $driver->where('driver_id', $contract->employee_id), 'programmings.date'
+                    ))->orWhereHas('employees', fn ($helper) => $affectedDates(
+                        $helper->whereKey($contract->employee_id)->where('programming_employees.role', 'helper'),
+                        'programming_employees.date'
+                    ));
+                })->exists();
+
+            if ($hasProgramming) {
+                throw ValidationException::withMessages(['contract' => 'No se puede anular el contrato mientras el trabajador tenga una programación pendiente desde la fecha de cierre.']);
+            }
+
+            if ($contract->allowsVacations()) {
+                $vacations->closeForContractCancellation($contract->employee_id, $today, $affectedFrom);
+            }
+            $contract->forceFill(['cancelled_at' => $closedAt, 'is_active' => false])->save();
+
+            return $closedAt;
         });
 
-        return response()->json(['mensaje' => 'Contrato anulado correctamente. La fecha de cierre es '.today()->format('d/m/Y').'.']);
+        return response()->json(['mensaje' => 'Contrato anulado correctamente. La fecha de cierre es '.$closedAt->format('d/m/Y').'.']);
     }
 
     private function assertOpen(Contract $contract): void
@@ -148,7 +227,7 @@ class ContractController extends Controller
             'start_date' => $startRules,
             'end_date' => ['nullable', 'required_if:type,Temporal', 'prohibited_unless:type,Temporal', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             // Salary is required by the existing database schema. Trial period is intentionally not exposed.
-            'salary' => ['required', 'numeric', 'min:1350', 'max:999999.99', 'decimal:0,2'],
+            'salary' => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
         ], [
             'employee_id.required' => 'Seleccione un trabajador.',
             'employee_id.exists' => 'El trabajador seleccionado no existe.',
@@ -163,7 +242,7 @@ class ContractController extends Controller
             'end_date.after_or_equal' => 'La fecha de término no puede ser anterior a la fecha de inicio.',
             'salary.required' => 'Ingrese el sueldo.',
             'salary.numeric' => 'El sueldo debe ser un número.',
-            'salary.min' => 'El sueldo mínimo es S/ 1,350.00.',
+            'salary.min' => 'El sueldo debe ser mayor o igual a cero.',
             'salary.max' => 'El sueldo no puede superar 999999.99.',
             'salary.decimal' => 'El sueldo admite hasta dos decimales.',
         ]);

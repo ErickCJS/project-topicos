@@ -3,12 +3,15 @@
 namespace App\Models\admin;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Attendance extends Model
 {
     public const TYPES = ['Entrada', 'Salida'];
 
     public const STATUSES = ['Presente', 'Ausente'];
+
+    public const ORIGINS = ['Programado', 'Retén'];
 
     protected $fillable = [
         'employee_id',
@@ -17,6 +20,7 @@ class Attendance extends Model
         'time',
         'type',
         'status',
+        'origin',
         'notes',
     ];
 
@@ -25,5 +29,15 @@ class Attendance extends Model
         return [
             'date' => 'date',
         ];
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
     }
 }

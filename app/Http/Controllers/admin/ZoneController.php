@@ -29,9 +29,9 @@ class ZoneController extends Controller
                 ->editColumn('updated_at', fn (Zone $zone) => $zone->updated_at?->format('d/m/Y H:i:s'))
                 ->addColumn('actions', function (Zone $zone) {
                     return '<div class="zone-actions">'
-                        .'<button type="button" class="btn btn-info btn-sm zone-action-btn btnVer" data-url="'.e(route('zones.show', $zone)).'" title="Ver" aria-label="Ver zona"><i class="bi bi-eye" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-warning btn-sm zone-action-btn btnEditar" data-url="'.e(route('zones.edit', $zone)).'" title="Editar" aria-label="Editar zona"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
-                        .'<button type="button" class="btn btn-danger btn-sm zone-action-btn btnEliminar" data-url="'.e(route('zones.destroy', $zone)).'" title="Eliminar" aria-label="Eliminar zona"><i class="bi bi-trash" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-primary btn-sm zone-action-btn btnVer" data-url="'.e(route('zones.show', $zone)).'" title="Ver" aria-label="Ver zona"><i class="bi bi-eye" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-warning btn-sm zone-action-btn btnEditar" data-url="'.e(route('zones.edit', $zone)).'" title="Editar" aria-label="Editar zona"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>'
+                        .'<button type="button" class="btn btn-outline-danger btn-sm zone-action-btn btnEliminar" data-url="'.e(route('zones.destroy', $zone)).'" title="Eliminar" aria-label="Eliminar zona"><i class="bi bi-trash" aria-hidden="true"></i></button>'
                         .'</div>';
                 })
                 ->rawColumns(['actions'])

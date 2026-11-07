@@ -135,6 +135,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body color-modal-body">
+                <p class="small text-muted mb-3">Información de solo lectura</p>
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <div class="color-detail-card">

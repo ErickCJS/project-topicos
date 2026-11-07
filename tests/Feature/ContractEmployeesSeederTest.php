@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\admin\Contract;
 use Database\Seeders\ContractEmployeesSeeder;
+use Database\Seeders\EmployeeTypeSeeder;
+use Database\Seeders\OperationalStaffSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -12,6 +14,19 @@ use Tests\TestCase;
 class ContractEmployeesSeederTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_operational_staff_seeder_creates_workers_and_current_contracts_idempotently(): void
+    {
+        $this->seed(EmployeeTypeSeeder::class);
+
+        $this->seed(OperationalStaffSeeder::class);
+        $this->seed(OperationalStaffSeeder::class);
+
+        $this->assertSame(25, DB::table('employees')->whereBetween('dni', ['93000001', '93000025'])->where('employee_type_id', 1)->count());
+        $this->assertSame(65, DB::table('employees')->whereBetween('dni', ['93010001', '93010065'])->where('employee_type_id', 2)->count());
+        $this->assertSame(90, DB::table('contracts')->count());
+        $this->assertSame(90, DB::table('contracts')->where('is_active', true)->whereNull('cancelled_at')->count());
+    }
 
     public function test_seeder_creates_workers_without_contracts_and_can_be_repeated_safely(): void
     {

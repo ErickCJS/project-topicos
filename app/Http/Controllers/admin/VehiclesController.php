@@ -205,6 +205,7 @@ class VehiclesController extends Controller
             });
 
             return response()->json([
+                'codigo' => 1,
                 'mensaje' => 'Imágenes subidas correctamente',
             ]);
         } catch (ModelNotFoundException $exception) {
@@ -275,6 +276,7 @@ class VehiclesController extends Controller
             });
 
             return response()->json([
+                'codigo' => 1,
                 'mensaje' => 'Imagen principal actualizada correctamente',
             ]);
         } catch (ModelNotFoundException $exception) {
