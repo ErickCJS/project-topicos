@@ -433,7 +433,7 @@ $(function () {
             $contenedor.append(`
                 <div class="mb-3">
                     <label for="helpers_${i}" class="form-label">Ayudante ${i}</label>
-                    <select name="helpers[]" id="helpers_${i}" class="form-select">
+                    <select name="helpers[]" id="helpers_${i}" class="form-select" required>
                         <option value="">Seleccione un ayudante</option>
                     </select>
                 </div>
@@ -443,94 +443,99 @@ $(function () {
         inicializarSelect2($contenedor);
     }
 
+    let disponibilidadSequence = 0;
+
     $(document).on('change', '#shift_id, #zone_id, #vehicle_id, [name="days[]"]', function () {
         const shift = $('#shift_id').val();
         const zone = $('#zone_id').val();
-        const vehicle = $('#vehicle_id').val();
+        const $vehicle = $('#vehicle_id');
+        const vehicle = $vehicle.val();
 
         const days = $('[name="days[]"]:checked').map(function () {
             return this.value;
         }).get();
+        const requestSequence = ++disponibilidadSequence;
 
-        if (shift && zone && vehicle && days.length > 0) {
-            $('#camposPersonal').removeClass('d-none');
-            
-            const $form = $('#formModal').find('form');
-
-            const data = {
-                turnos: shift,
-                zona: zone,
-                vehiculo: vehicle,
-                dias: days,
-                id_staff: $form.attr('data-id') || null
-            };
-
-            $.get({
-                url: "{{ route('staffgroups.helpers') }}",
-                data: data,
-
-                success: function (response) {
-
-
-                    const conductorActual = String(
-                        $form.attr('data-current-driver') || ''
-                    );
-
-                    const ayudantesActuales = JSON.parse(
-                        $form.attr('data-current-helpers') || '[]'
-                    ).map(String);
-
-                    // Cargar conductores
-                    const $driver = $('#driver_id');
-
-                    $driver.empty().append(
-                        new Option('Seleccione un conductor', '')
-                    );
-
-                    $.each(response.conductores, function (id, nombre) {
-                        $driver.append(new Option(nombre, id));
-                    });
-
-                    // Seleccionar conductor actual
-                    if (conductorActual) {
-                        $driver.val(conductorActual);
-                    }
-
-                    $driver.trigger('change.select2');
-
-                    // Cargar ayudantes
-                    $('[name="helpers[]"]').each(function (index) {
-                        const $select = $(this);
-                        const ayudanteActual = ayudantesActuales[index] || '';
-
-                        $select.empty().append(
-                            new Option('Seleccione un ayudante', '')
-                        );
-
-                        $.each(response.ayudantes, function (id, nombre) {
-                            $select.append(new Option(nombre, id));
-                        });
-
-                        if (ayudanteActual) {
-                            $select.val(ayudanteActual);
-                        }
-
-                        $select.trigger('change.select2');
-                    });
-
-                    $('[name="helpers[]"]').first().trigger('change');
-
-                },
-
-                error: function (xhr) {
-                    console.error(xhr.responseJSON ?? xhr.responseText);
-                }
-            });
-
+        if (!shift || !zone || days.length === 0) {
+            $('#camposPersonal').addClass('d-none');
             return;
         }
 
-        $('#camposPersonal').addClass('d-none');
+        const $form = $('#formModal').find('form');
+        const conductorActual = String($('#driver_id').val() || $form.attr('data-current-driver') || '');
+        const ayudantesSeleccionados = $('[name="helpers[]"]').map(function () {
+            return String($(this).val() || '');
+        }).get();
+        const ayudantesActuales = ayudantesSeleccionados.some(Boolean)
+            ? ayudantesSeleccionados
+            : JSON.parse($form.attr('data-current-helpers') || '[]').map(String);
+
+        $.get({
+            url: "{{ route('staffgroups.helpers') }}",
+            data: {
+                turnos: shift,
+                zona: zone,
+                vehiculo: vehicle || null,
+                dias: days,
+                id_staff: $form.attr('data-id') || null
+            },
+            success: function (response) {
+                if (requestSequence !== disponibilidadSequence) return;
+
+                const vehiculoActualDisponible = vehicle
+                    && Object.prototype.hasOwnProperty.call(response.vehiculos, vehicle);
+
+                $vehicle.empty().append(new Option(
+                    Object.keys(response.vehiculos).length ? 'Seleccione un vehículo' : 'No hay vehículos disponibles',
+                    ''
+                ));
+                $.each(response.vehiculos, function (id, vehiculoDisponible) {
+                    const option = new Option(vehiculoDisponible.label, id);
+                    $(option).attr('data-capacity', vehiculoDisponible.capacity);
+                    $vehicle.append(option);
+                });
+
+                if (vehiculoActualDisponible) $vehicle.val(vehicle);
+                $vehicle.trigger('change.select2');
+
+                if (!vehiculoActualDisponible) {
+                    $('#camposPersonal').addClass('d-none').empty();
+                    return;
+                }
+
+                const capacidad = Number($vehicle.find(':selected').data('capacity')) || 1;
+                const cantidadAyudantes = Math.max(0, capacidad - 1);
+                if (!$('#driver_id').length || $('[name="helpers[]"]').length !== cantidadAyudantes) {
+                    generarCamposPersonal(cantidadAyudantes);
+                }
+                $('#camposPersonal').removeClass('d-none');
+
+                const $driver = $('#driver_id');
+                $driver.empty().append(new Option('Seleccione un conductor', ''));
+                $.each(response.conductores, function (id, nombre) {
+                    $driver.append(new Option(nombre, id));
+                });
+                if (conductorActual) $driver.val(conductorActual);
+                $driver.trigger('change.select2');
+
+                $('[name="helpers[]"]').each(function (index) {
+                    const $select = $(this);
+                    $select.empty().append(new Option('Seleccione un ayudante', ''));
+                    $.each(response.ayudantes, function (id, nombre) {
+                        $select.append(new Option(nombre, id));
+                    });
+                    if (ayudantesActuales[index]) $select.val(ayudantesActuales[index]);
+                    $select.trigger('change.select2');
+                });
+
+                $('[name="helpers[]"]').first().trigger('change');
+            },
+            error: function (xhr) {
+                if (requestSequence === disponibilidadSequence) {
+                    console.error(xhr.responseJSON ?? xhr.responseText);
+                }
+            }
+        });
     });
 
 
