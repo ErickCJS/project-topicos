@@ -3,7 +3,6 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Control de asistencia</title>
     <style>
         :root{color-scheme:light;--navy:#17324d;--blue:#1f5f91;--line:#cfd8e2;--page:#f5f7f9}
@@ -32,7 +31,7 @@
     <div class="brand">TOPICOS</div>
     <h1 class="title">Control de asistencia</h1>
     <div id="message" class="message" role="status" aria-live="polite"></div>
-    <form id="attendance-form" method="POST" action="{{ route('employee.authenticate') }}" autocomplete="off">
+    <form id="attendance-form" method="POST" action="{{ route('employee.authenticate', [], false) }}" autocomplete="off">
         @csrf
         <div class="field"><label for="dni">DNI</label><input id="dni" name="dni" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" required autofocus></div>
         <div class="field"><label for="password">Contrase&ntilde;a</label><input id="password" name="password" type="password" required></div>
@@ -49,6 +48,7 @@
     const shift = document.getElementById('shift_id');
     const button = document.getElementById('submit-button');
     const message = document.getElementById('message');
+    const csrf = form.elements.namedItem('_token');
     let timer;
 
     function showMessage(text, kind) {
@@ -61,21 +61,42 @@
         }, 3500);
     }
 
+    function submitAttendance() {
+        return fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrf.value
+            },
+            credentials: 'same-origin',
+            body: new FormData(form)
+        });
+    }
+
+    async function refreshSessionToken() {
+        const page = await fetch(form.action, {credentials: 'same-origin', cache: 'no-store'});
+        if (!page.ok) return false;
+        const document = new DOMParser().parseFromString(await page.text(), 'text/html');
+        const token = document.querySelector('#attendance-form input[name="_token"]')?.value;
+        if (!token) return false;
+        csrf.defaultValue = token;
+        csrf.value = token;
+        return true;
+    }
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         button.disabled = true;
         showMessage('Validando...', 'success');
         try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                credentials: 'same-origin',
-                body: new FormData(form)
-            });
+            let response = await submitAttendance();
+            if (response.status === 419 && await refreshSessionToken()) {
+                response = await submitAttendance();
+            }
+            if (response.status === 419) {
+                throw new Error('La sesión de asistencia venció. Actualiza la página e inténtalo de nuevo.');
+            }
             const payload = await response.json();
             if (! response.ok) {
                 const errors = payload.errors || {};

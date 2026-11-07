@@ -32,10 +32,7 @@ class EmployeeAttendanceController extends Controller
         if (! $employee || ! Hash::check($credentials['password'], $employee->password)) {
             throw ValidationException::withMessages(['credentials' => 'Las credenciales ingresadas no son válidas.']);
         }
-        Auth::guard('employee')->login($employee);
-        // Laravel 12's regenerate() also rotates the CSRF token. Keep the
-        // kiosk page's token stable while rotating only the session ID.
-        $request->session()->migrate(true);
+        // The kiosk checks credentials for each mark without starting an employee session.
         try {
             [$type, $shiftId, $origin] = DB::transaction(function () use ($employee, $credentials) {
                 Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
