@@ -32,7 +32,7 @@
     <div class="brand">TOPICOS</div>
     <h1 class="title">Control de asistencia</h1>
     <div id="message" class="message" role="status" aria-live="polite"></div>
-    <form id="attendance-form" method="POST" action="{{ route('employee.authenticate') }}" autocomplete="off">
+    <form id="attendance-form" method="POST" action="{{ route('employee.authenticate', [], false) }}" autocomplete="off">
         @csrf
         <div class="field"><label for="dni">DNI</label><input id="dni" name="dni" inputmode="numeric" maxlength="8" pattern="[0-9]{8}" required autofocus></div>
         <div class="field"><label for="password">Contrase&ntilde;a</label><input id="password" name="password" type="password" required></div>

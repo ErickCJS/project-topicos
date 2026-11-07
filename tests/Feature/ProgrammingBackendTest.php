@@ -15,6 +15,8 @@ use App\Models\admin\Vehicle;
 use App\Models\admin\Zone;
 use App\Models\User;
 use Database\Seeders\ReasonSeeder;
+use Database\Seeders\OperationalStaffSeeder;
+use Database\Seeders\StaffGroupsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -191,15 +193,75 @@ class ProgrammingBackendTest extends TestCase
 
     public function test_staff_group_selector_uses_active_people_and_active_reservations(): void
     {
-        $query = ['turnos' => $this->group->shift_id, 'zona' => $this->group->zone_id, 'vehiculo' => $this->group->vehicle_id, 'dias' => [1]];
+        $query = ['turnos' => $this->group->shift_id, 'zona' => $this->group->zone_id, 'vehiculo' => null, 'dias' => [1]];
         $response = $this->getJson(route('staffgroups.helpers', $query))->assertOk();
         $this->assertArrayNotHasKey($this->driver->id, $response->json('conductores'));
+        $this->assertArrayNotHasKey($this->group->vehicle_id, $response->json('vehiculos'));
         $this->group->update(['state' => false]);
         $response = $this->getJson(route('staffgroups.helpers', $query))->assertOk();
         $this->assertArrayHasKey($this->driver->id, $response->json('conductores'));
+        $this->assertArrayHasKey($this->group->vehicle_id, $response->json('vehiculos'));
         $this->helper->update(['status' => 'Inactivo']);
         $response = $this->getJson(route('staffgroups.helpers', $query))->assertOk();
         $this->assertArrayNotHasKey($this->helper->id, $response->json('ayudantes'));
+    }
+
+    public function test_staff_group_list_warns_for_personnel_without_current_availability(): void
+    {
+        $this->group->vehicle()->update(['occupats_capacity' => 6]);
+        $this->driver->contracts()->update(['end_date' => '2026-10-29']);
+        Vacation::create([
+            'employee_id' => $this->helper->id,
+            'year' => 2026,
+            'start_date' => '2026-10-30',
+            'end_date' => '2026-11-02',
+            'scheduled_days' => 4,
+            'pending_days' => 26,
+            'status' => 'Aprobada',
+        ]);
+
+        $row = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->getJson(route('staffgroups.index'))->assertOk()->json('data.0');
+
+        $this->assertStringContainsString('Reasignar conductor', $row['driver']);
+        $this->assertStringContainsString('bi-exclamation-triangle-fill text-warning', $row['driver']);
+        $this->assertStringContainsString('Reasignar ayudante', $row['helpers']);
+        $this->assertStringContainsString('bi-exclamation-triangle-fill text-warning', $row['helpers']);
+        $this->assertSame(4, substr_count($row['helpers'], 'Asignar ayudante'));
+    }
+
+    public function test_staff_groups_seeder_respects_turn_day_conflicts_and_vehicle_capacity(): void
+    {
+        $this->seed(OperationalStaffSeeder::class);
+        $this->group->days()->delete();
+        $this->group->days()->create(['day' => 1]);
+        $this->seed(StaffGroupsSeeder::class);
+        $generatedCount = StaffGroup::query()->where('name', 'like', 'SEED-GRUPO-PERSONAL-%')->count();
+        $this->assertGreaterThan(0, $generatedCount);
+
+        $this->seed(StaffGroupsSeeder::class);
+        $this->assertSame($generatedCount, StaffGroup::query()->where('name', 'like', 'SEED-GRUPO-PERSONAL-%')->count());
+
+        $groups = StaffGroup::query()->with(['days', 'helpers', 'vehicle'])->where('state', true)->get();
+        $occupied = [];
+        foreach ($groups as $group) {
+            $this->assertLessThanOrEqual((int) $group->vehicle->occupats_capacity, 1 + $group->helpers->count());
+            if (str_starts_with($group->name, 'SEED-GRUPO-PERSONAL-')) {
+                $this->assertGreaterThan(1, $group->days->count());
+            }
+            foreach ($group->days as $groupDay) {
+                $slot = $group->shift_id.':'.$groupDay->day;
+                $this->assertArrayNotHasKey('vehicle:'.$group->vehicle_id, $occupied[$slot] ?? []);
+                $this->assertArrayNotHasKey('driver:'.$group->driver_id, $occupied[$slot] ?? []);
+                $occupied[$slot]['vehicle:'.$group->vehicle_id] = true;
+                $occupied[$slot]['driver:'.$group->driver_id] = true;
+
+                foreach ($group->helpers as $helper) {
+                    $this->assertArrayNotHasKey('helper:'.$helper->id, $occupied[$slot]);
+                    $occupied[$slot]['helper:'.$helper->id] = true;
+                }
+            }
+        }
     }
 
     private function checked(array $data): array
@@ -276,7 +338,8 @@ class ProgrammingBackendTest extends TestCase
         ]))->assertOk();
 
         $options->assertJsonPath('conductores.'.$this->driver->id, $this->driver->dni.' — '.$this->driver->first_name.' '.$this->driver->last_name)
-            ->assertJsonPath('ayudantes.'.$this->helper->id, $this->helper->dni.' — '.$this->helper->first_name.' '.$this->helper->last_name);
+            ->assertJsonPath('ayudantes.'.$this->helper->id, $this->helper->dni.' — '.$this->helper->first_name.' '.$this->helper->last_name)
+            ->assertJsonPath('vehiculos.'.$this->group->vehicle_id.'.label', $this->group->vehicle->code.' — '.$this->group->vehicle->name.' (Capacidad: '.$this->group->vehicle->occupats_capacity.')');
 
         foreach ([$expiredDriver->id] as $id) {
             $options->assertJsonMissingPath('conductores.'.$id);

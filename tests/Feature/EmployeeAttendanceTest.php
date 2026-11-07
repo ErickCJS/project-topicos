@@ -41,7 +41,7 @@ class EmployeeAttendanceTest extends TestCase
 
     public function test_kiosk_is_a_single_form_without_personal_navigation(): void
     {
-        $this->get(route('employee.home'))->assertOk()
+        $response = $this->get(route('employee.home'))->assertOk()
             ->assertSee('Control de asistencia')
             ->assertSee('Registrar asistencia')
             ->assertSee('X-CSRF-TOKEN')
@@ -49,6 +49,7 @@ class EmployeeAttendanceTest extends TestCase
             ->assertDontSee('Registrar entrada')
             ->assertDontSee('Registrar salida')
             ->assertDontSee('dashboard');
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
         $this->assertNull(app('router')->getRoutes()->getByName('employee.dashboard'));
         $this->assertNull(app('router')->getRoutes()->getByName('employee.kiosk'));
     }

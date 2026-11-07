@@ -18,7 +18,8 @@ class EmployeeAttendanceController extends Controller
     public function login(Request $request): mixed
     {
         $this->clearEmployeeSession($request);
-        return view('employee.login');
+        return response()->view('employee.login')
+            ->header('Cache-Control', 'no-store, no-cache, private, max-age=0');
     }
 
     public function authenticate(Request $request): mixed

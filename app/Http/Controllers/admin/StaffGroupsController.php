@@ -21,17 +21,29 @@ class StaffGroupsController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
+            $vigenteContract = fn ($query) => $query->where('is_active', true)
+                ->whereNull('cancelled_at')
+                ->whereDate('start_date', '<=', today())
+                ->where(fn ($dates) => $dates->whereNull('end_date')->orWhereDate('end_date', '>=', today()));
+            $vacationToday = fn ($query) => $query->covering(today()->toDateString());
 
             $query = StaffGroup::query()
                 ->join('shifts', 'staff_groups.shift_id', '=', 'shifts.id')
                 ->join('zones', 'staff_groups.zone_id', '=', 'zones.id')
                 ->join('vehicles', 'staff_groups.vehicle_id', '=', 'vehicles.id')
-                ->with(['days', 'helpers', 'driver'])
+                ->with([
+                    'days',
+                    'driver.contracts' => $vigenteContract,
+                    'driver.vacations' => $vacationToday,
+                    'helpers.contracts' => $vigenteContract,
+                    'helpers.vacations' => $vacationToday,
+                ])
                 ->select([
                     'staff_groups.*',
                     'shifts.name as shift_name',
                     'zones.name as zone_name',
                     'vehicles.name as vehicle_name',
+                    'vehicles.occupats_capacity as vehicle_capacity',
                 ]);
 
 
@@ -73,24 +85,37 @@ class StaffGroupsController extends Controller
                     }
                 })
                 ->addColumn('driver', function ($staffgroup) {
-                    return $staffgroup->driver
-                        ? trim($staffgroup->driver->first_name . ' ' . $staffgroup->driver->last_name)
-                        : 'Sin conductor';
-                })
-                ->addColumn('helpers', function ($staffgroup) {
-                    if ($staffgroup->helpers->isEmpty()) {
-                        return '<div class="bg-light rounded px-2 py-1 text-muted">'
-                            . 'Sin ayudantes' .
-                            '</div>';
+                    if (! $staffgroup->driver) {
+                        return $this->reassignmentWarning('Asignar conductor');
                     }
 
-                    return '<div class="d-flex flex-column gap-1">'
-                        . $staffgroup->helpers->map(function ($helper) {
+                    if ($this->staffMemberNeedsReplacement($staffgroup->driver)) {
+                        return $this->reassignmentWarning(
+                            'Reasignar conductor: '.trim($staffgroup->driver->first_name.' '.$staffgroup->driver->last_name)
+                        );
+                    }
+
+                    return e(trim($staffgroup->driver->first_name . ' ' . $staffgroup->driver->last_name));
+                })
+                ->addColumn('helpers', function ($staffgroup) {
+                    $helperRows = $staffgroup->helpers->map(function ($helper) {
+                            if ($this->staffMemberNeedsReplacement($helper)) {
+                                return $this->reassignmentWarning(
+                                    'Reasignar ayudante: '.trim($helper->first_name.' '.$helper->last_name)
+                                );
+                            }
+
                             return '<div class="bg-light rounded px-2 py-1">'
                                 . e($helper->first_name) . ' ' . e($helper->last_name).
                                 '</div>';
-                        })->implode('')
-                        . '</div>';
+                        })->all();
+                    $missingHelpers = max(0, (int) $staffgroup->vehicle_capacity - 1 - $staffgroup->helpers->count());
+
+                    for ($index = 0; $index < $missingHelpers; $index++) {
+                        $helperRows[] = $this->reassignmentWarning('Asignar ayudante');
+                    }
+
+                    return '<div class="d-flex flex-column gap-1">'.implode('', $helperRows).'</div>';
                 })
                 ->addColumn('actions', function ($staffgroup) {
                     return '<div class="staffgroup-actions">
@@ -297,7 +322,7 @@ class StaffGroupsController extends Controller
         $datos = $request->validate([
             'turnos' => ['required', 'integer', 'exists:shifts,id'],
             'zona' => ['required', 'integer', 'exists:zones,id'],
-            'vehiculo' => ['required', 'integer', 'exists:vehicles,id'],
+            'vehiculo' => ['nullable', 'integer', 'exists:vehicles,id'],
             'dias' => ['required', 'array', 'min:1'],
             'dias.*' => ['required', 'integer', 'between:1,7'],
             'id_staff' => ['nullable', 'integer', 'exists:staff_groups,id'],
@@ -313,7 +338,7 @@ class StaffGroupsController extends Controller
             ->whereHas('days', function ($query) use ($datos) {
                 $query->whereIn('day', $datos['dias']);
             })
-            ->get(['id', 'driver_id']);
+            ->get(['id', 'driver_id', 'vehicle_id']);
 
         // Conductores ocupados en otros grupos.
         $conductoresOcupados = $grupos
@@ -348,9 +373,19 @@ class StaffGroupsController extends Controller
                 $employee->id => $employee->dni.' — '.trim($employee->first_name.' '.$employee->last_name),
             ]);
 
+        $vehiculosOcupados = $grupos->pluck('vehicle_id')->filter()->unique()->values();
+        $vehiculos = Vehicle::query()->whereNotIn('id', $vehiculosOcupados)
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'occupats_capacity'])
+            ->mapWithKeys(fn (Vehicle $vehicle) => [$vehicle->id => [
+                'label' => $vehicle->code.' — '.$vehicle->name.' (Capacidad: '.$vehicle->occupats_capacity.')',
+                'capacity' => $vehicle->occupats_capacity,
+            ]]);
+
         return response()->json([
             'conductores' => $conductores,
             'ayudantes' => $ayudantes,
+            'vehiculos' => $vehiculos,
         ]);
     }
 
@@ -386,5 +421,19 @@ class StaffGroupsController extends Controller
                 ]);
             }
         }
+    }
+
+    private function staffMemberNeedsReplacement(Employee $employee): bool
+    {
+        return $employee->status !== 'Activo'
+            || $employee->contracts->isEmpty()
+            || $employee->vacations->isNotEmpty();
+    }
+
+    private function reassignmentWarning(string $message): string
+    {
+        return '<span class="badge rounded-pill bg-light text-secondary border d-inline-flex align-items-center gap-1">'
+            . '<i class="bi bi-exclamation-triangle-fill text-warning" aria-hidden="true"></i>'
+            . e($message) . '</span>';
     }
 }
