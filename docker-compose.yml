@@ -21,7 +21,7 @@ services:
       - db
 
   nginx:
-    image: eltiti07/nginx-laravel:1.0
+    image: eltiti07/project_nginx:latest
     container_name: laravel_nginx
     restart: unless-stopped
     ports:
