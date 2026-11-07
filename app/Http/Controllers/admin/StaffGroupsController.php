@@ -46,8 +46,15 @@ class StaffGroupsController extends Controller
                     'vehicles.occupats_capacity as vehicle_capacity',
                 ]);
 
+            $filterByEmployee = fn ($groups, string $relation, string $keyword) => $groups
+                ->whereHas($relation, fn ($employees) => $employees->where(
+                    fn ($names) => $names->where('employees.first_name', 'like', '%'.$keyword.'%')
+                        ->orWhere('employees.last_name', 'like', '%'.$keyword.'%')
+                ));
 
             return DataTables::eloquent($query)
+                ->filterColumn('driver', fn ($groups, $keyword) => $filterByEmployee($groups, 'driver', $keyword))
+                ->filterColumn('helpers', fn ($groups, $keyword) => $filterByEmployee($groups, 'helpers', $keyword))
                 ->addColumn('days', function ($staffgroup) {
                     $daysMap = [
                         1 => 'Lun',

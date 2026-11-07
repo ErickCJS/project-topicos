@@ -268,19 +268,31 @@ class ProgrammingBackendTest extends TestCase
             'shift' => ['Turno', 1],
             'zone' => ['Zona', 1],
             'vehicle' => ['Recolector', 1],
+            'driver surname' => ['Salazar', 1],
+            'driver full name' => ['Diego Salazar', 1],
+            'helper name' => ['Valentina', 1],
+            'helper full name' => ['Valentina Torres', 1],
             'no match' => ['Sin coincidencia', 0],
         ];
     }
 
     #[DataProvider('staffGroupSearchTerms')]
-    public function test_staff_group_list_searches_joined_columns(string $term, int $expectedCount): void
+    public function test_staff_group_list_searches_group_details_and_assigned_personnel(string $term, int $expectedCount): void
     {
+        $this->driver->update(['first_name' => 'Diego', 'last_name' => 'Salazar']);
+        $this->helper->update(['first_name' => 'Valentina', 'last_name' => 'Torres']);
+
         $page = $this->withoutVite()->get(route('staffgroups.index'))->assertOk();
         $columns = [['data' => 'name', 'searchable' => 'true']];
 
         foreach (['shift_name' => 'shifts.name', 'zone_name' => 'zones.name', 'vehicle_name' => 'vehicles.name'] as $field => $column) {
             $page->assertSee("{ data: '$field', name: '$column' }", false);
             $columns[] = ['data' => $field, 'name' => $column, 'searchable' => 'true'];
+        }
+
+        foreach (['driver', 'helpers'] as $field) {
+            $page->assertSee("{ data: '$field' }", false);
+            $columns[] = ['data' => $field, 'searchable' => 'true'];
         }
 
         $response = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
