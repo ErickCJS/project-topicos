@@ -206,6 +206,36 @@ class ProgrammingBackendTest extends TestCase
         $this->assertArrayNotHasKey($this->helper->id, $response->json('ayudantes'));
     }
 
+    public function test_staff_group_selector_excludes_drivers_and_helpers_on_approved_vacation(): void
+    {
+        $vacationedDriver = $this->employee(1);
+        $vacationedHelper = $this->employee(2);
+        foreach ([$vacationedDriver, $vacationedHelper] as $employee) {
+            Vacation::create([
+                'employee_id' => $employee->id,
+                'year' => 2026,
+                'start_date' => today()->toDateString(),
+                'end_date' => today()->toDateString(),
+                'scheduled_days' => 1,
+                'pending_days' => 29,
+                'status' => 'Aprobada',
+            ]);
+        }
+
+        $options = $this->getJson(route('staffgroups.helpers', [
+            'turnos' => $this->group->shift_id,
+            'zona' => $this->group->zone_id,
+            'vehiculo' => null,
+            'dias' => [1],
+            'id_staff' => $this->group->id,
+        ]))->assertOk();
+
+        $options->assertJsonMissingPath('conductores.'.$vacationedDriver->id)
+            ->assertJsonMissingPath('ayudantes.'.$vacationedHelper->id)
+            ->assertJsonPath('conductores.'.$this->driver->id, $this->driver->dni.' — '.$this->driver->first_name.' '.$this->driver->last_name)
+            ->assertJsonPath('ayudantes.'.$this->helper->id, $this->helper->dni.' — '.$this->helper->first_name.' '.$this->helper->last_name);
+    }
+
     public function test_staff_group_list_warns_for_personnel_without_current_availability(): void
     {
         $this->group->vehicle()->update(['occupats_capacity' => 6]);

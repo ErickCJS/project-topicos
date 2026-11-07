@@ -3,6 +3,8 @@
 @section('title', 'Vacaciones | RSU')
 
 @section('css')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 @stop
 
@@ -83,6 +85,7 @@
 @stop
 
 @section('js')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(function () {
     const formModalElement = document.getElementById('vacationFormModal');
@@ -248,6 +251,16 @@ $(function () {
         $.get(url).done(function (response) {
             $('#vacationFormContent').html(response);
             formModal.show();
+            $('#vacationFormContent select[name="employee_id"]').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                dropdownParent: $('#vacationFormModal'),
+                placeholder: 'Seleccione un trabajador',
+                language: {
+                    noResults: function () { return 'No se encontraron trabajadores'; },
+                    searching: function () { return 'Buscando...'; }
+                }
+            });
             refreshCalculation();
         }).fail(function (xhr) {
             showRequestError(xhr, 'No se pudo abrir el formulario de vacaciones.');

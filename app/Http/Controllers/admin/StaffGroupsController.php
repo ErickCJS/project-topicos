@@ -357,6 +357,7 @@ class StaffGroupsController extends Controller
         $conductores = Employee::where('employee_type_id', 1)
             ->where('status', 'Activo')
             ->withVigenteContract()
+            ->whereDoesntHave('vacations', fn ($query) => $query->covering(today()->toDateString()))
             ->whereNotIn('id', $conductoresOcupados)
             ->get(['id', 'dni', 'first_name', 'last_name'])
             ->mapWithKeys(fn (Employee $employee) => [
@@ -367,6 +368,7 @@ class StaffGroupsController extends Controller
         $ayudantes = Employee::where('employee_type_id', '!=', 1)
             ->where('status', 'Activo')
             ->withVigenteContract()
+            ->whereDoesntHave('vacations', fn ($query) => $query->covering(today()->toDateString()))
             ->whereNotIn('id', $ayudantesOcupados)
             ->get(['id', 'dni', 'first_name', 'last_name'])
             ->mapWithKeys(fn (Employee $employee) => [

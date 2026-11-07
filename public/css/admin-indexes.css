@@ -9,10 +9,20 @@
 .vacations-module .vacation-action-btn i { line-height: 1; }
 .vacations-module .vacation-modal-heading { display: flex; align-items: center; gap: .75rem; }
 .vacations-module .vacation-modal-icon { display: inline-grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; color: var(--bs-success-text-emphasis); background: var(--bs-success-bg-subtle); border: 1px solid var(--bs-success-border-subtle); border-radius: .6rem; }
-.vacations-module .vacation-balance-card { display: flex; min-height: 98px; flex-direction: column; justify-content: center; padding: .85rem 1rem; color: var(--bs-body-color); background: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color); border-radius: .6rem; }
+.vacations-module .vacation-balance-card { display: flex; min-height: 98px; flex-direction: column; justify-content: center; gap: .45rem; padding: .9rem 1rem; color: var(--bs-body-color); background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-left: 3px solid var(--bs-primary); border-radius: .6rem; }
 .vacations-module .vacation-balance-card > span,
 .vacations-module .vacation-detail-label { display: block; color: var(--bs-secondary-color); font-size: .76rem; font-weight: 600; letter-spacing: .035em; text-transform: uppercase; }
-.vacations-module .vacation-balance-card strong { display: block; margin: .1rem 0; font-size: 1.35rem; }
+.vacations-module .vacation-balance-card > span { display: flex; align-items: center; gap: .45rem; }
+.vacations-module .vacation-balance-card > span i { color: var(--bs-primary); font-size: .95rem; }
+.vacations-module .vacation-balance-available { border-left-color: #198754; }
+.vacations-module .vacation-balance-available > span i { color: #198754; }
+.vacations-module .vacation-balance-requested { border-left-color: #3976a8; }
+.vacations-module .vacation-balance-requested > span i { color: #3976a8; }
+.vacations-module .vacation-balance-remaining { border-left-color: #6b7280; }
+.vacations-module .vacation-balance-remaining > span i { color: #6b7280; }
+.vacations-module .vacation-balance-card strong { display: flex; align-items: baseline; gap: .4rem; margin: .1rem 0; font-size: 1.45rem; }
+.vacations-module .vacation-balance-card strong small { color: var(--bs-secondary-color); font-size: .78rem; font-weight: 500; }
+.vacations-module .vacation-year-input { background-color: var(--bs-tertiary-bg); font-weight: 650; }
 .vacations-module .vacation-balance-card small { color: var(--bs-secondary-color); }
 .vacations-module .vacation-detail-card { height: 100%; padding: 1rem !important; background: var(--bs-tertiary-bg) !important; border: 1px solid var(--bs-border-color) !important; border-radius: .6rem; }
 .vacations-module .vacation-detail-value { display: block; margin-top: .3rem; color: var(--bs-body-color); font-weight: 600; }

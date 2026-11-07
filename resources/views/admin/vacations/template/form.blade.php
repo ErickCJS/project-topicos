@@ -2,7 +2,7 @@
     $editing = isset($vacation);
     $historical = $editing && $vacation->isHistorical();
     $selectedEmployee = $editing ? $vacation->employee_id : null;
-    $selectedYear = $editing ? $vacation->year : today()->year;
+    $selectedYear = $editing ? $vacation->year : old('year', today()->year);
 @endphp
 
 <div class="alert alert-danger vacation-general-error d-none" role="alert"></div>
@@ -35,9 +35,9 @@
     </div>
 
     <div class="col-12 col-md-4">
-        <label for="vacation_year" class="form-label">Año *</label>
-        <input type="number" name="year" id="vacation_year" class="form-control" min="1900" max="2100"
-            value="{{ old('year', $selectedYear) }}" {{ $historical ? 'readonly' : '' }} required>
+        <label for="vacation_year" class="form-label">Año del período *</label>
+        <input type="number" name="year" id="vacation_year" class="form-control vacation-year-input" min="1900" max="2100"
+            value="{{ $selectedYear }}" readonly required>
         <div class="invalid-feedback d-none" data-error-for="year"></div>
     </div>
 
@@ -56,23 +56,23 @@
     </div>
 
     <div class="col-12 col-md-4">
-        <div class="vacation-balance-card h-100">
-            <span>Días disponibles</span>
-            <strong><span data-vacation-available>—</span> días</strong>
+        <div class="vacation-balance-card vacation-balance-available h-100">
+            <span><i class="bi bi-calendar2-check" aria-hidden="true"></i>Días disponibles</span>
+            <strong><span data-vacation-available>—</span><small>días</small></strong>
         </div>
     </div>
 
     <div class="col-12 col-md-4">
-        <div class="vacation-balance-card h-100">
-            <span>Días solicitados</span>
-            <strong><span data-vacation-days>—</span> días</strong>
+        <div class="vacation-balance-card vacation-balance-requested h-100">
+            <span><i class="bi bi-calendar2-range" aria-hidden="true"></i>Días solicitados</span>
+            <strong><span data-vacation-days>—</span><small>días</small></strong>
         </div>
     </div>
 
     <div class="col-12 col-md-4">
-        <div class="vacation-balance-card h-100">
-            <span data-vacation-result-label>Saldo restante</span>
-            <strong><span data-vacation-balance>—</span> días</strong>
+        <div class="vacation-balance-card vacation-balance-remaining h-100">
+            <span><i class="bi bi-piggy-bank" aria-hidden="true"></i><span data-vacation-result-label>Saldo restante</span></span>
+            <strong><span data-vacation-balance>—</span><small>días</small></strong>
         </div>
     </div>
 

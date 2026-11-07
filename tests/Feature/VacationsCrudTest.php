@@ -360,6 +360,8 @@ class VacationsCrudTest extends TestCase
             ->assertOk()
             ->assertSee('Ana')
             ->assertSee('Permanente')
+            ->assertSee('value="2026"', false)
+            ->assertSee('readonly', false)
             ->assertSee('data-error-for="start_date"', false)
             ->assertSee('data-error-for="end_date"', false);
 
