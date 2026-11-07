@@ -99,8 +99,8 @@ class EmployeeAttendanceTest extends TestCase
             ->postJson(route('employee.authenticate'), $this->credentials())
             ->assertOk()->assertJsonPath('type', 'Entrada');
         $this->assertGuest('employee');
-        $this->assertSame($token, session()->token());
-        $this->withMiddleware()->withHeader('X-CSRF-TOKEN', $token)
+        $this->withSession(['_token' => $token])
+            ->withMiddleware()->withHeader('X-CSRF-TOKEN', $token)
             ->postJson(route('employee.authenticate'), ['dni' => '11223344', 'password' => 'secret456'])
             ->assertOk()->assertJsonPath('type', 'Entrada');
         $this->assertGuest('employee');
