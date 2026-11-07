@@ -20,6 +20,7 @@ use Database\Seeders\StaffGroupsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProgrammingBackendTest extends TestCase
@@ -258,6 +259,46 @@ class ProgrammingBackendTest extends TestCase
         $this->assertStringContainsString('Reasignar ayudante', $row['helpers']);
         $this->assertStringContainsString('bi-exclamation-triangle-fill text-warning', $row['helpers']);
         $this->assertSame(4, substr_count($row['helpers'], 'Asignar ayudante'));
+    }
+
+    public static function staffGroupSearchTerms(): array
+    {
+        return [
+            'group name' => ['Equipo', 1],
+            'shift' => ['Turno', 1],
+            'zone' => ['Zona', 1],
+            'vehicle' => ['Recolector', 1],
+            'no match' => ['Sin coincidencia', 0],
+        ];
+    }
+
+    #[DataProvider('staffGroupSearchTerms')]
+    public function test_staff_group_list_searches_joined_columns(string $term, int $expectedCount): void
+    {
+        $page = $this->withoutVite()->get(route('staffgroups.index'))->assertOk();
+        $columns = [['data' => 'name', 'searchable' => 'true']];
+
+        foreach (['shift_name' => 'shifts.name', 'zone_name' => 'zones.name', 'vehicle_name' => 'vehicles.name'] as $field => $column) {
+            $page->assertSee("{ data: '$field', name: '$column' }", false);
+            $columns[] = ['data' => $field, 'name' => $column, 'searchable' => 'true'];
+        }
+
+        $response = $this->withHeader('X-Requested-With', 'XMLHttpRequest')
+            ->getJson(route('staffgroups.index', [
+                'draw' => 1,
+                'start' => 0,
+                'length' => 10,
+                'columns' => $columns,
+                'search' => ['value' => $term, 'regex' => 'false'],
+            ]))
+            ->assertOk()
+            ->assertJsonMissingPath('error')
+            ->assertJsonPath('recordsFiltered', $expectedCount)
+            ->assertJsonCount($expectedCount, 'data');
+
+        if ($expectedCount === 1) {
+            $response->assertJsonPath('data.0.id', $this->group->id);
+        }
     }
 
     public function test_staff_groups_seeder_respects_turn_day_conflicts_and_vehicle_capacity(): void

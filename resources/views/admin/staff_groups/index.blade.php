@@ -179,9 +179,9 @@ $(function () {
         },
         columns: [
             { data: 'name' },
-            { data: 'shift_name' },
-            { data: 'zone_name' },
-            { data: 'vehicle_name' },
+            { data: 'shift_name', name: 'shifts.name' },
+            { data: 'zone_name', name: 'zones.name' },
+            { data: 'vehicle_name', name: 'vehicles.name' },
             { data: 'driver' },
             { data: 'helpers' },
 
