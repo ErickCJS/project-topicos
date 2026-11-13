@@ -110,6 +110,11 @@ class AttendancesController extends Controller
                     $data['origin'] = $this->attendanceOrigin($data['employee_id'], $data['shift_id'], $data['date']);
                 } else {
                     $pending = $rules->pendingExits($data['employee_id'], $markedAt);
+                    if ($pending->count() > 1) {
+                        throw ValidationException::withMessages([
+                            'type' => 'El empleado tiene varias entradas pendientes. Revise sus marcaciones antes de registrar una salida.',
+                        ]);
+                    }
                     $entry = $pending->first(fn ($row) => (int) $row->shift_id === (int) $data['shift_id']);
 
                     if (! $entry) {
@@ -201,6 +206,7 @@ class AttendancesController extends Controller
                         ->where('employee_id', $data['employee_id'])
                         ->where('shift_id', $data['shift_id'])
                         ->where('type', 'Entrada')
+                        ->where('id', '<>', $locked->id)
                         ->where(function ($query) use ($data, $shift) {
                             $query->whereDate('date', $data['date']);
                             if (substr((string) $shift->end_time, 0, 8) <= substr((string) $shift->start_time, 0, 8)) {
