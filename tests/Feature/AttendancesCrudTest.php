@@ -205,21 +205,40 @@ class AttendancesCrudTest extends TestCase
             'origin' => 'No programado',
         ]);
 
+        Attendance::create([
+            'employee_id' => $this->employeeId,
+            'shift_id' => $this->morningShiftId,
+            'date' => '2026-10-16',
+            'time' => '12:05',
+            'type' => 'Salida',
+            'status' => 'Presente',
+            'origin' => 'No programado',
+        ]);
+
         $this->get(route('attendances.index'))
             ->assertOk()
-            ->assertSee('Listado de Asistencias');
+            ->assertSee('Listado de Asistencias')
+            ->assertSee('attendance-date-from', false)
+            ->assertSee('attendance-date-to', false)
+            ->assertSee('Últimos 7 días')
+            ->assertSee('Este mes');
 
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('attendances.index', [
                 'draw' => 1,
                 'start' => 0,
                 'length' => 10,
+                'date_from' => '2026-10-16',
+                'date_to' => '2026-10-16',
             ]))
             ->assertOk()
             ->assertJsonPath('recordsTotal', 1)
             ->assertJsonPath('data.0.id', $attendance->id)
             ->assertJsonPath('data.0.employee_name', 'Ana Pérez')
             ->assertJsonPath('data.0.shift_name', 'Mañana')
+            ->assertJsonPath('data.0.date_display', '16/10/2026')
+            ->assertJsonPath('data.0.entry_time', '08:30:00')
+            ->assertJsonPath('data.0.exit_time', '12:05:00')
             ->assertJsonPath('data.0.origin', 'No programado');
 
         $this->get(route('attendances.show', $attendance))
@@ -227,8 +246,81 @@ class AttendancesCrudTest extends TestCase
             ->assertSee('Detalle de asistencia')
             ->assertSee('Tardanza')
             ->assertSee('No programado')
+            ->assertSee('Hora de entrada')
+            ->assertSee('Hora de salida')
+            ->assertSee('12:05')
             ->assertDontSee('password-hash-no-exponer')
             ->assertDontSee('ana@example.test');
+    }
+
+    public function test_attendance_listing_defaults_to_today_and_applies_date_range_filters(): void
+    {
+        $today = today()->toDateString();
+        $yesterday = today()->subDay()->toDateString();
+
+        $todayAttendance = $this->createAttendance(['date' => $today]);
+        $this->createAttendance(['date' => $yesterday]);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('attendances.index', [
+                'draw' => 2,
+                'start' => 0,
+                'length' => 10,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.id', $todayAttendance->id);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('attendances.index', [
+                'draw' => 3,
+                'start' => 0,
+                'length' => 10,
+                'date_from' => $yesterday,
+                'date_to' => $today,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 2);
+    }
+
+    public function test_attendance_listing_pairs_overnight_exit_with_previous_day_entry(): void
+    {
+        $nightShiftId = $this->createShift('Noche', '20:00:00', '02:00:00');
+
+        $entry = Attendance::create([
+            'employee_id' => $this->employeeId,
+            'shift_id' => $nightShiftId,
+            'date' => '2026-10-16',
+            'time' => '21:00',
+            'type' => 'Entrada',
+            'status' => 'Presente',
+            'origin' => 'No programado',
+        ]);
+
+        Attendance::create([
+            'employee_id' => $this->employeeId,
+            'shift_id' => $nightShiftId,
+            'date' => '2026-10-17',
+            'time' => '01:00',
+            'type' => 'Salida',
+            'status' => 'Presente',
+            'origin' => 'No programado',
+        ]);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('attendances.index', [
+                'draw' => 4,
+                'start' => 0,
+                'length' => 10,
+                'date_from' => '2026-10-16',
+                'date_to' => '2026-10-16',
+                'shift_id' => $nightShiftId,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.id', $entry->id)
+            ->assertJsonPath('data.0.entry_time', '21:00:00')
+            ->assertJsonPath('data.0.exit_time', '01:00:00');
     }
 
     public function test_daily_attendance_history_returns_shift_status_and_origin(): void
