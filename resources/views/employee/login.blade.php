@@ -92,9 +92,13 @@
                 const values = Object.values(errors).flat();
                 throw new Error(values[0] || payload.message || 'No se pudo registrar la asistencia.');
             }
-            showMessage(payload.message, 'success');
+            const details = [payload.shift_name, payload.status, payload.origin]
+                .filter(Boolean)
+                .join(' · ');
+            showMessage(payload.message + (details ? ' · ' + details : ''), 'success');
             form.reset();
             shiftField.hidden = true;
+            shift.innerHTML = '';
             dni.focus();
         } catch (error) {
             password.value = '';
