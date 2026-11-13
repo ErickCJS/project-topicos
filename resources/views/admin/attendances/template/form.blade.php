@@ -14,6 +14,7 @@
                 </option>
             @endforeach
         </select>
+        <small class="text-muted">No es necesario que el empleado tenga una programación asignada.</small>
     </div>
 
     <div class="col-12 col-md-6">
@@ -41,7 +42,7 @@
             value="{{ old('time', $editing ? substr($attendance->time, 0, 5) : now()->format('H:i')) }}" required>
     </div>
 
-    <div class="col-12 col-md-6">
+    <div class="col-12">
         <label for="attendance_type" class="form-label">Tipo de marcación *</label>
         <select name="type" id="attendance_type" class="form-select" required>
             <option value="">Seleccione</option>
@@ -54,29 +55,22 @@
         </select>
     </div>
 
-    <div class="col-12 col-md-6">
-        <label for="attendance_status" class="form-label">Estado *</label>
-        <select name="status" id="attendance_status" class="form-select" required>
-            <option value="">Seleccione</option>
-            @foreach(\App\Models\admin\Attendance::STATUSES as $status)
-                <option value="{{ $status }}"
-                    @selected(old('status', $editing ? $attendance->status : '') === $status)>
-                    {{ $status }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <label for="attendance_origin" class="form-label">Origen *</label>
-        <select name="origin" id="attendance_origin" class="form-select" required>
-            @foreach(\App\Models\admin\Attendance::ORIGINS as $origin)
-                <option value="{{ $origin }}"
-                    @selected(old('origin', $editing ? $attendance->origin : 'Programado') === $origin)>
-                    {{ $origin }}
-                </option>
-            @endforeach
-        </select>
+    <div class="col-12">
+        <div class="alert alert-info mb-0 py-2" role="note">
+            <div class="fw-semibold mb-1">Evaluación automática</div>
+            <div class="small">
+                El sistema determina el estado de la entrada (Presente o Tardanza) comparando la hora
+                registrada con el inicio del turno. El origen se asigna como Programado o No programado
+                según exista una asignación para ese empleado, fecha y turno.
+                Las salidas se vinculan con una entrada pendiente.
+            </div>
+            @if($editing)
+                <div class="small mt-2">
+                    Estado actual: <strong>{{ $attendance->status }}</strong>
+                    · Origen actual: <strong>{{ $attendance->origin ?? 'No programado' }}</strong>
+                </div>
+            @endif
+        </div>
     </div>
 
     <div class="col-12">
@@ -84,6 +78,7 @@
         <textarea name="notes" id="attendance_notes" class="form-control" rows="3"
             placeholder="Ingrese alguna observación...">{{ old('notes', $editing ? $attendance->notes : '') }}</textarea>
     </div>
+
     <div class="col-12">
         <div class="border-top pt-3 mt-1">
             <h6 class="mb-2">Historial del día</h6>
