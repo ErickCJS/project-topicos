@@ -275,7 +275,17 @@ class AttendancesController extends Controller
             ->whereNull('programmings.deleted_at')
             ->exists();
 
-        return $programmed ? 'Programado' : 'No programado';
+        if ($programmed) {
+            return 'Programado';
+        }
+
+        $retainer = DB::table('employees')
+            ->join('employee_types', 'employee_types.id', '=', 'employees.employee_type_id')
+            ->where('employees.id', $employeeId)
+            ->whereIn('employee_types.name', ['Conductor', 'Ayudante'])
+            ->exists();
+
+        return $retainer ? 'Retén' : 'No programado';
     }
 
     public function destroy(Attendance $attendance)
