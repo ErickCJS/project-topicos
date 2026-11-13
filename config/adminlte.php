@@ -881,12 +881,7 @@ return [
                     'text' => 'Cambios',
                     'route' => 'cambios.index',
                     'icon' => 'bi bi-arrow-left-right',
-                ],
-                [
-                    'text' => 'Cambios masivos',
-                    'route' => 'cambios.bulk.index',
-                    'icon' => 'bi bi-pencil-square',
-                ],
+                ]
             ],
         ],
         [
