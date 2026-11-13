@@ -51,7 +51,7 @@ class ProgrammingModificationService
             ->whereDate('date', $programming->date)
             ->where('shift_id', $shift->id)
             ->where('type', 'Entrada')
-            ->where('status', 'Presente')
+            ->whereIn('status', ['Presente', 'Tardanza'])
             ->where('origin', 'Retén')
             ->whereNotExists(function ($query) use ($programming) {
                 $query->selectRaw('1')->from('attendances as exits')
