@@ -82,8 +82,16 @@ class AttendanceMarkingRules
                     $now->getTimezone()
                 );
                 $cutoff = $startsAt->subMinutes(self::ENTRY_ADVANCE_MINUTES);
+                $endsAt = CarbonImmutable::parse(
+                    $startDate.' '.$shift->end_time,
+                    $now->getTimezone()
+                );
 
-                if ($cutoff->lessThanOrEqualTo($now)) {
+                if ($endsAt->lessThanOrEqualTo($startsAt)) {
+                    $endsAt = $endsAt->addDay();
+                }
+
+                if ($cutoff->lessThanOrEqualTo($now) && $now->lessThanOrEqualTo($endsAt)) {
                     $candidates->push([
                         'shift' => $shift,
                         'start_date' => $startDate,
