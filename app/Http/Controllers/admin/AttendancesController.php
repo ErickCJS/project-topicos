@@ -221,6 +221,13 @@ class AttendancesController extends Controller
                         ]);
                     }
 
+                    $entryAt = CarbonImmutable::parse($entry->date->toDateString().' '.$entry->time);
+                    if (! $entryAt->lessThan($markedAt)) {
+                        throw ValidationException::withMessages([
+                            'time' => 'La hora de salida debe ser posterior a la hora de entrada.',
+                        ]);
+                    }
+
                     $data['status'] = 'Presente';
                     $data['origin'] = $entry->origin ?? 'No programado';
                 }
