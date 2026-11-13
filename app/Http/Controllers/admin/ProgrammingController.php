@@ -363,7 +363,7 @@ class ProgrammingController extends Controller
         $employeeIds = $programming->employees->pluck('id');
         $presentIds = \App\Models\admin\Attendance::query()->whereDate('date', $programming->date)
             ->where('shift_id', $programming->shift_id)->whereIn('employee_id', $employeeIds)
-            ->where('status', 'Presente')->distinct()->pluck('employee_id')->map(fn ($id) => (int) $id)->all();
+            ->whereIn('status', ['Presente', 'Tardanza'])->distinct()->pluck('employee_id')->map(fn ($id) => (int) $id)->all();
         $people = $programming->employees->unique('id')->map(fn ($employee) => [
             'id' => (int) $employee->id,
             'name' => trim($employee->first_name.' '.$employee->last_name),
