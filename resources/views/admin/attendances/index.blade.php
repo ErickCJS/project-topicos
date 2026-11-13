@@ -51,7 +51,7 @@
                         <label for="attendance-filter-status" class="form-label small fw-semibold mb-1">Estado</label>
                         <select id="attendance-filter-status" class="form-select form-select-sm">
                             <option value="">Todos los estados</option>
-                            @foreach(\\App\\Models\\admin\\Attendance::STATUSES as $status)
+                            @foreach(\App\Models\admin\Attendance::STATUSES as $status)
                                 <option value="{{ $status }}">{{ $status }}</option>
                             @endforeach
                         </select>
@@ -60,7 +60,7 @@
                         <label for="attendance-filter-origin" class="form-label small fw-semibold mb-1">Origen</label>
                         <select id="attendance-filter-origin" class="form-select form-select-sm">
                             <option value="">Todos los orígenes</option>
-                            @foreach(\\App\\Models\\admin\\Attendance::ORIGINS as $origin)
+                            @foreach(\App\Models\admin\Attendance::ORIGINS as $origin)
                                 <option value="{{ $origin }}">{{ $origin }}</option>
                             @endforeach
                         </select>
