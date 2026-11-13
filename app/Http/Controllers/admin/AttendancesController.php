@@ -164,7 +164,7 @@ class AttendancesController extends Controller
 
     public function edit(Attendance $attendance)
     {
-        return view('admin.attendances.edit', $this->formData() + compact('attendance'));
+        return view('admin.attendances.edit', $this->formData($attendance->date->format('Y-m-d')) + compact('attendance'));
     }
 
     public function update(Request $request, Attendance $attendance, AttendanceMarkingRules $rules)
@@ -183,7 +183,7 @@ class AttendancesController extends Controller
                     ->where('shift_id', $data['shift_id'])
                     ->whereDate('date', $data['date'])
                     ->where('type', $data['type'])
-                    ->whereKeyNot($locked->id)
+                    ->where('id', '<>', $locked->id)
                     ->exists();
 
                 if ($duplicate) {
@@ -308,9 +308,9 @@ class AttendancesController extends Controller
         ]));
     }
 
-    private function formData(): array
+    private function formData(?string $requestedDate = null): array
     {
-        $date = request()->input('date', today()->format('Y-m-d'));
+        $date = $requestedDate ?? request()->input('date', today()->format('Y-m-d'));
         if (! is_string($date) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || ! strtotime($date)) {
             $date = today()->format('Y-m-d');
         }
