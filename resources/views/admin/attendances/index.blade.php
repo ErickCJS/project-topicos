@@ -25,6 +25,7 @@
                             <th>Tipo</th>
                             <th>Estado</th>
                             <th>Turno</th>
+                            <th>Origen</th>
                             <th>Notas</th>
                             <th class="text-center">Acciones</th>
                         </tr>
@@ -113,6 +114,7 @@ $(function () {
             { data: 'type', name: 'attendances.type' },
             { data: 'status', name: 'attendances.status' },
             { data: 'shift_name', name: 'shifts.name' },
+            { data: 'origin', name: 'attendances.origin', defaultContent: 'No programado' },
             { data: 'notes', name: 'attendances.notes', defaultContent: '' },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
