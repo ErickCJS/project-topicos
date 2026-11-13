@@ -30,6 +30,7 @@ class AdminController extends Controller
             ->whereDate('date', $fechaSeleccionada)
             ->whereIn('shift_id', $programaciones->pluck('shift_id')->unique())
             ->whereIn('employee_id', $employeeIds)
+            ->where('type', 'Entrada')
             ->whereIn('status', ['Presente', 'Tardanza'])
             ->get(['employee_id', 'shift_id'])
             ->groupBy(fn ($attendance) => $attendance->shift_id.':'.$attendance->employee_id);
