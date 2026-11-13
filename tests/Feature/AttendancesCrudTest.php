@@ -283,6 +283,44 @@ class AttendancesCrudTest extends TestCase
             ->assertJsonPath('recordsFiltered', 2);
     }
 
+    public function test_attendance_listing_filters_by_shift_status_and_origin(): void
+    {
+        $date = today()->toDateString();
+
+        $this->createAttendance([
+            'date' => $date,
+            'status' => 'Tardanza',
+            'origin' => 'No programado',
+        ]);
+
+        Attendance::create([
+            'employee_id' => $this->employeeId,
+            'shift_id' => $this->afternoonShiftId,
+            'date' => $date,
+            'time' => '12:00',
+            'type' => 'Entrada',
+            'status' => 'Presente',
+            'origin' => 'Programado',
+        ]);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('attendances.index', [
+                'draw' => 5,
+                'start' => 0,
+                'length' => 10,
+                'date_from' => $date,
+                'date_to' => $date,
+                'shift_id' => $this->afternoonShiftId,
+                'status' => 'Presente',
+                'origin' => 'Programado',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.shift_name', 'Tarde')
+            ->assertJsonPath('data.0.status', 'Presente')
+            ->assertJsonPath('data.0.origin', 'Programado');
+    }
+
     public function test_attendance_listing_pairs_overnight_exit_with_previous_day_entry(): void
     {
         $nightShiftId = $this->createShift('Noche', '20:00:00', '02:00:00');
