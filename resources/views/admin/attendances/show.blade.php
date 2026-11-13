@@ -27,20 +27,28 @@
         </div>
         <div class="col-6 col-md-3">
             <div class="attendance-detail-card">
-                <small class="attendance-detail-label">Fecha</small>
+                <small class="attendance-detail-label">Fecha de jornada</small>
                 <span class="attendance-detail-value">{{ $attendance->date->format('d/m/Y') }}</span>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="attendance-detail-card">
-                <small class="attendance-detail-label">Hora</small>
-                <span class="attendance-detail-value">{{ substr($attendance->time, 0, 5) }}</span>
+                <small class="attendance-detail-label">Hora de entrada</small>
+                <span class="attendance-detail-value">
+                    {{ $attendance->type === 'Entrada' ? substr($attendance->time, 0, 5) : '—' }}
+                </span>
             </div>
         </div>
-        <div class="col-6">
+        <div class="col-6 col-md-3">
             <div class="attendance-detail-card">
-                <small class="attendance-detail-label">Tipo</small>
-                <span class="attendance-detail-value">{{ $attendance->type }}</span>
+                <small class="attendance-detail-label">Hora de salida</small>
+                @if($attendance->type === 'Salida')
+                    <span class="attendance-detail-value">{{ substr($attendance->time, 0, 5) }}</span>
+                @elseif($exitAttendance)
+                    <span class="attendance-detail-value">{{ substr($exitAttendance->time, 0, 5) }}</span>
+                @else
+                    <span class="badge bg-light text-secondary border">Pendiente</span>
+                @endif
             </div>
         </div>
         <div class="col-6">
