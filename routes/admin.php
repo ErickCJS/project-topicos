@@ -16,6 +16,7 @@ use App\Http\Controllers\admin\EmployeeTypeController;
 use App\Http\Controllers\admin\ReasonController;
 use App\Http\Controllers\admin\ShiftController;
 use App\Http\Controllers\admin\StaffGroupsController;
+use App\Http\Controllers\admin\UserController;
 use App\Http\Controllers\admin\VacationController;
 use App\Http\Controllers\admin\ZoneController;
 use App\Http\Controllers\admin\VehiclesController;
@@ -99,3 +100,6 @@ Route::post('subirimagenes/{id_products}', [VehiclesController::class, 'subirima
 Route::get('retonar_rutas_fotos/{id_product}', [VehiclesController::class, 'retonar_rutas_fotos'])->name('vehicles.photo.retonar_rutas_fotos');
 Route::delete('eliminar_imagen/{id_product}', [VehiclesController::class, 'eliminar_imagen'])->name('vehicles.photo.eliminar_imagen');
 Route::patch('photos/{id_foto}/seleccionar', [VehiclesController::class, 'seleccionar_foto_principal'])->name('vehicles.photo.seleccionar');
+
+
+Route::resource('users', UserController::class)->names('users');

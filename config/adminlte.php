@@ -889,6 +889,17 @@ return [
                 ],
             ],
         ],
+        [
+            'text' => 'Lista de usuarios',
+            'icon' => 'bi bi-people',
+            'submenu' => [
+                [
+                    'text' => 'Lista de usuarios',
+                    'route' => 'users.index',
+                    'icon' => 'bi bi-list-ul',
+                ]
+            ],
+        ],
     ],
     /*
     |--------------------------------------------------------------------------
