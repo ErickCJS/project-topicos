@@ -299,6 +299,82 @@ class EmployeeAttendanceTest extends TestCase
         $this->assertGuest('employee');
     }
 
+    public function test_ajax_registration_accepts_the_current_session_csrf_token(): void
+    {
+        Carbon::setTestNow('2026-10-30 07:00:00');
+        $this->get(route('employee.home'));
+        $this->app->instance('env', 'production');
+
+        $response = $this->withMiddleware()
+            ->withHeader('X-CSRF-TOKEN', session()->token())
+            ->postJson(route('employee.authenticate'), $this->credentials());
+
+        $response->assertOk()->assertJsonPath('type', 'Entrada');
+        $this->assertGuest('employee');
+    }
+
+    public function test_ajax_registration_without_a_valid_csrf_token_is_rejected(): void
+    {
+        $this->get(route('employee.home'));
+        $this->app->instance('env', 'production');
+
+        $this->withMiddleware()
+            ->withHeader('X-CSRF-TOKEN', 'invalid-token')
+            ->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertStatus(419);
+
+        $this->assertDatabaseCount('attendances', 0);
+        $this->assertGuest('employee');
+    }
+
+    public function test_two_workers_can_use_the_same_csrf_token_consecutively(): void
+    {
+        Carbon::setTestNow('2026-10-30 07:00:00');
+        $this->get(route('employee.home'));
+        $token = session()->token();
+        $secondId = $this->createEmployee(
+            DB::table('employee_types')->value('id'),
+            '11223344',
+            'Luis',
+            'Segundo',
+            'second@test.local',
+            'secret456'
+        );
+        $this->createContract($secondId);
+        $this->app->instance('env', 'production');
+
+        $this->withMiddleware()->withHeader('X-CSRF-TOKEN', $token)
+            ->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertOk()->assertJsonPath('type', 'Entrada');
+        $this->assertGuest('employee');
+
+        $this->withSession(['_token' => $token])
+            ->withMiddleware()->withHeader('X-CSRF-TOKEN', $token)
+            ->postJson(route('employee.authenticate'), ['dni' => '11223344', 'password' => 'secret456'])
+            ->assertOk()->assertJsonPath('type', 'Entrada');
+
+        $this->assertGuest('employee');
+        $this->assertDatabaseCount('attendances', 2);
+    }
+
+    public function test_failed_then_successful_registration_can_reuse_the_same_csrf_token(): void
+    {
+        Carbon::setTestNow('2026-10-30 07:00:00');
+        $this->get(route('employee.home'));
+        $token = session()->token();
+        $this->app->instance('env', 'production');
+
+        $this->withMiddleware()->withHeader('X-CSRF-TOKEN', $token)
+            ->postJson(route('employee.authenticate'), ['dni' => '87654321', 'password' => 'incorrecta'])
+            ->assertUnprocessable()->assertJsonValidationErrors('credentials');
+
+        $this->withMiddleware()->withHeader('X-CSRF-TOKEN', $token)
+            ->postJson(route('employee.authenticate'), $this->credentials())
+            ->assertOk()->assertJsonPath('type', 'Entrada');
+
+        $this->assertGuest('employee');
+    }
+
     private function credentials(): array
     {
         return ['dni' => '87654321', 'password' => 'secret123'];
