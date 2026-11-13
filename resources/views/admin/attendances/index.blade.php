@@ -154,7 +154,7 @@ $(function () {
                 }
                 rows.forEach(function (row) {
                     const line = document.createElement('div');
-                    line.textContent = [row.time, row.type, row.status, row.shift || 'Sin turno'].join(' · ');
+                    line.textContent = [row.time, row.type, row.status, row.shift || 'Sin turno', row.origin || 'No programado'].join(' · ');
                     history.appendChild(line);
                 });
             })
