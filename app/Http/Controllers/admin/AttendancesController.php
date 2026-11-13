@@ -4,9 +4,15 @@ namespace App\Http\Controllers\admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\admin\Attendance;
+use App\Models\admin\Employee;
+use App\Models\admin\Shift;
+use App\Services\AttendanceMarkingRules;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
 
 class AttendancesController extends Controller
@@ -27,27 +33,23 @@ class AttendancesController extends Controller
 
             return DataTables::eloquent($attendances)
                 ->filterColumn('employee_name', function ($query, $keyword) {
-    $terms = preg_split('/\s+/', trim($keyword), -1, PREG_SPLIT_NO_EMPTY) ?: [$keyword];
+                    $terms = preg_split('/\s+/', trim($keyword), -1, PREG_SPLIT_NO_EMPTY) ?: [$keyword];
 
-    $query->where(function ($nameQuery) use ($terms) {
-        foreach ($terms as $term) {
-            $nameQuery->where(function ($termQuery) use ($term) {
-                $termQuery->where('employees.first_name', 'like', '%'.$term.'%')
-                    ->orWhere('employees.last_name', 'like', '%'.$term.'%');
-            });
-        }
-    });
-})
-->orderColumn('employee_name', function ($query, $order) {
-    $query->orderBy('employees.last_name', $order)
-        ->orderBy('employees.first_name', $order);
-})
-                ->addColumn('employee_name', fn ($row) =>
-                    trim($row->first_name.' '.$row->last_name)
-                )
-                ->addColumn('date_time', fn ($row) =>
-                    $row->date->format('d/m/Y').' '.substr($row->time, 0, 5)
-                )
+                    $query->where(function ($nameQuery) use ($terms) {
+                        foreach ($terms as $term) {
+                            $nameQuery->where(function ($termQuery) use ($term) {
+                                $termQuery->where('employees.first_name', 'like', '%'.$term.'%')
+                                    ->orWhere('employees.last_name', 'like', '%'.$term.'%');
+                            });
+                        }
+                    });
+                })
+                ->orderColumn('employee_name', function ($query, $order) {
+                    $query->orderBy('employees.last_name', $order)
+                        ->orderBy('employees.first_name', $order);
+                })
+                ->addColumn('employee_name', fn ($row) => trim($row->first_name.' '.$row->last_name))
+                ->addColumn('date_time', fn ($row) => $row->date->format('d/m/Y').' '.substr($row->time, 0, 5))
                 ->addColumn('actions', function ($row) {
                     return '<div class="attendance-actions">'
                         .'<button type="button" class="btn btn-outline-primary btn-sm btnVer" data-url="'.e(route('attendances.show', $row->id)).'" title="Ver" aria-label="Ver asistencia"><i class="bi bi-eye"></i></button> '
@@ -67,20 +69,83 @@ class AttendancesController extends Controller
         return view('admin.attendances.create', $this->formData());
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AttendanceMarkingRules $rules)
     {
         $data = $this->validatedData($request);
-        $attendance = DB::transaction(function () use ($data) {
-            $this->lockEmployee($data['employee_id']);
-            $this->assertEligible($data);
-            $this->assertAttendanceOrigin($data);
 
-            return Attendance::create($data);
-        }, 3);
+        try {
+            $attendance = DB::transaction(function () use ($data, $rules) {
+                $this->lockEmployee($data['employee_id']);
+                $shift = Shift::query()->findOrFail($data['shift_id']);
+                $markedAt = CarbonImmutable::parse($data['date'].' '.$data['time']);
+
+                if ($data['type'] === 'Entrada') {
+                    $this->assertEligible($data['employee_id'], $data['date']);
+
+                    if (Attendance::query()->where('employee_id', $data['employee_id'])
+                        ->where('shift_id', $data['shift_id'])
+                        ->whereDate('date', $data['date'])
+                        ->where('type', 'Entrada')->exists()) {
+                        throw ValidationException::withMessages([
+                            'type' => 'El empleado ya tiene una entrada registrada en este turno y fecha.',
+                        ]);
+                    }
+
+                    if ($rules->pendingExits($data['employee_id'], $markedAt)->isNotEmpty()) {
+                        throw ValidationException::withMessages([
+                            'type' => 'El empleado tiene una entrada pendiente de salida. Registre primero la salida correspondiente.',
+                        ]);
+                    }
+
+                    if (Attendance::query()->where('employee_id', $data['employee_id'])
+                        ->where('shift_id', $data['shift_id'])
+                        ->whereDate('date', $data['date'])
+                        ->where('type', 'Salida')->exists()) {
+                        throw ValidationException::withMessages([
+                            'type' => 'Ya existe una salida para ese turno y fecha. No se puede agregar otra entrada.',
+                        ]);
+                    }
+
+                    $data['status'] = $rules->entryStatus($shift, $data['date'], $markedAt);
+                    $data['origin'] = $this->attendanceOrigin($data['employee_id'], $data['shift_id'], $data['date']);
+                } else {
+                    $pending = $rules->pendingExits($data['employee_id'], $markedAt);
+                    $entry = $pending->first(fn ($row) => (int) $row->shift_id === (int) $data['shift_id']);
+
+                    if (! $entry) {
+                        throw ValidationException::withMessages([
+                            'type' => 'No existe una entrada pendiente para este empleado y turno. No se puede registrar una salida aislada.',
+                        ]);
+                    }
+
+                    if (Attendance::query()->where('employee_id', $data['employee_id'])
+                        ->where('shift_id', $data['shift_id'])
+                        ->whereDate('date', $data['date'])
+                        ->where('type', 'Salida')->exists()) {
+                        throw ValidationException::withMessages([
+                            'type' => 'Ya existe una salida para ese turno y fecha.',
+                        ]);
+                    }
+
+                    $data['status'] = 'Presente';
+                    $data['origin'] = $entry->origin ?? 'No programado';
+                }
+
+                return Attendance::create($data);
+            }, 3);
+        } catch (QueryException $exception) {
+            if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
+                throw ValidationException::withMessages([
+                    'type' => 'La marcación ya existe. No se permiten entradas ni salidas duplicadas.',
+                ]);
+            }
+
+            throw $exception;
+        }
 
         return response()->json([
             'mensaje' => 'Asistencia registrada correctamente.',
-            'data' => ['id' => $attendance->id],
+            'data' => ['id' => $attendance->id, 'status' => $attendance->status, 'origin' => $attendance->origin],
         ], 201);
     }
 
@@ -94,33 +159,79 @@ class AttendancesController extends Controller
             ->where('id', $attendance->shift_id)
             ->first(['id', 'name', 'start_time', 'end_time']);
 
-        return view('admin.attendances.show', compact(
-            'attendance', 'employee', 'shift'
-        ));
+        return view('admin.attendances.show', compact('attendance', 'employee', 'shift'));
     }
 
     public function edit(Attendance $attendance)
     {
-        return view(
-            'admin.attendances.edit',
-            $this->formData() + compact('attendance')
-        );
+        return view('admin.attendances.edit', $this->formData() + compact('attendance'));
     }
 
-    public function update(Request $request, Attendance $attendance)
+    public function update(Request $request, Attendance $attendance, AttendanceMarkingRules $rules)
     {
         $data = $this->validatedData($request);
-        DB::transaction(function () use ($data, $attendance) {
-            $this->lockEmployee($data['employee_id']);
-            $lockedAttendance = Attendance::whereKey($attendance->id)->lockForUpdate()->firstOrFail();
-            $this->assertEligible($data);
-            $this->assertAttendanceOrigin($data);
-            $lockedAttendance->update($data);
-        }, 3);
 
-        return response()->json([
-            'mensaje' => 'Asistencia actualizada correctamente.',
-        ]);
+        try {
+            DB::transaction(function () use ($data, $attendance, $rules) {
+                $this->lockEmployee($data['employee_id']);
+                $locked = Attendance::query()->whereKey($attendance->id)->lockForUpdate()->firstOrFail();
+                $shift = Shift::query()->findOrFail($data['shift_id']);
+                $markedAt = CarbonImmutable::parse($data['date'].' '.$data['time']);
+
+                $duplicate = Attendance::query()
+                    ->where('employee_id', $data['employee_id'])
+                    ->where('shift_id', $data['shift_id'])
+                    ->whereDate('date', $data['date'])
+                    ->where('type', $data['type'])
+                    ->whereKeyNot($locked->id)
+                    ->exists();
+
+                if ($duplicate) {
+                    throw ValidationException::withMessages([
+                        'type' => 'Ya existe una marcación del mismo tipo para ese trabajador, turno y fecha.',
+                    ]);
+                }
+
+                if ($data['type'] === 'Entrada') {
+                    $this->assertEligible($data['employee_id'], $data['date']);
+                    $data['status'] = $rules->entryStatus($shift, $data['date'], $markedAt);
+                    $data['origin'] = $this->attendanceOrigin($data['employee_id'], $data['shift_id'], $data['date']);
+                } else {
+                    $entry = Attendance::query()
+                        ->where('employee_id', $data['employee_id'])
+                        ->where('shift_id', $data['shift_id'])
+                        ->where('type', 'Entrada')
+                        ->where(function ($query) use ($data, $shift) {
+                            $query->whereDate('date', $data['date']);
+                            if (substr((string) $shift->end_time, 0, 8) <= substr((string) $shift->start_time, 0, 8)) {
+                                $query->orWhereDate('date', CarbonImmutable::parse($data['date'])->subDay()->toDateString());
+                            }
+                        })
+                        ->first();
+
+                    if (! $entry) {
+                        throw ValidationException::withMessages([
+                            'type' => 'No se encontró la entrada relacionada con esta salida.',
+                        ]);
+                    }
+
+                    $data['status'] = 'Presente';
+                    $data['origin'] = $entry->origin ?? 'No programado';
+                }
+
+                $locked->update($data);
+            }, 3);
+        } catch (QueryException $exception) {
+            if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
+                throw ValidationException::withMessages([
+                    'type' => 'La marcación ya existe. No se permiten duplicados.',
+                ]);
+            }
+
+            throw $exception;
+        }
+
+        return response()->json(['mensaje' => 'Asistencia actualizada correctamente.']);
     }
 
     private function lockEmployee(int $employeeId): void
@@ -128,82 +239,50 @@ class AttendancesController extends Controller
         DB::table('employees')->where('id', $employeeId)->lockForUpdate()->firstOrFail();
     }
 
-    private function assertEligible(array $data): void
+    private function assertEligible(int $employeeId, string $date): void
     {
-        $eligible = DB::table('employees')->where('employees.id', $data['employee_id'])
-            ->whereExists(function ($query) use ($data) {
-                $query->selectRaw('1')->from('contracts')
-                    ->whereColumn('contracts.employee_id', 'employees.id')
-                    ->where('contracts.is_active', true)->whereNull('contracts.cancelled_at')
-                    ->whereDate('contracts.start_date', '<=', $data['date'])
-                    ->where(function ($endDate) use ($data) {
-                        $endDate->whereNull('contracts.end_date')->orWhereDate('contracts.end_date', '>=', $data['date']);
-                    });
+        $eligible = Employee::query()
+            ->whereKey($employeeId)
+            ->where('status', 'Activo')
+            ->whereHas('contracts', function ($query) use ($date) {
+                $query->where('is_active', true)
+                    ->whereNull('cancelled_at')
+                    ->whereDate('start_date', '<=', $date)
+                    ->where(fn ($dates) => $dates->whereNull('end_date')->orWhereDate('end_date', '>=', $date));
             })
-            ->whereNotExists(function ($query) use ($data) {
-                $query->selectRaw('1')->from('vacations')
-                    ->whereColumn('vacations.employee_id', 'employees.id')
-                    ->where('vacations.status', 'Aprobada')
-                    ->whereDate('vacations.start_date', '<=', $data['date'])
-                    ->whereDate('vacations.end_date', '>=', $data['date']);
-            })->exists();
+            ->whereDoesntHave('vacations', function ($query) use ($date) {
+                $query->where('status', 'Aprobada')
+                    ->whereDate('start_date', '<=', $date)
+                    ->whereDate('end_date', '>=', $date);
+            })
+            ->exists();
+
         if (! $eligible) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['employee_id' => 'El empleado no tiene un contrato vigente para la fecha de asistencia o tiene vacaciones aprobadas.']);
+            throw ValidationException::withMessages([
+                'employee_id' => 'El empleado debe estar activo, tener contrato vigente y no contar con vacaciones aprobadas en la fecha seleccionada.',
+            ]);
         }
     }
 
-    private function assertAttendanceOrigin(array $data): void
+    private function attendanceOrigin(int $employeeId, int $shiftId, string $date): string
     {
-        if ($data['origin'] === 'Retén') {
-            $validRole = DB::table('employees')
-                ->join('employee_types', 'employee_types.id', '=', 'employees.employee_type_id')
-                ->where('employees.id', $data['employee_id'])
-                ->whereIn('employee_types.name', ['Conductor', 'Ayudante'])
-                ->exists();
-            if (! $validRole) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'employee_id' => 'Solo el personal operativo puede registrar asistencia como retén.',
-                ]);
-            }
-            $assigned = DB::table('programming_employees')
-                ->join('programmings', 'programmings.id', '=', 'programming_employees.programming_id')
-                ->where('programming_employees.employee_id', $data['employee_id'])
-                ->whereDate('programming_employees.date', $data['date'])
-                ->where('programming_employees.shift_id', $data['shift_id'])
-                ->whereIn('programmings.status', ['Programado', 'Finalizado'])
-                ->whereNull('programmings.deleted_at')
-                ->exists();
-            if ($assigned) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'origin' => 'No se puede registrar como retén a una persona que ya tiene programación en ese turno.',
-                ]);
-            }
-            return;
-        }
-
-        $assigned = DB::table('programming_employees')
+        $programmed = DB::table('programming_employees')
             ->join('programmings', 'programmings.id', '=', 'programming_employees.programming_id')
-            ->where('programming_employees.employee_id', $data['employee_id'])
-            ->whereDate('programming_employees.date', $data['date'])
-            ->where('programming_employees.shift_id', $data['shift_id'])
+            ->where('programming_employees.employee_id', $employeeId)
+            ->whereDate('programming_employees.date', $date)
+            ->where('programming_employees.shift_id', $shiftId)
             ->whereIn('programmings.status', ['Programado', 'Finalizado'])
             ->whereNull('programmings.deleted_at')
             ->exists();
 
-        if (! $assigned) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'employee_id' => 'El empleado no tiene una programación diaria para la fecha y turno de la asistencia.',
-            ]);
-        }
+        return $programmed ? 'Programado' : 'No programado';
     }
 
     public function destroy(Attendance $attendance)
     {
         $attendance->delete();
 
-        return response()->json([
-            'mensaje' => 'Asistencia eliminada correctamente.',
-        ]);
+        return response()->json(['mensaje' => 'Asistencia eliminada correctamente.']);
     }
 
     public function history(Request $request)
@@ -213,7 +292,8 @@ class AttendancesController extends Controller
             'date' => ['required', 'date_format:Y-m-d'],
         ]);
 
-        $rows = Attendance::with('shift')
+        $rows = Attendance::query()
+            ->with('shift')
             ->where('employee_id', $data['employee_id'])
             ->whereDate('date', $data['date'])
             ->orderBy('time')
@@ -224,6 +304,7 @@ class AttendancesController extends Controller
             'type' => $attendance->type,
             'status' => $attendance->status,
             'shift' => $attendance->shift?->name,
+            'origin' => $attendance->origin ?? 'No programado',
         ]));
     }
 
@@ -237,14 +318,14 @@ class AttendancesController extends Controller
         return [
             'employees' => DB::table('employees')
                 ->select('employees.id', 'employees.dni', 'employees.first_name', 'employees.last_name')
+                ->where('employees.status', 'Activo')
                 ->whereExists(function ($query) use ($date) {
                     $query->selectRaw('1')->from('contracts')
                         ->whereColumn('contracts.employee_id', 'employees.id')
-                        ->where('contracts.is_active', true)->whereNull('contracts.cancelled_at')
+                        ->where('contracts.is_active', true)
+                        ->whereNull('contracts.cancelled_at')
                         ->whereDate('contracts.start_date', '<=', $date)
-                        ->where(function ($endDate) use ($date) {
-                            $endDate->whereNull('contracts.end_date')->orWhereDate('contracts.end_date', '>=', $date);
-                        });
+                        ->where(fn ($dates) => $dates->whereNull('contracts.end_date')->orWhereDate('contracts.end_date', '>=', $date));
                 })
                 ->whereNotExists(function ($query) use ($date) {
                     $query->selectRaw('1')->from('vacations')
@@ -256,41 +337,22 @@ class AttendancesController extends Controller
                 ->orderBy('employees.last_name')
                 ->orderBy('employees.first_name')
                 ->get(),
-
-            'shifts' => DB::table('shifts')
+            'shifts' => Shift::query()
                 ->select('id', 'name', 'start_time', 'end_time')
-                ->orderBy('name')
+                ->orderBy('start_time')
                 ->get(),
         ];
     }
 
     private function validatedData(Request $request): array
     {
-        $data = $request->validate([
-            'employee_id' => [
-                'required', 'integer', 'exists:employees,id',
-            ],
-            'shift_id' => [
-                'required', 'integer', 'exists:shifts,id',
-            ],
-            'date' => [
-                'required', 'date_format:Y-m-d',
-            ],
-            'time' => [
-                'required', 'date_format:H:i',
-            ],
-            'type' => [
-                'required', Rule::in(Attendance::TYPES),
-            ],
-            'status' => [
-                'required', Rule::in(Attendance::STATUSES),
-            ],
-            'origin' => [
-                'nullable', Rule::in(Attendance::ORIGINS),
-            ],
-            'notes' => [
-                'nullable', 'string',
-            ],
+        return $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'shift_id' => ['required', 'integer', 'exists:shifts,id'],
+            'date' => ['required', 'date_format:Y-m-d'],
+            'time' => ['required', 'date_format:H:i'],
+            'type' => ['required', Rule::in(Attendance::TYPES)],
+            'notes' => ['nullable', 'string'],
         ], [
             'employee_id.required' => 'Seleccione un empleado.',
             'employee_id.exists' => 'El empleado seleccionado no existe.',
@@ -302,12 +364,7 @@ class AttendancesController extends Controller
             'time.date_format' => 'La hora de asistencia no es válida.',
             'type.required' => 'Seleccione el tipo de marcación.',
             'type.in' => 'El tipo de marcación no es válido.',
-            'status.required' => 'Seleccione el estado.',
-            'status.in' => 'El estado seleccionado no es válido.',
-            'origin.in' => 'El origen de la asistencia no es válido.',
             'notes.string' => 'Las observaciones deben ser texto.',
         ]);
-        $data['origin'] = $data['origin'] ?? 'Programado';
-        return $data;
     }
 }
