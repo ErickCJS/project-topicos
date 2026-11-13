@@ -22,7 +22,7 @@ class AttendancesController extends Controller
         if ($request->ajax()) {
             $filters = $request->validate([
                 'date_from' => ['nullable', 'date_format:Y-m-d'],
-                'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+                'date_to' => ['nullable', 'date_format:Y-m-d'],
                 'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
                 'status' => ['nullable', Rule::in(Attendance::STATUSES)],
                 'origin' => ['nullable', Rule::in(Attendance::ORIGINS)],
@@ -31,6 +31,11 @@ class AttendancesController extends Controller
             $today = today()->toDateString();
             $dateFrom = $filters['date_from'] ?? $today;
             $dateTo = $filters['date_to'] ?? $today;
+            if ($dateFrom > $dateTo) {
+                throw ValidationException::withMessages([
+                    'date_to' => 'La fecha final no puede ser anterior a la fecha inicial.',
+                ]);
+            }
 
             // Una jornada nocturna comienza en una fecha y puede terminar al día siguiente.
             // La expresión cambia según el motor para mantener compatibilidad con SQLite y MySQL.
