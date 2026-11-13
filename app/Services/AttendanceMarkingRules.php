@@ -53,7 +53,17 @@ class AttendanceMarkingRules
             })
             ->get();
 
-        return $sameDay->concat($overnight)->unique('id')->values();
+        return $sameDay->concat($overnight)
+            ->unique('id')
+            ->filter(function (Attendance $entry) use ($now) {
+                $enteredAt = CarbonImmutable::parse(
+                    $entry->date->toDateString().' '.$entry->time,
+                    $now->getTimezone()
+                );
+
+                return $enteredAt->lessThan($now);
+            })
+            ->values();
     }
 
     /**
