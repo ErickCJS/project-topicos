@@ -213,18 +213,24 @@ class AttendancesController extends Controller
                                 $query->orWhereDate('date', CarbonImmutable::parse($data['date'])->subDay()->toDateString());
                             }
                         })
+                        ->get()
+                        ->filter(function (Attendance $candidate) use ($markedAt) {
+                            $candidateAt = CarbonImmutable::parse(
+                                $candidate->date->toDateString().' '.$candidate->time,
+                                $markedAt->getTimezone()
+                            );
+
+                            return $candidateAt->lessThan($markedAt);
+                        })
+                        ->sortByDesc(fn (Attendance $candidate) => CarbonImmutable::parse(
+                            $candidate->date->toDateString().' '.$candidate->time,
+                            $markedAt->getTimezone()
+                        )->getTimestamp())
                         ->first();
 
                     if (! $entry) {
                         throw ValidationException::withMessages([
-                            'type' => 'No se encontró la entrada relacionada con esta salida.',
-                        ]);
-                    }
-
-                    $entryAt = CarbonImmutable::parse($entry->date->toDateString().' '.$entry->time);
-                    if (! $entryAt->lessThan($markedAt)) {
-                        throw ValidationException::withMessages([
-                            'time' => 'La hora de salida debe ser posterior a la hora de entrada.',
+                            'type' => 'No se encontró una entrada anterior que corresponda a esta salida.',
                         ]);
                     }
 
