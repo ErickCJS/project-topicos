@@ -13,20 +13,84 @@
                 <i class="bi bi-plus-circle me-1"></i>Agregar nueva asistencia
             </button>
         </div>
+        <div class="card shadow-sm mb-3 attendance-filter-card">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h6 class="mb-1">Filtrar asistencias</h6>
+                        <small class="text-muted">Selecciona un periodo y refina los resultados por turno, estado u origen.</small>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Periodos rápidos" id="attendance-quick-filters">
+                        <button type="button" class="btn btn-outline-primary active" data-period="today" aria-pressed="true">Hoy</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="last7" aria-pressed="false">Últimos 7 días</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="month" aria-pressed="false">Este mes</button>
+                    </div>
+                </div>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-date-from" class="form-label small fw-semibold mb-1">Desde</label>
+                        <input type="date" id="attendance-date-from" class="form-control form-control-sm"
+                            value="{{ today()->toDateString() }}">
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-date-to" class="form-label small fw-semibold mb-1">Hasta</label>
+                        <input type="date" id="attendance-date-to" class="form-control form-control-sm"
+                            value="{{ today()->toDateString() }}">
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-filter-shift" class="form-label small fw-semibold mb-1">Turno</label>
+                        <select id="attendance-filter-shift" class="form-select form-select-sm">
+                            <option value="">Todos los turnos</option>
+                            @foreach($shifts as $shift)
+                                <option value="{{ $shift->id }}">{{ $shift->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-filter-status" class="form-label small fw-semibold mb-1">Estado</label>
+                        <select id="attendance-filter-status" class="form-select form-select-sm">
+                            <option value="">Todos los estados</option>
+                            @foreach(\\App\\Models\\admin\\Attendance::STATUSES as $status)
+                                <option value="{{ $status }}">{{ $status }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-filter-origin" class="form-label small fw-semibold mb-1">Origen</label>
+                        <select id="attendance-filter-origin" class="form-select form-select-sm">
+                            <option value="">Todos los orígenes</option>
+                            @foreach(\\App\\Models\\admin\\Attendance::ORIGINS as $origin)
+                                <option value="{{ $origin }}">{{ $origin }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2 d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm flex-grow-1" id="attendance-apply-filters">
+                            <i class="bi bi-funnel me-1"></i>Aplicar
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="attendance-clear-filters"
+                            title="Restablecer filtros" aria-label="Restablecer filtros">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="card">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped table-hover align-middle w-100" id="DataTable">
-                    <thead>
+                    <thead class="table-light">
                         <tr>
                             <th>DNI</th>
-                            <th>Empleado</th>
-                            <th>Fecha y hora</th>
-                            <th>Tipo</th>
-                            <th>Estado</th>
+                            <th>Trabajador</th>
+                            <th>Fecha</th>
                             <th>Turno</th>
+                            <th>Entrada</th>
+                            <th>Salida</th>
+                            <th>Estado</th>
                             <th>Origen</th>
-                            <th>Notas</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
@@ -105,30 +169,104 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('attendances.index', [], false) }}",
-        order: [[2, 'desc']],
+        ajax: {
+            url: "{{ route('attendances.index', [], false) }}",
+            data: function (data) {
+                data.date_from = $('#attendance-date-from').val();
+                data.date_to = $('#attendance-date-to').val();
+                data.shift_id = $('#attendance-filter-shift').val();
+                data.status = $('#attendance-filter-status').val();
+                data.origin = $('#attendance-filter-origin').val();
+            }
+        },
+        order: [[2, 'desc'], [4, 'desc']],
         columns: [
-            { data: 'dni', name: 'employees.dni' },
+            { data: 'dni', name: 'dni' },
             { data: 'employee_name', name: 'employee_name' },
-            { data: 'date_time', name: 'attendances.date', searchable: false },
-            { data: 'type', name: 'attendances.type' },
-            { data: 'status', name: 'attendances.status' },
-            { data: 'shift_name', name: 'shifts.name' },
-            { data: 'origin', name: 'attendances.origin', defaultContent: 'No programado' },
-            { data: 'notes', name: 'attendances.notes', defaultContent: '' },
+            { data: 'date_display', name: 'date_display', searchable: false },
+            { data: 'shift_display', name: 'shift_display', searchable: false },
+            { data: 'entry_display', name: 'entry_time', orderable: false, searchable: false },
+            { data: 'exit_display', name: 'exit_time', orderable: false, searchable: false },
+            { data: 'status_badge', name: 'status', searchable: false },
+            { data: 'origin_badge', name: 'origin', searchable: false },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         language: {
-            search: 'Buscar:',
-            lengthMenu: 'Mostrar _MENU_ registros',
-            info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
-            infoEmpty: 'Mostrando 0 a 0 de 0 registros',
-            infoFiltered: '(filtrado de _MAX_ registros)',
-            loadingRecords: '',
-            zeroRecords: 'No se encontraron asistencias',
-            emptyTable: 'Aún no hay asistencias registradas',
+            search: 'Buscar trabajador:',
+            searchPlaceholder: 'Nombre o DNI...',
+            lengthMenu: 'Mostrar _MENU_ jornadas',
+            info: 'Mostrando _START_ a _END_ de _TOTAL_ jornadas',
+            infoEmpty: 'Mostrando 0 a 0 de 0 jornadas',
+            infoFiltered: '(filtrado de _MAX_ jornadas)',
+            loadingRecords: 'Cargando asistencias...',
+            processing: 'Procesando...',
+            zeroRecords: 'No se encontraron asistencias para los filtros seleccionados',
+            emptyTable: 'No hay asistencias en el periodo seleccionado',
             paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' }
+        },
+        initComplete: function () {
+            $('#DataTable_filter input')
+                .attr('placeholder', 'Nombre o DNI...')
+                .addClass('form-control form-control-sm');
         }
+    });
+
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    function applyDateRange(from, to, activeButton) {
+        $('#attendance-date-from').val(formatDateForInput(from));
+        $('#attendance-date-to').val(formatDateForInput(to));
+        $('#attendance-quick-filters [data-period]')
+            .removeClass('active')
+            .attr('aria-pressed', 'false');
+
+        if (activeButton) {
+            $(activeButton).addClass('active').attr('aria-pressed', 'true');
+        }
+
+        table.ajax.reload();
+    }
+
+    $('#attendance-quick-filters').on('click', '[data-period]', function () {
+        const today = new Date();
+        const period = $(this).data('period');
+        const from = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        if (period === 'last7') {
+            from.setDate(from.getDate() - 6);
+        } else if (period === 'month') {
+            from.setDate(1);
+        }
+
+        applyDateRange(from, today, this);
+    });
+
+    $('#attendance-apply-filters').on('click', function () {
+        const from = $('#attendance-date-from').val();
+        const to = $('#attendance-date-to').val();
+
+        if (from && to && from > to) {
+            window.RSUValidation.error('La fecha inicial no puede ser posterior a la fecha final.');
+            return;
+        }
+
+        $('#attendance-quick-filters [data-period]')
+            .removeClass('active')
+            .attr('aria-pressed', 'false');
+        table.ajax.reload();
+    });
+
+    $('#attendance-clear-filters').on('click', function () {
+        const today = new Date();
+        $('#attendance-filter-shift, #attendance-filter-status, #attendance-filter-origin').val('');
+        table.search('');
+        $('#DataTable_filter input').val('');
+        applyDateRange(today, today, $('#attendance-quick-filters [data-period="today"]'));
     });
 
     function refresTable() {
