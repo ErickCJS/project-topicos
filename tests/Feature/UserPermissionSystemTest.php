@@ -257,4 +257,47 @@ class UserPermissionSystemTest extends TestCase
         $this->assertFalse($fresh->userType->is_admin);
         $this->assertDatabaseHas('personal_access_tokens', ['tokenable_id' => $fresh->id, 'name' => 'token conservado']);
     }
+
+    public function test_permission_matrix_supports_test_and_custom_types_and_hides_protected_types(): void
+    {
+        Artisan::call('permissions:sync-routes');
+        $administrator = User::factory()->create();
+        $testType = UserType::where('slug', 'usuario-de-prueba')->firstOrFail();
+        $this->assertSame(3, $testType->id);
+        $this->actingAs($administrator)->get(route('user-types.permissions', 3))->assertOk()
+            ->assertSee('Permisos disponibles')->assertSee('Usuario de prueba');
+        $this->actingAs($administrator)->get(route('user-types.permissions', $administrator->userType))->assertForbidden();
+        $pending = UserType::where('slug', 'pendiente-de-asignacion')->firstOrFail();
+        $this->actingAs($administrator)->get(route('user-types.permissions', $pending))->assertForbidden();
+
+        $customSystemType = UserType::create(['name' => 'Tipo del sistema', 'slug' => 'tipo-del-sistema', 'is_system' => true, 'is_active' => true]);
+        $this->actingAs($administrator)->get(route('user-types.permissions', $customSystemType))->assertOk();
+        $this->actingAs($administrator)->get(route('user-types.index'))->assertOk()
+            ->assertSee(route('user-types.permissions', $testType), false)
+            ->assertSee(route('user-types.permissions', $customSystemType), false)
+            ->assertDontSee(route('user-types.permissions', $pending), false)
+            ->assertDontSee(route('user-types.permissions', $administrator->userType), false);
+
+        $regularType = UserType::create(['name' => 'Usuario regular', 'slug' => 'usuario-regular', 'is_active' => true]);
+        $regularUser = User::factory()->create(['user_type_id' => $regularType->id]);
+        $this->actingAs($regularUser)->get(route('user-types.permissions', $testType))->assertForbidden();
+    }
+
+    public function test_permission_matrix_saves_complete_partial_and_empty_selections(): void
+    {
+        Artisan::call('permissions:sync-routes');
+        $administrator = User::factory()->create();
+        $type = UserType::where('slug', 'usuario-de-prueba')->firstOrFail();
+        $permissionIds = Permission::whereIn('slug', ['vehiculos.view', 'vehiculos.details', 'vehiculos.create'])->orderBy('id')->pluck('id')->all();
+
+        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['permissions' => $permissionIds])->assertRedirect(route('user-types.index'));
+        $this->assertEqualsCanonicalizing($permissionIds, $type->fresh()->permissions()->pluck('permissions.id')->all());
+
+        $partial = array_slice($permissionIds, 0, 1);
+        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['permissions' => $partial])->assertRedirect(route('user-types.index'));
+        $this->assertEqualsCanonicalizing($partial, $type->fresh()->permissions()->pluck('permissions.id')->all());
+
+        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['permissions' => []])->assertRedirect(route('user-types.index'));
+        $this->assertSame([], $type->fresh()->permissions()->pluck('permissions.id')->all());
+    }
 }

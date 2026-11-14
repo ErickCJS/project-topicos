@@ -7,6 +7,7 @@ use App\Models\Module;
 use App\Models\Permission;
 use App\Models\UserType;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -42,15 +43,20 @@ class UserTypeController extends Controller
 
     public function permissions(UserType $userType)
     {
-        abort_if($userType->is_admin, 403);
+        $this->ensurePermissionsConfigurable($userType);
         return view('admin.user-types.permissions', ['type' => $userType, 'modules' => Module::with(['children.permissions', 'permissions'])->whereNull('parent_id')->orderBy('sort_order')->get(), 'assigned' => $userType->permissions()->pluck('permissions.id')->all()]);
     }
 
     public function savePermissions(Request $request, UserType $userType)
     {
-        abort_if($userType->is_admin || $userType->is_system, 403);
+        $this->ensurePermissionsConfigurable($userType);
         $data = $request->validate(['permissions' => ['nullable', 'array'], 'permissions.*' => ['integer', 'exists:permissions,id']]);
-        $userType->permissions()->sync($data['permissions'] ?? []);
+        DB::transaction(fn () => $userType->permissions()->sync($data['permissions'] ?? []));
         return redirect()->route('user-types.index')->with('success', 'Los permisos del tipo de usuario se actualizaron correctamente.');
+    }
+
+    private function ensurePermissionsConfigurable(UserType $userType): void
+    {
+        abort_if($userType->is_admin || in_array($userType->slug, ['administrador', 'pendiente-de-asignacion'], true), 403);
     }
 }
