@@ -26,7 +26,6 @@ class AttendancesController extends Controller
                 'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
                 'type' => ['nullable', Rule::in(Attendance::TYPES)],
                 'status' => ['nullable', Rule::in(Attendance::STATUSES)],
-                'origin' => ['nullable', Rule::in(Attendance::ORIGINS)],
             ]);
 
             $today = today()->toDateString();
@@ -64,13 +63,6 @@ class AttendancesController extends Controller
 
             if (! empty($filters['status'])) {
                 $attendances->where('attendances.status', $filters['status']);
-            }
-
-            if (! empty($filters['origin'])) {
-                $attendances->whereRaw(
-                    "COALESCE(attendances.origin, 'No programado') = ?",
-                    [$filters['origin']]
-                );
             }
 
             return DataTables::eloquent($attendances)
@@ -118,15 +110,6 @@ class AttendancesController extends Controller
 
                     return '<span class="badge '.$class.'">'.e($row->status).'</span>';
                 })
-                ->addColumn('origin_badge', function ($row) {
-                    $class = match ($row->origin) {
-                        'Programado' => 'bg-primary',
-                        'Retén' => 'bg-info text-dark',
-                        default => 'bg-secondary',
-                    };
-
-                    return '<span class="badge '.$class.'">'.e($row->origin ?: 'No programado').'</span>';
-                })
                 ->addColumn('actions', function ($row) {
                     return '<div class="attendance-actions">'
                         .'<button type="button" class="btn btn-outline-primary btn-sm btnVer" data-url="'.e(route('attendances.show', $row->id)).'" title="Ver" aria-label="Ver asistencia"><i class="bi bi-eye"></i></button> '
@@ -134,7 +117,8 @@ class AttendancesController extends Controller
                         .'<button type="button" class="btn btn-outline-danger btn-sm btnEliminar" data-url="'.e(route('attendances.destroy', $row->id)).'" title="Eliminar" aria-label="Eliminar asistencia"><i class="bi bi-trash"></i></button>'
                         .'</div>';
                 })
-                ->rawColumns(['type_badge', 'status_badge', 'origin_badge', 'actions'])
+                ->rawColumns(['type_badge', 'status_badge', 'actions'])
+                ->removeColumn('origin')
                 ->toJson();
         }
 
@@ -294,7 +278,7 @@ class AttendancesController extends Controller
 
         return response()->json([
             'mensaje' => 'Asistencia registrada correctamente.',
-            'data' => ['id' => $attendance->id, 'status' => $attendance->status, 'origin' => $attendance->origin],
+            'data' => ['id' => $attendance->id, 'status' => $attendance->status],
         ], 201);
     }
 
@@ -508,7 +492,6 @@ class AttendancesController extends Controller
             'type' => $attendance->type,
             'status' => $attendance->status,
             'shift' => $attendance->shift?->name,
-            'origin' => $attendance->origin ?? 'No programado',
         ]));
     }
 
