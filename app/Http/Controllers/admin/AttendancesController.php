@@ -24,6 +24,7 @@ class AttendancesController extends Controller
                 'date_from' => ['nullable', 'date_format:Y-m-d'],
                 'date_to' => ['nullable', 'date_format:Y-m-d'],
                 'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
+                'type' => ['nullable', Rule::in(Attendance::TYPES)],
                 'status' => ['nullable', Rule::in(Attendance::STATUSES)],
                 'origin' => ['nullable', Rule::in(Attendance::ORIGINS)],
             ]);
@@ -38,84 +39,27 @@ class AttendancesController extends Controller
                 ]);
             }
 
-            $driver = DB::connection()->getDriverName();
-            $nextCalendarDay = $driver === 'sqlite'
-                ? "DATE(exits.date) = DATE(attendances.date, '+1 day')"
-                : 'DATE(exits.date) = DATE_ADD(DATE(attendances.date), INTERVAL 1 DAY)';
-            $nextDayFromPreviousEntry = $driver === 'sqlite'
-                ? "DATE(attendances.date) = DATE(previous_entries.date, '+1 day')"
-                : 'DATE(attendances.date) = DATE_ADD(DATE(previous_entries.date), INTERVAL 1 DAY)';
-
-            /*
-             * Una fila representa una entrada. La salida se obtiene mediante
-             * una subconsulta correlacionada, evitando UNIONs y duplicados.
-             * Para el turno nocturno también se busca la salida del día siguiente.
-             */
+            // Cada fila representa una marcación individual: Entrada o Salida.
             $attendances = Attendance::query()
                 ->join('employees', 'employees.id', '=', 'attendances.employee_id')
                 ->join('shifts', 'shifts.id', '=', 'attendances.shift_id')
                 ->whereBetween('attendances.date', [$dateFrom, $dateTo])
-                ->where(function ($recordType) use ($nextDayFromPreviousEntry) {
-                    $recordType->where('attendances.type', 'Entrada')
-                        ->orWhere(function ($orphanExit) use ($nextDayFromPreviousEntry) {
-                            $orphanExit->where('attendances.type', 'Salida')
-                                ->whereNotExists(function ($query) use ($nextDayFromPreviousEntry) {
-                                    $query->selectRaw('1')
-                                        ->from('attendances as previous_entries')
-                                        ->whereColumn('previous_entries.employee_id', 'attendances.employee_id')
-                                        ->whereColumn('previous_entries.shift_id', 'attendances.shift_id')
-                                        ->where('previous_entries.type', 'Entrada')
-                                        ->where(function ($dates) use ($nextDayFromPreviousEntry) {
-                                            $dates->where(function ($sameDay) {
-                                                $sameDay->whereColumn('previous_entries.date', 'attendances.date')
-                                                    ->whereColumn('previous_entries.time', '<', 'attendances.time');
-                                            })->orWhere(function ($nextDay) use ($nextDayFromPreviousEntry) {
-                                                $nextDay->whereRaw($nextDayFromPreviousEntry)
-                                                    ->whereRaw('shifts.end_time <= shifts.start_time');
-                                            });
-                                        });
-                                });
-                        });
-                })
                 ->select([
-                    'attendances.id',
-                    'attendances.employee_id',
-                    'attendances.shift_id',
-                    'attendances.date as attendance_date',
-                    'attendances.time as attendance_time',
-                    'attendances.type as attendance_type',
-                    'attendances.status',
-                    DB::raw("COALESCE(attendances.origin, 'No programado') as origin"),
-                    'attendances.notes',
+                    'attendances.*',
                     'employees.dni',
                     'employees.first_name',
                     'employees.last_name',
                     'shifts.name as shift_name',
                     'shifts.start_time as shift_start_time',
                     'shifts.end_time as shift_end_time',
-                ])
-                ->selectSub(function ($query) use ($nextCalendarDay) {
-                    $query->from('attendances as exits')
-                        ->select('exits.time')
-                        ->whereColumn('exits.employee_id', 'attendances.employee_id')
-                        ->whereColumn('exits.shift_id', 'attendances.shift_id')
-                        ->where('exits.type', 'Salida')
-                        ->where(function ($dates) use ($nextCalendarDay) {
-                            $dates->where(function ($sameDay) {
-                                $sameDay->whereColumn('exits.date', 'attendances.date')
-                                    ->whereColumn('exits.time', '>', 'attendances.time');
-                            })->orWhere(function ($nextDay) use ($nextCalendarDay) {
-                                $nextDay->whereRaw($nextCalendarDay)
-                                    ->whereRaw('shifts.end_time <= shifts.start_time');
-                            });
-                        })
-                        ->orderBy('exits.date')
-                        ->orderBy('exits.time')
-                        ->limit(1);
-                }, 'exit_time');
+                ]);
 
             if (! empty($filters['shift_id'])) {
                 $attendances->where('attendances.shift_id', $filters['shift_id']);
+            }
+
+            if (! empty($filters['type'])) {
+                $attendances->where('attendances.type', $filters['type']);
             }
 
             if (! empty($filters['status'])) {
@@ -154,16 +98,14 @@ class AttendancesController extends Controller
                     $query->orderBy('shifts.name', $order);
                 })
                 ->addColumn('employee_name', fn ($row) => trim($row->first_name.' '.$row->last_name))
-                ->addColumn('date_display', fn ($row) => CarbonImmutable::parse($row->attendance_date)->format('d/m/Y'))
+                ->addColumn('date_display', fn ($row) => CarbonImmutable::parse($row->date)->format('d/m/Y'))
+                ->addColumn('time_display', fn ($row) => substr((string) $row->time, 0, 5))
                 ->addColumn('shift_display', fn ($row) => $row->shift_name.' ('.substr($row->shift_start_time, 0, 5).' - '.substr($row->shift_end_time, 0, 5).')')
-                ->addColumn('entry_display', fn ($row) => $row->attendance_type === 'Entrada'
-                    ? substr($row->attendance_time, 0, 5)
-                    : '<span class="text-muted">—</span>')
-                ->addColumn('exit_display', fn ($row) => $row->attendance_type === 'Salida'
-                    ? substr($row->attendance_time, 0, 5)
-                    : ($row->exit_time
-                        ? substr($row->exit_time, 0, 5)
-                        : '<span class="badge bg-light text-secondary border">Pendiente</span>'))
+                ->addColumn('type_badge', function ($row) {
+                    $class = $row->type === 'Entrada' ? 'bg-success' : 'bg-info text-dark';
+
+                    return '<span class="badge '.$class.'">'.e($row->type).'</span>';
+                })
                 ->addColumn('status_badge', function ($row) {
                     $class = match ($row->status) {
                         'Presente' => 'bg-success',
@@ -189,7 +131,7 @@ class AttendancesController extends Controller
                         .'<button type="button" class="btn btn-outline-danger btn-sm btnEliminar" data-url="'.e(route('attendances.destroy', $row->id)).'" title="Eliminar" aria-label="Eliminar asistencia"><i class="bi bi-trash"></i></button>'
                         .'</div>';
                 })
-                ->rawColumns(['entry_display', 'exit_display', 'status_badge', 'origin_badge', 'actions'])
+                ->rawColumns(['type_badge', 'status_badge', 'origin_badge', 'actions'])
                 ->toJson();
         }
 
@@ -198,9 +140,63 @@ class AttendancesController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(AttendanceMarkingRules $rules)
     {
-        return view('admin.attendances.create', $this->formData());
+        $data = $this->formData();
+        $now = CarbonImmutable::now();
+
+        $data['defaultDate'] = $now->toDateString();
+        $data['defaultTime'] = $now->format('H:i');
+        $data['defaultType'] = 'Entrada';
+        $data['defaultShiftId'] = null;
+
+        try {
+            $resolved = $rules->resolveShift($now);
+            $data['defaultShiftId'] = $resolved['shift']->id;
+            $data['defaultDate'] = $resolved['start_date'];
+        } catch (ValidationException) {
+            // Se deja el turno sin seleccionar cuando la hora no pertenece a un turno.
+        }
+
+        return view('admin.attendances.create', $data);
+    }
+
+    public function suggest(Request $request, AttendanceMarkingRules $rules)
+    {
+        $data = $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'date' => ['required', 'date_format:Y-m-d'],
+            'time' => ['required', 'date_format:H:i'],
+        ]);
+
+        $markedAt = CarbonImmutable::parse($data['date'].' '.$data['time']);
+        $pending = $rules->pendingExits((int) $data['employee_id'], $markedAt);
+
+        if ($pending->count() > 1) {
+            throw ValidationException::withMessages([
+                'type' => 'El trabajador tiene varias entradas pendientes. Revise sus marcaciones antes de continuar.',
+            ]);
+        }
+
+        if ($pending->count() === 1) {
+            $entry = $pending->first();
+
+            return response()->json([
+                'type' => 'Salida',
+                'shift_id' => $entry->shift_id,
+                'shift_name' => $entry->shift?->name,
+                'message' => 'Se encontró una entrada pendiente. Se seleccionó Salida y el turno correspondiente.',
+            ]);
+        }
+
+        $resolved = $rules->resolveShift($markedAt);
+
+        return response()->json([
+            'type' => 'Entrada',
+            'shift_id' => $resolved['shift']->id,
+            'shift_name' => $resolved['shift']->name,
+            'message' => 'Se seleccionó Entrada y el turno correspondiente al horario.',
+        ]);
     }
 
     public function store(Request $request, AttendanceMarkingRules $rules)
@@ -298,9 +294,7 @@ class AttendancesController extends Controller
             ->where('id', $attendance->shift_id)
             ->first(['id', 'name', 'start_time', 'end_time']);
 
-        $exitAttendance = $this->matchingExitForEntry($attendance);
-
-        return view('admin.attendances.show', compact('attendance', 'employee', 'shift', 'exitAttendance'));
+        return view('admin.attendances.show', compact('attendance', 'employee', 'shift'));
     }
 
     public function edit(Attendance $attendance)
@@ -443,53 +437,10 @@ class AttendancesController extends Controller
         return $retainer ? 'Retén' : 'No programado';
     }
 
-    private function matchingExitForEntry(Attendance $entry): ?Attendance
-    {
-        if ($entry->type !== 'Entrada') {
-            return null;
-        }
-
-        $shift = $entry->shift;
-        $isOvernight = substr((string) $shift->end_time, 0, 8) <= substr((string) $shift->start_time, 0, 8);
-        $entryAt = CarbonImmutable::parse($entry->date->toDateString().' '.$entry->time);
-
-        $candidates = Attendance::query()
-            ->where('employee_id', $entry->employee_id)
-            ->where('shift_id', $entry->shift_id)
-            ->where('type', 'Salida')
-            ->where(function ($query) use ($entry, $isOvernight) {
-                $query->whereDate('date', $entry->date->toDateString());
-
-                if ($isOvernight) {
-                    $query->orWhereDate('date', $entry->date->copy()->addDay()->toDateString());
-                }
-            })
-            ->get();
-
-        return $candidates
-            ->filter(function (Attendance $candidate) use ($entryAt) {
-                $exitAt = CarbonImmutable::parse($candidate->date->toDateString().' '.$candidate->time);
-
-                return $exitAt->greaterThan($entryAt);
-            })
-            ->sortBy(fn (Attendance $candidate) => CarbonImmutable::parse(
-                $candidate->date->toDateString().' '.$candidate->time
-            )->getTimestamp())
-            ->first();
-    }
-
     public function destroy(Attendance $attendance)
     {
-        DB::transaction(function () use ($attendance) {
-            $locked = Attendance::query()->whereKey($attendance->id)->lockForUpdate()->firstOrFail();
-
-            // Al eliminar una jornada desde su fila, eliminar también la salida emparejada.
-            if ($locked->type === 'Entrada') {
-                $this->matchingExitForEntry($locked)?->delete();
-            }
-
-            $locked->delete();
-        });
+        // Entrada y salida son marcaciones independientes: se elimina solo el registro elegido.
+        $attendance->delete();
 
         return response()->json(['mensaje' => 'Asistencia eliminada correctamente.']);
     }
