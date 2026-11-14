@@ -64,7 +64,7 @@
                 <div class="fw-semibold mb-1">Asignación automática</div>
                 <div class="small" id="attendance-suggestion-feedback">
                     @if($editing)
-                        Estás editando una marcación individual. Se conservaron su trabajador, turno, fecha, hora y tipo.
+                        Estás editando una marcación individual. Se cargaron sus datos actuales; al guardar se validará la secuencia de entrada y salida y se recalculará el estado y el origen cuando corresponda.
                     @else
                         La fecha y hora se completan con el momento actual. Al seleccionar al trabajador se sugerirán el turno y el tipo de marcación.
                     @endif
