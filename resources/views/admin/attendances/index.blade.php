@@ -179,16 +179,16 @@ $(function () {
                 data.origin = $('#attendance-filter-origin').val();
             }
         },
-        order: [[2, 'desc'], [4, 'desc']],
+        order: [[2, 'desc']],
         columns: [
-            { data: 'dni', name: 'dni' },
+            { data: 'dni', name: 'employees.dni' },
             { data: 'employee_name', name: 'employee_name' },
             { data: 'date_display', name: 'date_display', searchable: false },
             { data: 'shift_display', name: 'shift_display', searchable: false },
             { data: 'entry_display', name: 'entry_time', orderable: false, searchable: false },
             { data: 'exit_display', name: 'exit_time', orderable: false, searchable: false },
-            { data: 'status_badge', name: 'status', searchable: false },
-            { data: 'origin_badge', name: 'origin', searchable: false },
+            { data: 'status_badge', name: 'status', orderable: false, searchable: false },
+            { data: 'origin_badge', name: 'origin', orderable: false, searchable: false },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         language: {
