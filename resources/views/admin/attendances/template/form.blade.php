@@ -5,6 +5,10 @@
     $selectedEmployeeId = old('employee_id', $editing ? $attendance->employee_id : '');
     $selectedShift = old('shift_id', $editing ? $attendance->shift_id : ($defaultShiftId ?? ''));
     $selectedType = old('type', $editing ? $attendance->type : ($defaultType ?? 'Entrada'));
+    $selectedShiftRecord = $shifts->first(fn ($shift) => (string) $shift->id === (string) $selectedShift);
+    $selectedShiftDisplay = $selectedShiftRecord
+        ? $selectedShiftRecord->name.' ('.substr($selectedShiftRecord->start_time, 0, 5).' - '.substr($selectedShiftRecord->end_time, 0, 5).')'
+        : 'Se asignará al seleccionar al trabajador';
 @endphp
 
 <div class="attendance-form-fields" data-attendance-mode="{{ $editing ? 'edit' : 'create' }}">
@@ -24,49 +28,73 @@
         </div>
 
         <div class="col-12 col-md-6">
-            <label for="attendance_shift_id" class="form-label">Turno *</label>
-            <select name="shift_id" id="attendance_shift_id" class="form-select" required>
-                <option value="">Seleccione un turno</option>
-                @foreach($shifts as $shift)
-                    <option value="{{ $shift->id }}"
-                        @selected((string) $selectedShift === (string) $shift->id)>
-                        {{ $shift->name }} ({{ substr($shift->start_time, 0, 5) }} - {{ substr($shift->end_time, 0, 5) }})
-                    </option>
-                @endforeach
-            </select>
-            <small class="text-muted">El turno se sugiere según la fecha y hora de la marcación.</small>
+            <label for="{{ $editing ? 'attendance_shift_id' : 'attendance_shift_display' }}" class="form-label">Turno *</label>
+            @if($editing)
+                <select name="shift_id" id="attendance_shift_id" class="form-select" required>
+                    <option value="">Seleccione un turno</option>
+                    @foreach($shifts as $shift)
+                        <option value="{{ $shift->id }}"
+                            @selected((string) $selectedShift === (string) $shift->id)>
+                            {{ $shift->name }} ({{ substr($shift->start_time, 0, 5) }} - {{ substr($shift->end_time, 0, 5) }})
+                        </option>
+                    @endforeach
+                </select>
+            @else
+                <input type="text" id="attendance_shift_display" class="form-control"
+                    value="{{ $selectedShiftDisplay }}" readonly>
+                <input type="hidden" name="shift_id" id="attendance_shift_id" value="{{ $selectedShift }}">
+            @endif
+            <small class="text-muted">{{ $editing ? 'Turno registrado en esta marcación.' : 'El sistema asigna el turno según el horario y las marcaciones pendientes.' }}</small>
         </div>
 
         <div class="col-12 col-md-6">
-            <label for="attendance_date" class="form-label">Fecha de marcación *</label>
-            <input type="date" name="date" id="attendance_date" class="form-control"
-                value="{{ $selectedDate }}" required>
+            <label for="{{ $editing ? 'attendance_date' : 'attendance_date_display' }}" class="form-label">Fecha de marcación *</label>
+            @if($editing)
+                <input type="date" name="date" id="attendance_date" class="form-control"
+                    value="{{ $selectedDate }}" required>
+            @else
+                <input type="text" id="attendance_date_display" class="form-control"
+                    value="{{ \Illuminate\Support\Carbon::parse($selectedDate)->format('d/m/Y') }}" readonly>
+                <input type="hidden" name="date" id="attendance_date" value="{{ $selectedDate }}">
+            @endif
         </div>
 
         <div class="col-12 col-md-6">
-            <label for="attendance_time" class="form-label">Hora de marcación *</label>
-            <input type="time" name="time" id="attendance_time" class="form-control"
-                value="{{ $selectedTime }}" required>
+            <label for="{{ $editing ? 'attendance_time' : 'attendance_time_display' }}" class="form-label">Hora de marcación *</label>
+            @if($editing)
+                <input type="time" name="time" id="attendance_time" class="form-control"
+                    value="{{ $selectedTime }}" required>
+            @else
+                <input type="text" id="attendance_time_display" class="form-control"
+                    value="{{ $selectedTime }}" readonly>
+                <input type="hidden" name="time" id="attendance_time" value="{{ $selectedTime }}">
+            @endif
         </div>
 
         <div class="col-12">
-            <label for="attendance_type" class="form-label">Tipo de marcación *</label>
-            <select name="type" id="attendance_type" class="form-select" required>
-                @foreach(\App\Models\admin\Attendance::TYPES as $type)
-                    <option value="{{ $type }}" @selected($selectedType === $type)>{{ $type }}</option>
-                @endforeach
-            </select>
-            <small class="text-muted">Se sugiere Salida cuando el trabajador tiene una Entrada pendiente.</small>
+            <label for="{{ $editing ? 'attendance_type' : 'attendance_type_display' }}" class="form-label">Tipo de marcación *</label>
+            @if($editing)
+                <select name="type" id="attendance_type" class="form-select" required>
+                    @foreach(\App\Models\admin\Attendance::TYPES as $type)
+                        <option value="{{ $type }}" @selected($selectedType === $type)>{{ $type }}</option>
+                    @endforeach
+                </select>
+            @else
+                <input type="text" id="attendance_type_display" class="form-control"
+                    value="{{ $selectedType }}" readonly>
+                <input type="hidden" name="type" id="attendance_type" value="{{ $selectedType }}">
+            @endif
+            <small class="text-muted">{{ $editing ? 'Tipo de marcación registrado.' : 'El sistema determina Entrada o Salida según las marcaciones pendientes del trabajador.' }}</small>
         </div>
 
         <div class="col-12">
             <div class="alert alert-info mb-0 py-2" role="status" aria-live="polite">
-                <div class="fw-semibold mb-1">Asignación automática</div>
+                <div class="fw-semibold mb-1">{{ $editing ? 'Edición de marcación' : 'Asignación automática' }}</div>
                 <div class="small" id="attendance-suggestion-feedback">
                     @if($editing)
                         Estás editando una marcación individual. Se cargaron sus datos actuales; al guardar se validará la secuencia de entrada y salida y se recalculará el estado y el origen cuando corresponda.
                     @else
-                        La fecha y hora se completan con el momento actual. Al seleccionar al trabajador se sugerirán el turno y el tipo de marcación.
+                        La fecha, hora, turno y tipo no se pueden modificar. Selecciona al trabajador y el sistema determinará automáticamente los datos de la marcación.
                     @endif
                 </div>
                 @if($editing)
