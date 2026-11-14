@@ -153,7 +153,6 @@ class AttendancesController extends Controller
         try {
             $resolved = $rules->resolveShift($now);
             $data['defaultShiftId'] = $resolved['shift']->id;
-            $data['defaultDate'] = $resolved['start_date'];
         } catch (ValidationException) {
             // Se deja el turno sin seleccionar cuando la hora no pertenece a un turno.
         }
@@ -185,6 +184,7 @@ class AttendancesController extends Controller
                 'type' => 'Salida',
                 'shift_id' => $entry->shift_id,
                 'shift_name' => $entry->shift?->name,
+                'date' => $markedAt->toDateString(),
                 'message' => 'Se encontró una entrada pendiente. Se seleccionó Salida y el turno correspondiente.',
             ]);
         }
@@ -195,6 +195,7 @@ class AttendancesController extends Controller
             'type' => 'Entrada',
             'shift_id' => $resolved['shift']->id,
             'shift_name' => $resolved['shift']->name,
+            'date' => $resolved['start_date'],
             'message' => 'Se seleccionó Entrada y el turno correspondiente al horario.',
         ]);
     }
