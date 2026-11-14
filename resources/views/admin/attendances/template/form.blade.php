@@ -92,7 +92,7 @@
                 <div class="fw-semibold mb-1">{{ $editing ? 'Edición de marcación' : 'Asignación automática' }}</div>
                 <div class="small" id="attendance-suggestion-feedback">
                     @if($editing)
-                        Estás editando una marcación individual. Se cargaron sus datos actuales; al guardar se validará la secuencia de entrada y salida y se recalculará el estado y el origen cuando corresponda.
+                        Estás editando una marcación individual. Se cargaron sus datos actuales; al guardar se validará la secuencia de entrada y salida y se recalculará el estado cuando corresponda.
                     @else
                         La fecha, hora, turno y tipo no se pueden modificar. Selecciona al trabajador y el sistema determinará automáticamente los datos de la marcación.
                     @endif
@@ -103,7 +103,6 @@
                         <span class="badge {{ $attendance->status === 'Presente' ? 'bg-success' : ($attendance->status === 'Tardanza' ? 'bg-warning text-dark' : 'bg-secondary') }}">
                             {{ $attendance->status }}
                         </span>
-                        · Origen: <strong>{{ $attendance->origin ?? 'No programado' }}</strong>
                     </div>
                 @endif
             </div>
