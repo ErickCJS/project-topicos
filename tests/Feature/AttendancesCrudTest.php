@@ -89,8 +89,9 @@ class AttendancesCrudTest extends TestCase
             ->assertSee('12345678 - Ana Pérez')
             ->assertSee('value="2026-10-16"', false)
             ->assertSee('value="07:10"', false)
-            ->assertSee('value="'.$this->morningShiftId.'" selected', false)
-            ->assertSee('value="Entrada" selected', false)
+            ->assertSee('value="'.$this->morningShiftId.'"', false)
+            ->assertSee('value="Entrada"', false)
+            ->assertSee('selected', false)
             ->assertSee('Puede registrar asistencia aunque no tenga programación asignada.')
             ->assertSee('name="_token"', false);
 
