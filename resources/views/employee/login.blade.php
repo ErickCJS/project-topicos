@@ -71,7 +71,8 @@
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': form.querySelector('input[name="_token"]')?.value
+                        || document.querySelector('meta[name="csrf-token"]').content
                 },
                 credentials: 'same-origin',
                 body: new FormData(form)
