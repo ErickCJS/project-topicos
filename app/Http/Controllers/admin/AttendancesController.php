@@ -94,6 +94,9 @@ class AttendancesController extends Controller
                     $query->orderBy('attendances.date', $order)
                         ->orderBy('attendances.time', $order);
                 })
+                ->orderColumn('time_display', function ($query, $order) {
+                    $query->orderBy('attendances.time', $order);
+                })
                 ->orderColumn('shift_display', function ($query, $order) {
                     $query->orderBy('shifts.name', $order);
                 })
