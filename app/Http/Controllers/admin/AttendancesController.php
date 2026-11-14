@@ -42,6 +42,9 @@ class AttendancesController extends Controller
             $nextCalendarDay = $driver === 'sqlite'
                 ? "DATE(exits.date) = DATE(attendances.date, '+1 day')"
                 : 'DATE(exits.date) = DATE_ADD(DATE(attendances.date), INTERVAL 1 DAY)';
+            $nextDayFromPreviousEntry = $driver === 'sqlite'
+                ? "DATE(attendances.date) = DATE(previous_entries.date, '+1 day')"
+                : 'DATE(attendances.date) = DATE_ADD(DATE(previous_entries.date), INTERVAL 1 DAY)';
 
             /*
              * Una fila representa una entrada. La salida se obtiene mediante
@@ -51,14 +54,36 @@ class AttendancesController extends Controller
             $attendances = Attendance::query()
                 ->join('employees', 'employees.id', '=', 'attendances.employee_id')
                 ->join('shifts', 'shifts.id', '=', 'attendances.shift_id')
-                ->where('attendances.type', 'Entrada')
                 ->whereBetween('attendances.date', [$dateFrom, $dateTo])
+                ->where(function ($recordType) use ($nextDayFromPreviousEntry) {
+                    $recordType->where('attendances.type', 'Entrada')
+                        ->orWhere(function ($orphanExit) use ($nextDayFromPreviousEntry) {
+                            $orphanExit->where('attendances.type', 'Salida')
+                                ->whereNotExists(function ($query) use ($nextDayFromPreviousEntry) {
+                                    $query->selectRaw('1')
+                                        ->from('attendances as previous_entries')
+                                        ->whereColumn('previous_entries.employee_id', 'attendances.employee_id')
+                                        ->whereColumn('previous_entries.shift_id', 'attendances.shift_id')
+                                        ->where('previous_entries.type', 'Entrada')
+                                        ->where(function ($dates) use ($nextDayFromPreviousEntry) {
+                                            $dates->where(function ($sameDay) {
+                                                $sameDay->whereColumn('previous_entries.date', 'attendances.date')
+                                                    ->whereColumn('previous_entries.time', '<', 'attendances.time');
+                                            })->orWhere(function ($nextDay) use ($nextDayFromPreviousEntry) {
+                                                $nextDay->whereRaw($nextDayFromPreviousEntry)
+                                                    ->whereRaw('shifts.end_time <= shifts.start_time');
+                                            });
+                                        });
+                                });
+                        });
+                })
                 ->select([
                     'attendances.id',
                     'attendances.employee_id',
                     'attendances.shift_id',
                     'attendances.date as attendance_date',
-                    'attendances.time as entry_time',
+                    'attendances.time as attendance_time',
+                    'attendances.type as attendance_type',
                     'attendances.status',
                     DB::raw("COALESCE(attendances.origin, 'No programado') as origin"),
                     'attendances.notes',
@@ -131,10 +156,14 @@ class AttendancesController extends Controller
                 ->addColumn('employee_name', fn ($row) => trim($row->first_name.' '.$row->last_name))
                 ->addColumn('date_display', fn ($row) => CarbonImmutable::parse($row->attendance_date)->format('d/m/Y'))
                 ->addColumn('shift_display', fn ($row) => $row->shift_name.' ('.substr($row->shift_start_time, 0, 5).' - '.substr($row->shift_end_time, 0, 5).')')
-                ->addColumn('entry_display', fn ($row) => substr($row->entry_time, 0, 5))
-                ->addColumn('exit_display', fn ($row) => $row->exit_time
-                    ? substr($row->exit_time, 0, 5)
-                    : '<span class="badge bg-light text-secondary border">Pendiente</span>')
+                ->addColumn('entry_display', fn ($row) => $row->attendance_type === 'Entrada'
+                    ? substr($row->attendance_time, 0, 5)
+                    : '<span class="text-muted">—</span>')
+                ->addColumn('exit_display', fn ($row) => $row->attendance_type === 'Salida'
+                    ? substr($row->attendance_time, 0, 5)
+                    : ($row->exit_time
+                        ? substr($row->exit_time, 0, 5)
+                        : '<span class="badge bg-light text-secondary border">Pendiente</span>'))
                 ->addColumn('status_badge', function ($row) {
                     $class = match ($row->status) {
                         'Presente' => 'bg-success',
