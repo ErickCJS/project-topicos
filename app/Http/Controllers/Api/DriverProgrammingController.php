@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Http\\Controllers\\Api;
+namespace App\Http\Controllers\Api;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Models\\admin\\Attendance;
-use App\\Models\\admin\\Employee;
-use App\\Models\\admin\\Programming;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
+use App\Http\Controllers\Controller;
+use App\Models\admin\Attendance;
+use App\Models\admin\Employee;
+use App\Models\admin\Programming;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class DriverProgrammingController extends Controller
 {
