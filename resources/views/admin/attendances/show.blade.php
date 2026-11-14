@@ -48,19 +48,11 @@
                 <div class="attendance-detail-secondary">{{ substr($shift->start_time, 0, 5) }} - {{ substr($shift->end_time, 0, 5) }}</div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
+        <div class="col-12 col-md-6">
             <div class="attendance-detail-card">
                 <small class="attendance-detail-label">Estado</small>
                 <span class="badge {{ $attendance->status === 'Presente' ? 'bg-success' : ($attendance->status === 'Tardanza' ? 'bg-warning text-dark' : 'bg-secondary') }}">
                     {{ $attendance->status }}
-                </span>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="attendance-detail-card">
-                <small class="attendance-detail-label">Origen</small>
-                <span class="badge {{ $attendance->origin === 'Programado' ? 'bg-primary' : ($attendance->origin === 'Retén' ? 'bg-info text-dark' : 'bg-secondary') }}">
-                    {{ $attendance->origin ?? 'No programado' }}
                 </span>
             </div>
         </div>
