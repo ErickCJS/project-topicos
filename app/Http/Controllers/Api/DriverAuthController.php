@@ -45,6 +45,8 @@ class DriverAuthController extends Controller
                 'message' => 'No tienes un contrato vigente. Comunícate con administración.'
             ], 403);
         }
+        //eliminamos tokens anteriores
+        $employee->tokens()->delete();
 
         // 4. Generar token Sanctum.
         $token = $employee->createToken('flutter-driver')->plainTextToken;
