@@ -10,7 +10,7 @@
                 <i class="bi bi-box-arrow-up-right me-1"></i>Marcación de asistencia
             </a>
             <button type="button" class="btn btn-success" id="btnNuevo">
-                <i class="bi bi-plus-circle me-1"></i>Agregar nueva asistencia
+                <i class="bi bi-plus-circle me-1"></i>Agregar marcación
             </button>
         </div>
         <div class="card shadow-sm mb-3 attendance-filter-card">
@@ -382,7 +382,7 @@ $(function () {
 
     $(document).on('click', '.btnEditar', function () {
         $.get($(this).data('url'), function (response) {
-            mostrar_modal('Editar Asistencia', response);
+            mostrar_modal('Editar marcación', response);
             inicializarEmpleado();
             cargarHistorial();
         }).fail(function (error) {
