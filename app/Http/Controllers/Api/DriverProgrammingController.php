@@ -96,6 +96,7 @@ class DriverProgrammingController extends Controller
             $programming,
             $snapshot,
             $attendances,
+            $helperNames,
             &$helperIndex
         ) {
             $isDriver = (int) $person->id === (int) $programming->driver_id;
