@@ -333,9 +333,11 @@ $(function () {
             date: date,
             time: time
         }).done(function (suggestion) {
+            form.find('#attendance_date').val(suggestion.date);
             form.find('#attendance_shift_id').val(String(suggestion.shift_id)).trigger('change');
             form.find('#attendance_type').val(suggestion.type);
             feedback.text(suggestion.message);
+            cargarHistorial();
         }).fail(function (xhr) {
             const errors = xhr.responseJSON?.errors || {};
             const message = Object.values(errors).flat()[0]
