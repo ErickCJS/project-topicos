@@ -51,7 +51,7 @@
                         <label for="attendance-filter-type" class="form-label small fw-semibold mb-1">Tipo</label>
                         <select id="attendance-filter-type" class="form-select form-select-sm">
                             <option value="">Entrada y salida</option>
-                            @foreach(\\App\\Models\\admin\\Attendance::TYPES as $type)
+                            @foreach(\App\Models\admin\Attendance::TYPES as $type)
                                 <option value="{{ $type }}">{{ $type }}</option>
                             @endforeach
                         </select>
