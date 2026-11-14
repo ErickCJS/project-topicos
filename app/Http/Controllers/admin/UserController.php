@@ -54,10 +54,11 @@ class UserController extends Controller
         return $request->ajax() ? response()->json(['message' => 'El usuario se registró correctamente.']) : redirect()->route('users.index')->with('success', 'El usuario se registró correctamente.');
     }
 
-    public function show(Request $request, User $user) { return $request->header('X-Modal-Request') ? view('admin.user.partials.show-modal', compact('user')) : view('admin.user.show', compact('user')); }
+    public function show(Request $request, User $user) { $user->setAttribute('password', null); return $request->header('X-Modal-Request') ? view('admin.user.partials.show-modal', compact('user')) : view('admin.user.show', compact('user')); }
 
     public function edit(Request $request, User $user)
     {
+        $user->setAttribute('password', null);
         $data = ['user' => $user, 'types' => UserType::where('is_active', true)->orderBy('name')->get()];
         return $request->header('X-Modal-Request') ? view('admin.user.partials.form-modal', $data) : view('admin.user.edit', $data);
     }
@@ -67,13 +68,15 @@ class UserController extends Controller
         $isAdmin = $user->userType?->is_admin;
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'], 'last_name' => ['required', 'string', 'max:150'], 'dni' => ['required', 'digits:8', Rule::unique('users', 'dni')->ignore($user->id)],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)], 'password' => ['nullable', 'string', 'min:8'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'user_type_id' => ['required', Rule::exists('user_types', 'id')->where('is_active', true)], 'birthdate' => ['nullable', 'date', 'before_or_equal:today'],
             'phone' => ['nullable', 'string', 'max:30'], 'license' => ['nullable', 'string', 'max:50'], 'address' => ['nullable', 'string', 'max:1000'],
             'profile_photo' => ['nullable', 'image', 'max:5120'], 'is_active' => ['required', 'boolean'],
+            'change_password' => ['sometimes', 'in:1'], 'password' => ['exclude_unless:change_password,1', 'required', 'string', 'min:8'],
         ], ['required' => 'El campo :attribute es obligatorio.', 'digits' => 'El :attribute debe tener :digits dígitos.', 'unique' => 'El :attribute ya está registrado.', 'email' => 'Ingrese un :attribute válido.', 'min' => 'El :attribute debe tener al menos :min caracteres.', 'exists' => 'El :attribute seleccionado no es válido.', 'before_or_equal' => 'La :attribute no puede ser posterior a hoy.', 'image' => 'El archivo debe ser una imagen.', 'max' => 'El :attribute no debe superar :max.'], ['name' => 'nombre', 'last_name' => 'apellido', 'dni' => 'DNI', 'email' => 'correo electrónico', 'password' => 'contraseña', 'user_type_id' => 'tipo de usuario']);
         if ($isAdmin) $data['user_type_id'] = $user->user_type_id;
-        if (!$data['password']) unset($data['password']);
+        if (!$request->boolean('change_password')) unset($data['password']);
+        unset($data['change_password']);
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo_path) Storage::disk('public')->delete($user->profile_photo_path);
             $data['profile_photo_path'] = $request->file('profile_photo')->store('profile-photos', 'public');

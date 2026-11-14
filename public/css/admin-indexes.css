@@ -3488,7 +3488,15 @@ html[data-bs-theme="dark"] :is(.attendances-module, .brands-module, .colors-modu
 .user-permission-matrix .upm-option:has(.form-check-input:checked) { background:var(--bs-success-bg-subtle); border-color:var(--bs-success-border-subtle); }
 .user-permission-matrix .upm-option .form-check-input { float:none; flex:0 0 auto; margin:0; }
 .user-permission-matrix .upm-option .form-check-label { font-size:.8rem; line-height:1.25; }
-.user-permission-matrix .upm-sticky-actions { position:fixed; z-index:1020; right:0; bottom:0; left:0; padding:.7rem max(1rem,calc((100vw - 1440px)/2)); background:color-mix(in srgb,var(--bs-body-bg) 94%,transparent); border-top:1px solid var(--bs-border-color); box-shadow:0 -.3rem 1rem rgba(0,0,0,.07); backdrop-filter:blur(10px); }
+.user-permission-matrix .upm-sticky-actions { position:sticky; z-index:5; right:auto; bottom:0; left:auto; padding:.7rem 1rem; background:color-mix(in srgb,var(--bs-body-bg) 96%,transparent); border-top:1px solid var(--bs-border-color); box-shadow:0 -.3rem 1rem rgba(0,0,0,.07); backdrop-filter:blur(10px); }
+.permission-modal-body { max-height:calc(100dvh - 8rem); overflow-y:auto; overscroll-behavior:contain; }
+.permission-modal-body .user-permission-matrix { margin:0 0 1rem; }
+.users-module .user-profile-summary { color:var(--bs-body-color); background:var(--bs-body-bg); border-color:var(--bs-border-color); border-radius:.75rem; }
+.users-module .user-profile-summary h3 { overflow-wrap:anywhere; font-weight:700; }
+.users-module .user-detail-card { display:flex; flex-direction:column; gap:.4rem; min-height:82px; background:var(--bs-body-bg); border-color:var(--bs-border-color); }
+.users-module .user-detail-card small { color:var(--bs-secondary-color); }
+.users-module .user-detail-card strong { margin:0; font-weight:600; }
+@media(max-width:575.98px) { .permission-modal-body { max-height:calc(100dvh - 4.5rem); padding:.8rem; } .user-permission-matrix .upm-sticky-actions { padding:.65rem .75rem; } }
 .user-permission-matrix .upm-sticky-inner {  display:flex; max-width:1440px; align-items:center; justify-content:space-between; gap:1rem; margin:auto; }
 .user-permission-matrix .upm-sticky-inner>span { color:var(--bs-secondary-color); font-size:.88rem; margin-left: 21px;}
 .user-permission-matrix .upm-sticky-inner>div { display:flex; gap:.5rem; }

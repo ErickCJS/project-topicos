@@ -101,6 +101,29 @@ class UserPermissionSystemTest extends TestCase
         $this->assertTrue(Hash::check('Secreto123', $oldPassword));
     }
 
+    public function test_user_password_changes_only_when_explicitly_enabled(): void
+    {
+        $type = UserType::create(['name' => 'Operaciones', 'slug' => 'operaciones', 'is_active' => true]);
+        $administrator = User::factory()->create();
+        $user = User::factory()->create(['user_type_id' => $type->id, 'dni' => '87654321', 'password' => 'OldSecret123']);
+        $oldHash = $user->fresh()->password;
+
+        $form = $this->actingAs($administrator)->withHeaders(['X-Modal-Request' => '1'])->get(route('users.edit', $user))->assertOk();
+        $form->assertSee('autocomplete="new-password"', false)->assertSee('name="change_password"', false)->assertDontSee($oldHash);
+
+        $base = ['name' => $user->name, 'last_name' => $user->last_name, 'dni' => $user->dni, 'email' => $user->email, 'user_type_id' => $type->id, 'is_active' => 1];
+        $this->actingAs($administrator)->put(route('users.update', $user), $base + ['password' => 'AutofillSecret999'])->assertRedirect(route('users.index'));
+        $this->assertSame($oldHash, $user->fresh()->password);
+
+        $this->actingAs($administrator)->put(route('users.update', $user), $base + ['change_password' => 1, 'password' => 'NewSecret456'])->assertRedirect(route('users.index'));
+        $this->assertTrue(Hash::check('NewSecret456', $user->fresh()->password));
+
+        $invalid = $this->actingAs($administrator)->withHeaders(['Accept' => 'application/json'])->put(route('users.update', $user), $base + ['change_password' => 1, 'password' => 'corta']);
+        $invalid->assertUnprocessable()->assertJsonValidationErrors('password');
+        $this->assertStringContainsString('al menos 8 caracteres', $invalid->json('errors.password.0'));
+        $this->assertTrue(Hash::check('NewSecret456', $user->fresh()->password));
+    }
+
     public function test_development_test_account_is_limited_and_seed_is_idempotent(): void
     {
         Artisan::call('permissions:sync-routes');
@@ -137,6 +160,17 @@ class UserPermissionSystemTest extends TestCase
         $administrator = User::factory()->create();
         $this->actingAs($administrator)->get(route('user-types.permissions', $administrator->userType))->assertForbidden();
         $this->actingAs($administrator)->delete(route('user-types.destroy', $administrator->userType))->assertUnprocessable();
+    }
+
+    public function test_permissions_modal_returns_a_bootstrap_scroll_container(): void
+    {
+        $administrator = User::factory()->create();
+        $type = UserType::create(['name' => 'Operaciones', 'slug' => 'operaciones', 'is_active' => true]);
+
+        $this->actingAs($administrator)->withHeaders(['X-Modal-Request' => '1'])
+            ->get(route('user-types.permissions', $type))
+            ->assertOk()
+            ->assertSee('class="modal-body permission-modal-body"', false);
     }
 
     public function test_permission_matrix_loads_the_existing_catalog(): void
