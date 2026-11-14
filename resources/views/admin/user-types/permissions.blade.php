@@ -12,6 +12,9 @@
     $managementSlugs = ['create', 'edit', 'delete', 'status', 'assign-type'];
 @endphp
 <div class="user-permission-matrix">
+    <form id="permissionMatrixForm" method="post" action="{{ route('user-types.permissions.save', $type) }}">
+        @csrf
+        @method('PUT')
     <header class="upm-header">
         <div class="upm-heading">
             <span class="upm-heading-icon"><i class="bi bi-shield-lock"></i></span>
@@ -20,6 +23,11 @@
         <a class="btn btn-outline-secondary" href="{{ route('user-types.index') }}"><i class="bi bi-arrow-left me-1"></i>Volver</a>
     </header>
 
+    <div class="upm-identity-fields card mb-4"><div class="row g-3">
+        <div class="col-12 col-md-5"><label class="form-label" for="typeName">Nombre del tipo</label><input class="form-control" id="typeName" name="name" value="{{ old('name', $type->name) }}" required maxlength="100"></div>
+        <div class="col-12 col-md-7"><label class="form-label" for="typeDescription">Descripción</label><textarea class="form-control" id="typeDescription" name="description" rows="2" maxlength="1000">{{ old('description', $type->description) }}</textarea></div>
+    </div></div>
+
     <div class="upm-stats row g-3">
         <div class="col-6 col-xl-3"><div class="upm-stat"><span class="upm-stat-icon text-primary"><i class="bi bi-list-check"></i></span><div><small>Permisos disponibles</small><strong data-permission-available>{{ $availableCount }}</strong></div></div></div>
         <div class="col-6 col-xl-3"><div class="upm-stat"><span class="upm-stat-icon text-success"><i class="bi bi-check2-circle"></i></span><div><small>Permisos seleccionados</small><strong data-permission-selected>{{ $assignedCount }}</strong></div></div></div>
@@ -27,9 +35,6 @@
         <div class="col-6 col-xl-3"><div class="upm-stat"><span class="upm-stat-icon text-info"><i class="bi bi-pie-chart"></i></span><div><small>Avance</small><strong data-permission-percent>0%</strong></div><div class="progress upm-progress"><div class="progress-bar" data-permission-progress role="progressbar" style="width:0%" aria-valuemin="0" aria-valuemax="100"></div></div></div></div>
     </div>
 
-    <form id="permissionMatrixForm" method="post" action="{{ route('user-types.permissions.save', $type) }}">
-        @csrf
-        @method('PUT')
         @if($errors->any())<div class="alert alert-danger">Revisa las selecciones e inténtalo nuevamente.</div>@endif
         <div class="upm-global card mb-4"><div><strong>Seleccionar todos los permisos</strong><small>Activa o desactiva todas las acciones de la matriz.</small></div><label class="form-check form-switch mb-0"><input class="form-check-input permission-select-all" type="checkbox" data-scope="all" aria-label="Seleccionar todos los permisos"></label></div>
 

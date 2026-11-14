@@ -3,7 +3,10 @@
 namespace App\Services;
 
 use App\Models\Permission;
+use App\Models\Module;
+use App\Models\PermissionRoute;
 use App\Models\User;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 class UserPermissionService
@@ -62,6 +65,39 @@ class UserPermissionService
             }
         }
         return $permission ? $this->allows($user, $permission) : false;
+    }
+
+    public function firstAuthorizedListingUrl(User $user): ?string
+    {
+        if (!Schema::hasTable('modules') || !Schema::hasTable('permissions')) {
+            foreach (config('permissions.catalog', []) as $children) {
+                foreach ($children as $slug => [, $prefix]) {
+                    $routeName = $prefix.'.index';
+                    if ($this->allows($user, $slug.'.view') && Route::has($routeName)) return route($routeName);
+                }
+            }
+            return null;
+        }
+
+        $modules = Module::with(['children.permissions.routes'])->whereNull('parent_id')->orderBy('sort_order')->orderBy('id')->get();
+        foreach ($modules as $module) {
+            foreach ($module->children as $child) {
+                $permission = $child->permissions->firstWhere('slug', $child->slug.'.view');
+                if (!$permission || !$this->allows($user, $permission->slug)) continue;
+
+                $routeName = $permission->routes->pluck('route_name')->first(fn ($name) => str_ends_with($name, '.index') && Route::has($name));
+                if (!$routeName) {
+                    foreach (config('permissions.catalog', []) as $children) {
+                        if (isset($children[$child->slug])) {
+                            $routeName = $children[$child->slug][1].'.index';
+                            break;
+                        }
+                    }
+                }
+                if ($routeName && Route::has($routeName) && $routeName !== 'admin.home') return route($routeName);
+            }
+        }
+        return null;
     }
 
     private function isDevelopmentTestUser(User $user): bool

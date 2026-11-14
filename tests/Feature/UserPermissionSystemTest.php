@@ -112,7 +112,7 @@ class UserPermissionSystemTest extends TestCase
         $this->assertTrue(Hash::check('Password123', $user->password));
         $this->assertSame(['dashboard.view', 'vehiculos.details', 'vehiculos.view'], $user->userType->permissions()->orderBy('slug')->pluck('slug')->all());
         $this->assertFalse($user->userType->is_admin);
-        $this->post('/login', ['email' => 'user@gmail.com', 'password' => 'Password123'])->assertRedirect(config('fortify.home'));
+        $this->post('/login', ['email' => 'user@gmail.com', 'password' => 'Password123'])->assertRedirect(route('vehicles.index'));
         $this->get(route('admin.home'))->assertOk()->assertSee('data-can-edit="0"', false)
             ->assertSee(route('vehicles.index'), false)
             ->assertDontSee(route('brands.index'), false)
@@ -275,6 +275,9 @@ class UserPermissionSystemTest extends TestCase
         $this->actingAs($administrator)->get(route('user-types.index'))->assertOk()
             ->assertSee(route('user-types.permissions', $testType), false)
             ->assertSee(route('user-types.permissions', $customSystemType), false)
+            ->assertSee('data-bs-target="#editType'.$testType->id.'"', false)
+            ->assertSee(route('user-types.destroy', $customSystemType), false)
+            ->assertSee('Protegido')
             ->assertDontSee(route('user-types.permissions', $pending), false)
             ->assertDontSee(route('user-types.permissions', $administrator->userType), false);
 
@@ -290,14 +293,98 @@ class UserPermissionSystemTest extends TestCase
         $type = UserType::where('slug', 'usuario-de-prueba')->firstOrFail();
         $permissionIds = Permission::whereIn('slug', ['vehiculos.view', 'vehiculos.details', 'vehiculos.create'])->orderBy('id')->pluck('id')->all();
 
-        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['permissions' => $permissionIds])->assertRedirect(route('user-types.index'));
+        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['name' => $type->name, 'description' => $type->description, 'permissions' => $permissionIds])->assertRedirect(route('user-types.index'));
         $this->assertEqualsCanonicalizing($permissionIds, $type->fresh()->permissions()->pluck('permissions.id')->all());
 
         $partial = array_slice($permissionIds, 0, 1);
-        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['permissions' => $partial])->assertRedirect(route('user-types.index'));
+        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['name' => $type->name, 'description' => $type->description, 'permissions' => $partial])->assertRedirect(route('user-types.index'));
         $this->assertEqualsCanonicalizing($partial, $type->fresh()->permissions()->pluck('permissions.id')->all());
 
-        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['permissions' => []])->assertRedirect(route('user-types.index'));
+        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), ['name' => $type->name, 'description' => $type->description, 'permissions' => []])->assertRedirect(route('user-types.index'));
         $this->assertSame([], $type->fresh()->permissions()->pluck('permissions.id')->all());
+    }
+
+    public function test_login_redirects_admin_and_normal_users_only_to_authorized_routes(): void
+    {
+        Artisan::call('permissions:sync-routes');
+        $administrator = User::factory()->create();
+        $this->post('/login', ['email' => $administrator->email, 'password' => 'password'])
+            ->assertRedirect(route('admin.home'));
+
+        auth()->logout();
+        $type = UserType::create(['name' => 'Vehículos', 'slug' => 'vehiculos-solo', 'is_active' => true]);
+        $type->permissions()->sync(Permission::where('slug', 'vehiculos.view')->pluck('id'));
+        $user = User::factory()->create(['user_type_id' => $type->id]);
+        $this->withSession(['url.intended' => route('users.index')])
+            ->post('/login', ['email' => $user->email, 'password' => 'password'])
+            ->assertRedirect(route('vehicles.index'));
+
+        auth()->logout();
+        $typeWithTwoModules = UserType::create(['name' => 'Dos módulos', 'slug' => 'dos-modulos', 'is_active' => true]);
+        $typeWithTwoModules->permissions()->sync(Permission::whereIn('slug', ['brands.view', 'vehiculos.view'])->pluck('id'));
+        $secondUser = User::factory()->create(['user_type_id' => $typeWithTwoModules->id]);
+        $this->withSession(['url.intended' => route('vehicles.index')])
+            ->post('/login', ['email' => $secondUser->email, 'password' => 'password'])
+            ->assertRedirect(route('vehicles.index'));
+    }
+
+    public function test_user_without_permissions_is_restricted_and_can_logout(): void
+    {
+        Artisan::call('permissions:sync-routes');
+        $type = UserType::create(['name' => 'Sin permisos', 'slug' => 'sin-permisos', 'is_active' => true]);
+        $user = User::factory()->create(['user_type_id' => $type->id]);
+        $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('access.restricted'));
+        $this->get(route('access.restricted'))->assertOk()->assertSee('Acceso restringido')->assertSee('Cerrar sesión');
+        $this->post(route('logout'))->assertRedirect('/');
+        $this->assertGuest();
+
+        $administrator = User::factory()->create();
+        $this->actingAs($administrator)->post(route('logout'))->assertRedirect('/');
+        $this->assertGuest();
+    }
+
+    public function test_user_type_identity_and_permissions_are_saved_together_without_changing_slug(): void
+    {
+        Artisan::call('permissions:sync-routes');
+        $administrator = User::factory()->create();
+        $type = UserType::where('slug', 'usuario-de-prueba')->firstOrFail();
+        $type->permissions()->sync(Permission::where('slug', 'vehiculos.view')->pluck('id'));
+        $slug = $type->slug;
+        $permissionIds = $type->permissions()->pluck('permissions.id')->all();
+
+        $this->actingAs($administrator)->get(route('user-types.permissions', $type))->assertOk()->assertSee('name="name"', false)->assertSee('name="description"', false);
+        $this->actingAs($administrator)->put(route('user-types.permissions.save', $type), [
+            'name' => 'Equipo de operaciones', 'description' => 'Acceso de consulta', 'permissions' => $permissionIds,
+        ])->assertRedirect(route('user-types.index'));
+
+        $updated = $type->fresh();
+        $this->assertSame('Equipo de operaciones', $updated->name);
+        $this->assertSame('Acceso de consulta', $updated->description);
+        $this->assertSame($slug, $updated->slug);
+        $this->assertSame($permissionIds, $updated->permissions()->pluck('permissions.id')->all());
+        $this->actingAs($administrator)->put(route('user-types.update', UserType::where('slug', 'pendiente-de-asignacion')->firstOrFail()), [
+            'name' => 'Pendiente editado', 'description' => '', 'is_active' => 1,
+        ])->assertForbidden();
+        $this->actingAs($administrator)->put(route('user-types.update', $administrator->userType), [
+            'name' => 'Administrador editado', 'description' => '', 'is_active' => 1,
+        ])->assertForbidden();
+    }
+
+    public function test_user_types_can_delete_unassigned_types_but_never_admin_or_assigned_types(): void
+    {
+        Artisan::call('permissions:sync-routes');
+        $administrator = User::factory()->create();
+        $emptyType = UserType::create(['name' => 'Temporal', 'slug' => 'temporal', 'is_active' => true]);
+        $this->actingAs($administrator)->delete(route('user-types.destroy', $emptyType))->assertRedirect();
+        $this->assertDatabaseMissing('user_types', ['id' => $emptyType->id]);
+
+        $assignedType = UserType::create(['name' => 'Asignado', 'slug' => 'asignado', 'is_active' => true]);
+        $member = User::factory()->create(['user_type_id' => $assignedType->id]);
+        $this->actingAs($administrator)->delete(route('user-types.destroy', $assignedType))->assertSessionHasErrors('user_type');
+        $this->assertDatabaseHas('users', ['id' => $member->id, 'user_type_id' => $assignedType->id]);
+
+        $adminType = $administrator->userType;
+        $this->actingAs($administrator)->delete(route('user-types.destroy', $adminType))->assertUnprocessable();
+        $this->assertDatabaseHas('user_types', ['id' => $adminType->id]);
     }
 }

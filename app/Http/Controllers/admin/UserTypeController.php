@@ -26,18 +26,22 @@ class UserTypeController extends Controller
 
     public function update(Request $request, UserType $userType)
     {
-        abort_if($userType->is_system, 403);
+        $this->ensureIdentityEditable($userType);
         $data = $request->validate(['name' => ['required', 'string', 'max:100', Rule::unique('user_types', 'name')->ignore($userType->id)], 'description' => ['nullable', 'string', 'max:1000'], 'is_active' => ['required', 'boolean']]);
-        $slug = Str::slug($data['name']);
-        if (UserType::where('slug', $slug)->where('id', '!=', $userType->id)->exists()) return back()->withErrors(['name' => 'Ya existe un tipo de usuario con un nombre similar.'])->withInput();
-        $userType->update($data + ['slug' => $slug]);
+        DB::transaction(fn () => $userType->update($data));
         return back()->with('success', 'El tipo de usuario se actualizó correctamente.');
     }
 
     public function destroy(UserType $userType)
     {
-        abort_if($userType->is_system || $userType->users()->exists(), 422, 'No se puede eliminar un tipo protegido o asignado a usuarios.');
-        $userType->delete();
+        abort_if($userType->is_admin || $userType->slug === 'administrador', 422, 'El tipo Administrador está protegido.');
+        $deleted = DB::transaction(function () use ($userType) {
+            $lockedType = UserType::whereKey($userType->id)->lockForUpdate()->firstOrFail();
+            if ($lockedType->users()->lockForUpdate()->exists()) return false;
+            $lockedType->delete();
+            return true;
+        });
+        if (!$deleted) return back()->withErrors(['user_type' => 'Reasigna primero a los usuarios de este tipo.']);
         return back()->with('success', 'El tipo de usuario se eliminó correctamente.');
     }
 
@@ -50,12 +54,25 @@ class UserTypeController extends Controller
     public function savePermissions(Request $request, UserType $userType)
     {
         $this->ensurePermissionsConfigurable($userType);
-        $data = $request->validate(['permissions' => ['nullable', 'array'], 'permissions.*' => ['integer', 'exists:permissions,id']]);
-        DB::transaction(fn () => $userType->permissions()->sync($data['permissions'] ?? []));
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:100', Rule::unique('user_types', 'name')->ignore($userType->id)],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['integer', 'exists:permissions,id'],
+        ]);
+        DB::transaction(function () use ($userType, $data) {
+            $userType->update(['name' => $data['name'], 'description' => $data['description'] ?? null]);
+            $userType->permissions()->sync($data['permissions'] ?? []);
+        });
         return redirect()->route('user-types.index')->with('success', 'Los permisos del tipo de usuario se actualizaron correctamente.');
     }
 
     private function ensurePermissionsConfigurable(UserType $userType): void
+    {
+        abort_if($userType->is_admin || in_array($userType->slug, ['administrador', 'pendiente-de-asignacion'], true), 403);
+    }
+
+    private function ensureIdentityEditable(UserType $userType): void
     {
         abort_if($userType->is_admin || in_array($userType->slug, ['administrador', 'pendiente-de-asignacion'], true), 403);
     }
