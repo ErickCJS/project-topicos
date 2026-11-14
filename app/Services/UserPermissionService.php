@@ -97,6 +97,12 @@ class UserPermissionService
                 if ($routeName && Route::has($routeName) && $routeName !== 'admin.home') return route($routeName);
             }
         }
+        // El dashboard también es una entrada válida al sistema.
+        // Se usa como destino cuando el usuario solo tiene habilitado ese módulo.
+        if ($this->allows($user, 'dashboard.view') && Route::has('admin.home')) {
+            return route('admin.home');
+        }
+
         return null;
     }
 
