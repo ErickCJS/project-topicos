@@ -18,7 +18,7 @@
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                     <div>
                         <h6 class="mb-1">Filtrar asistencias</h6>
-                        <small class="text-muted">Selecciona un periodo y refina los resultados por turno, estado u origen.</small>
+                        <small class="text-muted">Selecciona un periodo y refina los resultados por turno, tipo y estado.</small>
                     </div>
                     <div class="btn-group btn-group-sm" role="group" aria-label="Periodos rápidos" id="attendance-quick-filters">
                         <button type="button" class="btn btn-outline-primary active" data-period="today" aria-pressed="true">Hoy</button>
@@ -65,15 +65,6 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-6 col-lg-2">
-                        <label for="attendance-filter-origin" class="form-label small fw-semibold mb-1">Origen</label>
-                        <select id="attendance-filter-origin" class="form-select form-select-sm">
-                            <option value="">Todos los orígenes</option>
-                            @foreach(\App\Models\admin\Attendance::ORIGINS as $origin)
-                                <option value="{{ $origin }}">{{ $origin }}</option>
-                            @endforeach
-                        </select>
-                    </div>
                     <div class="col-6 col-lg-2 d-flex gap-2">
                         <button type="button" class="btn btn-primary btn-sm flex-grow-1" id="attendance-apply-filters">
                             <i class="bi bi-funnel me-1"></i>Aplicar
@@ -99,7 +90,6 @@
                             <th>Tipo de marcación</th>
                             <th>Turno</th>
                             <th>Estado</th>
-                            <th>Origen</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
@@ -186,7 +176,6 @@ $(function () {
                 data.shift_id = $('#attendance-filter-shift').val();
                 data.type = $('#attendance-filter-type').val();
                 data.status = $('#attendance-filter-status').val();
-                data.origin = $('#attendance-filter-origin').val();
             }
         },
         order: [[2, 'desc'], [3, 'desc']],
@@ -198,7 +187,6 @@ $(function () {
             { data: 'type_badge', name: 'type', orderable: false, searchable: false },
             { data: 'shift_display', name: 'shift_display', searchable: false },
             { data: 'status_badge', name: 'status_badge', orderable: false, searchable: false },
-            { data: 'origin_badge', name: 'origin_badge', orderable: false, searchable: false },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         language: {
@@ -279,7 +267,7 @@ $(function () {
 
     $('#attendance-clear-filters').on('click', function () {
         const today = new Date();
-        $('#attendance-filter-shift, #attendance-filter-type, #attendance-filter-status, #attendance-filter-origin').val('');
+        $('#attendance-filter-shift, #attendance-filter-type, #attendance-filter-status').val('');
         table.search('');
         $('#DataTable_filter input').val('');
         applyDateRange(today, today, $('#attendance-quick-filters [data-period="today"]'));
@@ -310,7 +298,7 @@ $(function () {
                 }
                 rows.forEach(function (row) {
                     const line = document.createElement('div');
-                    line.textContent = [row.time, row.type, row.status, row.shift || 'Sin turno', row.origin || 'No programado'].join(' · ');
+                    line.textContent = [row.time, row.type, row.status, row.shift || 'Sin turno'].join(' · ');
                     history.appendChild(line);
                 });
             })
