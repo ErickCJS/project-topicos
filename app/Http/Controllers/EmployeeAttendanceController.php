@@ -8,7 +8,6 @@ use App\Services\AttendanceMarkingRules;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -21,8 +20,6 @@ class EmployeeAttendanceController extends Controller
 
     public function login(Request $request): mixed
     {
-        $this->clearEmployeeSession($request);
-
         return response()->view('employee.login')
             ->header('Cache-Control', 'no-store, no-cache, private, max-age=0');
     }
@@ -47,10 +44,6 @@ class EmployeeAttendanceController extends Controller
                 'credentials' => 'Las credenciales ingresadas no son válidas.',
             ]);
         }
-
-        Auth::guard('employee')->login($employee);
-        // Rotate only the session ID: the shared kiosk CSRF token must remain reusable.
-        $request->session()->migrate(true);
 
         try {
             $result = DB::transaction(function () use ($employee, $credentials) {
@@ -148,8 +141,6 @@ class EmployeeAttendanceController extends Controller
                 ];
             }, 3);
         } catch (QueryException $exception) {
-            $this->clearEmployeeSession($request);
-
             if (in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
                 throw ValidationException::withMessages([
                     'attendance' => 'La marcación ya fue registrada. No se permiten duplicados.',
@@ -158,11 +149,8 @@ class EmployeeAttendanceController extends Controller
 
             throw $exception;
         } catch (ValidationException $exception) {
-            $this->clearEmployeeSession($request);
             throw $exception;
         }
-
-        $this->clearEmployeeSession($request);
 
         $message = $result['type'] === 'Entrada'
             ? 'Entrada registrada correctamente'
@@ -231,12 +219,5 @@ class EmployeeAttendanceController extends Controller
         return $retainer ? 'Retén' : 'No programado';
     }
 
-    private function clearEmployeeSession(Request $request): void
-    {
-        if (Auth::guard('employee')->check()) {
-            Auth::guard('employee')->logout();
-            // Preserve the shared kiosk CSRF token and any administrative session.
-            $request->session()->migrate(true);
-        }
-    }
+
 }
