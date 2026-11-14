@@ -313,6 +313,38 @@ $(function () {
             });
     }
 
+    function actualizarSugerencia() {
+        const form = $('#formModal form[data-attendance-mode="create"]');
+        if (!form.length) return;
+
+        const employeeId = form.find('#attendance_employee_id').val();
+        const date = form.find('#attendance_date').val();
+        const time = form.find('#attendance_time').val();
+        const feedback = form.find('#attendance-suggestion-feedback');
+
+        if (!employeeId || !date || !time) {
+            feedback.text('Selecciona un trabajador para sugerir el tipo de marcación y el turno.');
+            return;
+        }
+
+        feedback.text('Calculando el turno y el tipo de marcación...');
+        $.get("{{ route('attendances.suggest') }}", {
+            employee_id: employeeId,
+            date: date,
+            time: time
+        }).done(function (suggestion) {
+            form.find('#attendance_shift_id').val(String(suggestion.shift_id)).trigger('change');
+            form.find('#attendance_type').val(suggestion.type);
+            feedback.text(suggestion.message);
+        }).fail(function (xhr) {
+            const errors = xhr.responseJSON?.errors || {};
+            const message = Object.values(errors).flat()[0]
+                || xhr.responseJSON?.message
+                || 'No se pudo determinar automáticamente el turno. Selecciónalo manualmente.';
+            feedback.text(message);
+        });
+    }
+
     function inicializarEmpleado() {
         const employeeSelect = $('#formModal select[name="employee_id"]');
         if (!employeeSelect.length || employeeSelect.hasClass('select2-hidden-accessible')) return;
@@ -329,7 +361,7 @@ $(function () {
 
     $('#btnNuevo').on('click', function () {
         $.get("{{ route('attendances.create') }}", function (response) {
-            mostrar_modal('Nueva Asistencia', response);
+            mostrar_modal('Nueva marcación', response);
             inicializarEmpleado();
             cargarHistorial();
         }).fail(function (error) {
@@ -360,18 +392,27 @@ $(function () {
         const employeeSelect = $('#formModal #attendance_employee_id');
         const selectedEmployee = employeeSelect.val();
         const date = $(this).val();
+
         $.get("{{ route('attendances.create') }}", { date: date }, function (response) {
             const options = $(response).find('#attendance_employee_id option');
             const validSelection = options.filter(function () { return this.value === selectedEmployee; }).length > 0;
+
             employeeSelect.empty().append(options.clone());
             employeeSelect.val(validSelection ? selectedEmployee : '').trigger('change.select2');
+
             cargarHistorial();
+            actualizarSugerencia();
         }).fail(function (error) {
             mostrar_error(error, 'No se pudo actualizar la lista de empleados.');
         });
     });
 
-    $('#formModal').on('change', '#attendance_employee_id', cargarHistorial);
+    $('#formModal').on('change', '#attendance_time', actualizarSugerencia);
+
+    $('#formModal').on('change', '#attendance_employee_id', function () {
+        cargarHistorial();
+        actualizarSugerencia();
+    });
 
     $(document).on('submit', '#formModal form', function (event) {
         event.preventDefault();
