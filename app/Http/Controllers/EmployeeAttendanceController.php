@@ -79,7 +79,6 @@ class EmployeeAttendanceController extends Controller
                         'shift_id' => $entry->shift_id,
                         'shift_name' => $entry->shift?->name,
                         'status' => $exit->status,
-                        'origin' => $exit->origin,
                     ];
                 }
 
@@ -129,7 +128,6 @@ class EmployeeAttendanceController extends Controller
                     'time' => $now->format('H:i:s'),
                     'type' => 'Entrada',
                     'status' => $status,
-                    'origin' => $origin,
                 ]);
 
                 return [
