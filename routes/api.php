@@ -35,4 +35,9 @@ Route::middleware('auth:sanctum')->group(function () {
         DriverAuthController::class,
         'programacionesHoy'
     ]);
+    // Detalle de una programación específica del conductor autenticado.
+    Route::get('/conductor/programaciones/{programming}', [
+        DriverProgrammingController::class,
+        'show'
+    ]);
 });
