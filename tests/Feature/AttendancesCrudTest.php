@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\admin\Attendance;
 use App\Models\User;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -31,6 +32,7 @@ class AttendancesCrudTest extends TestCase
     protected function tearDown(): void
     {
         Carbon::setTestNow();
+        CarbonImmutable::setTestNow();
         parent::tearDown();
     }
 
@@ -80,6 +82,7 @@ class AttendancesCrudTest extends TestCase
     public function test_create_form_uses_current_date_time_and_suggested_shift_and_edit_preserves_values(): void
     {
         Carbon::setTestNow('2026-10-16 07:10:00');
+        CarbonImmutable::setTestNow('2026-10-16 07:10:00');
 
         $this->get(route('attendances.create'))
             ->assertOk()
@@ -376,6 +379,7 @@ class AttendancesCrudTest extends TestCase
                 'date_from' => $date,
                 'date_to' => $date,
                 'shift_id' => $this->afternoonShiftId,
+                'type' => 'Entrada',
                 'status' => 'Presente',
                 'origin' => 'Programado',
             ]))
