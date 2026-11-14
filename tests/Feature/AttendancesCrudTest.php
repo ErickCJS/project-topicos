@@ -241,6 +241,19 @@ class AttendancesCrudTest extends TestCase
             ->assertJsonPath('data.0.exit_time', '12:05')
             ->assertJsonPath('data.0.origin', 'No programado');
 
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('attendances.index', [
+                'draw' => 2,
+                'start' => 0,
+                'length' => 10,
+                'date_from' => '2026-10-16',
+                'date_to' => '2026-10-16',
+                'search' => ['value' => '12345678', 'regex' => 'false'],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.dni', '12345678');
+
         $this->get(route('attendances.show', $attendance))
             ->assertOk()
             ->assertSee('Detalle de asistencia')
