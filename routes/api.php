@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\DriverAuthController;
+use App\Http\Controllers\Api\DriverProgrammingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
