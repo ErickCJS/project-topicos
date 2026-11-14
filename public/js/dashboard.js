@@ -34,7 +34,7 @@
             detailsData = payload;
             const item = payload.current;
             const people = item.helper_people || [];
-            const editingAllowed = ['Programado', 'Reprogramado'].includes(item.status) && Number(item.missing_count || 0) > 0;
+            const editingAllowed = modalElement.dataset.canEdit === '1' && ['Programado', 'Reprogramado'].includes(item.status) && Number(item.missing_count || 0) > 0;
             const helperList = people.length ? people.map(person => '<li><span>Ayudante \u00b7 ID ' + escapeHtml(person.id) + ' \u00b7 ' + escapeHtml(person.name) + '</span><strong>' + (person.present ? 'Presente' : 'Faltante') + '</strong></li>').join('') : '<li>Sin ayudantes</li>';
             const missingPeople = (item.missing || []).filter(person => !person.present);
             const missing = missingPeople.length ? missingPeople.map(person => '<li>' + escapeHtml(person.role === 'driver' ? 'Conductor' : 'Ayudante') + ' \u00b7 ID ' + escapeHtml(person.id) + ' \u00b7 ' + escapeHtml(person.name) + '</li>').join('') : '<li>Sin personal faltante</li>';

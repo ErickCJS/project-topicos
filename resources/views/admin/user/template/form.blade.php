@@ -1,58 +1,17 @@
-@php
-    $existingLogo = isset($brand) && $brand->logo ? asset($brand->logo) : '';
-@endphp
-
-<div class="row g-4">
-    <div class="col-12 col-lg-7">
-        <div class="row g-3">
-            <div class="col-12">
-                {!! Form::label('name', 'Nombre', ['class' => 'form-label fw-semibold']) !!}
-                {!! Form::text('name', null, [
-                    'class' => 'form-control',
-                    'placeholder' => 'Nombre de la marca',
-                    'maxlength' => 100,
-                    'required',
-                ]) !!}
-            </div>
-
-            <div class="col-12">
-                {!! Form::label('description', 'Descripción', ['class' => 'form-label fw-semibold']) !!}
-                {!! Form::textarea('description', null, [
-                    'class' => 'form-control',
-                    'placeholder' => 'Agregue una descripción (opcional)',
-                    'rows' => 4,
-                ]) !!}
-            </div>
-
-            <div class="col-12">
-                {!! Form::label('brandLogoInput', 'Logo de la marca', ['class' => 'form-label fw-semibold']) !!}
-                {!! Form::file('logo', [
-                    'class' => 'form-control',
-                    'id' => 'brandLogoInput',
-                    'accept' => 'image/*',
-                    'aria-describedby' => 'brandLogoHelp',
-                ]) !!}
-                <div class="form-text" id="brandLogoHelp">Seleccione una imagen para identificar la marca.</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12 col-lg-5">
-        <div class="brand-preview-panel">
-            <h6 class="fw-semibold mb-3">Vista previa del logo</h6>
-            <div class="brand-preview-frame">
-                <img
-                    id="preview-logo"
-                    class="brand-preview-image {{ $existingLogo ? '' : 'd-none' }}"
-                    src="{{ $existingLogo }}"
-                    data-existing-src="{{ $existingLogo }}"
-                    alt="Vista previa del logo de la marca"
-                >
-                <div id="preview-placeholder" class="brand-preview-placeholder {{ $existingLogo ? 'd-none' : '' }}">
-                    <i class="bi bi-image" aria-hidden="true"></i>
-                    <p class="mb-0">No se ha seleccionado una imagen</p>
-                </div>
-            </div>
-        </div>
-    </div>
+@csrf
+@if(isset($user)) @method('PUT') @endif
+<div class="row g-3">
+    <div class="col-12 col-md-6"><label class="form-label" for="name">Nombres</label><input class="form-control" id="name" name="name" required maxlength="100" value="{{ old('name', $user->name ?? '') }}">@error('name')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="last_name">Apellidos</label><input class="form-control" id="last_name" name="last_name" required maxlength="150" value="{{ old('last_name', $user->last_name ?? '') }}">@error('last_name')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="dni">DNI</label><input class="form-control" id="dni" name="dni" required inputmode="numeric" pattern="[0-9]{8}" maxlength="8" value="{{ old('dni', $user->dni ?? '') }}">@error('dni')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="email">Correo electrónico</label><input type="email" class="form-control" id="email" name="email" required value="{{ old('email', $user->email ?? '') }}">@error('email')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="password">Contraseña @isset($user)<span class="text-muted">(dejar vacía para conservarla)</span>@endisset</label><input type="password" class="form-control" id="password" name="password" @empty($user) required @endempty autocomplete="new-password">@error('password')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="user_type_id">Tipo de usuario</label><select class="form-select" id="user_type_id" name="user_type_id" required><option value="">Seleccione un tipo</option>@foreach($types as $type)<option value="{{ $type->id }}" @selected(old('user_type_id', $user->user_type_id ?? '') == $type->id)>{{ $type->name }}</option>@endforeach@if(isset($user) && $user->userType?->is_admin)<option value="{{ $user->user_type_id }}" selected>Administrador</option>@endif</select>@error('user_type_id')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="birthdate">Fecha de nacimiento</label><input type="date" class="form-control" id="birthdate" name="birthdate" value="{{ old('birthdate', isset($user?->birthdate) ? $user->birthdate->format('Y-m-d') : '') }}">@error('birthdate')<div class="text-danger small">{{ $message }}</div>@enderror</div>
+    <div class="col-12 col-md-6"><label class="form-label" for="phone">Teléfono</label><input class="form-control" id="phone" name="phone" value="{{ old('phone', $user->phone ?? '') }}"></div>
+    <div class="col-12 col-md-6"><label class="form-label" for="license">Licencia</label><input class="form-control" id="license" name="license" value="{{ old('license', $user->license ?? '') }}"></div>
+    <div class="col-12 col-md-6"><label class="form-label" for="profile_photo">Fotografía</label><input type="file" class="form-control" id="profile_photo" name="profile_photo" accept="image/*"></div>
+    <div class="col-12"><label class="form-label" for="address">Dirección</label><textarea class="form-control" id="address" name="address" rows="3">{{ old('address', $user->address ?? '') }}</textarea></div>
+    @isset($user)<div class="col-12"><input type="hidden" name="is_active" value="0"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1" @checked(old('is_active', $user->is_active))><label class="form-check-label" for="is_active">Usuario activo</label></div>@error('is_active')<div class="text-danger small">{{ $message }}</div>@enderror</div>@endisset
 </div>
+<div class="users-modal-footer mt-4"><button type="submit" class="btn btn-success"><i class="bi bi-floppy me-1"></i>{{ isset($user) ? 'Guardar cambios' : 'Registrar' }}</button><a href="{{ route('users.index') }}" class="btn btn-light border">Cancelar</a></div>

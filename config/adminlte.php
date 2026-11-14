@@ -772,67 +772,80 @@ return [
             'text' => 'Inicio',
             'route' => 'admin.home',
             'icon' => 'fas fa-house',
+            'can' => 'permission', 'model' => ['dashboard.view'],
         ],
         [
             'text' => 'Gestión de vehículos',
             'icon' => 'fas fa-truck',
+            'can' => 'module', 'model' => ['vehiculos-colores', 'vehiculos-marcas', 'vehiculos-modelos', 'vehiculos-tipos', 'vehiculos'],
             'submenu' => [
                 [
                     'text' => 'Vehículos',
                     'route' => 'vehicles.index',
                     'icon' => 'fas fa-truck',
+                    'can' => 'permission', 'model' => ['vehiculos.view'],
                 ],
                 [
                     'text' => 'Marcas',
                     'route' => 'brands.index',
                     'icon' => 'fas fa-tag',
+                    'can' => 'permission', 'model' => ['vehiculos-marcas.view'],
                 ],
                 [
                     'text' => 'Modelos',
                     'route' => 'brandsmodel.index',
                     'icon' => 'fas fa-cubes',
+                    'can' => 'permission', 'model' => ['vehiculos-modelos.view'],
                 ],
                 [
                     'text' => 'Colores',
                     'route' => 'vehiclescolor.index',
                     'icon' => 'fas fa-palette',
+                    'can' => 'permission', 'model' => ['vehiculos-colores.view'],
                 ],
                 [
                     'text' => 'Tipos de vehículo',
                     'route' => 'vehiclestype.index',
                     'icon' => 'fas fa-list',
+                    'can' => 'permission', 'model' => ['vehiculos-tipos.view'],
                 ],
             ],
         ],
         [
             'text' => 'Gestión de personal',
             'icon' => 'fas fa-users',
+            'can' => 'module', 'model' => ['personal-tipos', 'personal', 'contratos', 'asistencias', 'vacaciones'],
             'submenu' => [
                 [
                     'text' => 'Personal',
                     'route' => 'personal.employees.index',
                     'icon' => 'bi bi-person-vcard',
+                    'can' => 'permission', 'model' => ['personal.view'],
                 ],
                 [
                     'text' => 'Tipos de personal',
                     'route' => 'employee-types.index',
                     'icon' => 'fas fa-users',
+                    'can' => 'permission', 'model' => ['personal-tipos.view'],
                 ],
                 [
                     'text' => 'Contratos',
                     'route' => 'contracts.index',
                     'icon' => 'bi bi-file-earmark-text',
+                    'can' => 'permission', 'model' => ['contratos.view'],
                 ],
                 [
                     'text' => 'Vacaciones',
                     'route' => 'vacations.index',
                     'icon' => 'bi bi-calendar2-week',
+                    'can' => 'permission', 'model' => ['vacaciones.view'],
                 ],
 
                 [
                     'text' => 'Asistencias',
                     'route' => 'attendances.index',
                     'icon' => 'fas fa-clipboard-check',
+                    'can' => 'permission', 'model' => ['asistencias.view'],
                 ],
 
             ],
@@ -840,58 +853,73 @@ return [
         [
             'text' => 'Programación',
             'icon' => 'bi bi-calendar2-week',
+            'can' => 'module', 'model' => ['turnos', 'zonas', 'feriados', 'grupos-personal', 'programacion'],
             'submenu' => [
                 [
                     'text' => 'Turnos',
                     'route' => 'shifts.index',
                     'icon' => 'bi bi-clock',
+                    'can' => 'permission', 'model' => ['turnos.view'],
                 ],
                 [
                     'text' => 'Zonas',
                     'route' => 'zones.index',
                     'icon' => 'bi bi-geo-alt',
+                    'can' => 'permission', 'model' => ['zonas.view'],
                 ],
                 [
                     'text' => 'Feriados',
                     'route' => 'holidays.index',
                     'icon' => 'bi bi-calendar2-check',
+                    'can' => 'permission', 'model' => ['feriados.view'],
                 ],
                 [
                     'text' => 'Grupo de personal',
                     'route' => 'staffgroups.index',
                     'icon' => 'bi bi-people',
+                    'can' => 'permission', 'model' => ['grupos-personal.view'],
                 ],
                 [
                     'text' => 'Programación',
                     'route' => 'programming.index',
                     'icon' => 'bi bi-calendar-week',
+                    'can' => 'permission', 'model' => ['programacion.view'],
                 ],
             ],
         ],
         [
             'text' => 'Gestión de cambios',
             'icon' => 'bi bi-arrow-repeat',
+            'can' => 'module', 'model' => ['motivos', 'cambios', 'cambios-masivos'],
             'submenu' => [
                 [
                     'text' => 'Motivos',
                     'route' => 'reason.index',
                     'icon' => 'bi bi-list-check',
+                    'can' => 'permission', 'model' => ['motivos.view'],
                 ],
                 [
                     'text' => 'Cambios',
                     'route' => 'cambios.index',
                     'icon' => 'bi bi-arrow-left-right',
+                    'can' => 'permission', 'model' => ['cambios.view'],
                 ]
             ],
         ],
         [
-            'text' => 'Lista de usuarios',
+            'text' => 'Gestión de usuarios',
             'icon' => 'bi bi-people',
+            'can' => 'module', 'model' => ['usuarios', 'tipos-usuario'],
             'submenu' => [
                 [
-                    'text' => 'Lista de usuarios',
+                    'text' => 'Usuarios',
                     'route' => 'users.index',
                     'icon' => 'bi bi-list-ul',
+                    'can' => 'permission', 'model' => ['usuarios.view'],
+                ],
+                [
+                    'text' => 'Tipos de usuario', 'route' => 'user-types.index', 'icon' => 'bi bi-person-badge',
+                    'can' => 'permission', 'model' => ['tipos-usuario.view'],
                 ]
             ],
         ],

@@ -12,6 +12,7 @@ use App\Models\admin\Vehicletype;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -61,20 +62,12 @@ class VehiclesController extends Controller
                     return '<span class="vehicle-color-swatch" style="background-color:'.e($vehicle->color).'" title="'.e($vehicle->color).'" aria-label="Color '.e($vehicle->color).'"></span>';
                 })
                 ->addColumn('actions', function ($vehicle) {
-                    return '<div class="vehicle-actions">
-                                <button type="button" class="btn btn-outline-primary btn-sm vehicle-action-btn btnVer" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.show', $vehicle->id)).'" title="Ver" aria-label="Ver vehículo">
-                                    <i class="bi bi-eye" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm vehicle-action-btn btnImagen" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.photo.retornar_vista_imagenes', $vehicle->id)).'" title="Imágenes" aria-label="Imágenes del vehículo">
-                                    <i class="bi bi-images" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-warning btn-sm vehicle-action-btn btnEditar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.edit', $vehicle->id)).'" title="Editar" aria-label="Editar vehículo">
-                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-danger btn-sm vehicle-action-btn btnEliminar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.destroy', $vehicle->id)).'" title="Eliminar" aria-label="Eliminar vehículo">
-                                    <i class="bi bi-trash" aria-hidden="true"></i>
-                                </button>
-                            </div>';
+                    $actions = '<div class="vehicle-actions">';
+                    if (Gate::allows('permission', 'vehiculos.details')) $actions .= '<button type="button" class="btn btn-outline-primary btn-sm vehicle-action-btn btnVer" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.show', $vehicle->id)).'" title="Ver" aria-label="Ver vehículo"><i class="bi bi-eye" aria-hidden="true"></i></button>';
+                    if (Gate::allows('permission', 'vehiculos.images')) $actions .= '<button type="button" class="btn btn-outline-secondary btn-sm vehicle-action-btn btnImagen" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.photo.retornar_vista_imagenes', $vehicle->id)).'" title="Imágenes" aria-label="Imágenes del vehículo"><i class="bi bi-images" aria-hidden="true"></i></button>';
+                    if (Gate::allows('permission', 'vehiculos.edit')) $actions .= '<button type="button" class="btn btn-outline-warning btn-sm vehicle-action-btn btnEditar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.edit', $vehicle->id)).'" title="Editar" aria-label="Editar vehículo"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+                    if (Gate::allows('permission', 'vehiculos.delete')) $actions .= '<button type="button" class="btn btn-outline-danger btn-sm vehicle-action-btn btnEliminar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.destroy', $vehicle->id)).'" title="Eliminar" aria-label="Eliminar vehículo"><i class="bi bi-trash" aria-hidden="true"></i></button>';
+                    return $actions.'</div>';
                 })
                 ->rawColumns(['logo', 'color', 'actions'])
                 ->toJson();

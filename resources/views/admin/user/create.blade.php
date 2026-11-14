@@ -1,7 +1,6 @@
-{!! Form::open(['route' => 'brands.store', 'files' => true]) !!}
-@include('admin.brands.template.form')
-<div class="brand-modal-footer">
-    <button type="submit" class="btn btn-success"><i class="bi bi-floppy me-1" aria-hidden="true"></i>Registrar</button>
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cancelar</button>
-</div>
-{!! Form::close() !!}
+@extends('adminlte::page')
+@section('title', 'Nuevo usuario | RSU')
+@section('content')
+<div class="users-module"><div class="card"><div class="modal-header users-modal-header"><div class="users-modal-heading"><span class="users-modal-icon"><i class="bi bi-person-plus"></i></span><h5 class="mb-0">Nuevo usuario</h5></div></div><div class="card-body"><form method="post" action="{{ route('users.store') }}" enctype="multipart/form-data">@include('admin.user.template.form')</form></div></div></div>
+@stop
+@section('css')<link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">@stop
