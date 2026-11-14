@@ -326,6 +326,14 @@ class UserPermissionSystemTest extends TestCase
         $this->withSession(['url.intended' => route('vehicles.index')])
             ->post('/login', ['email' => $secondUser->email, 'password' => 'password'])
             ->assertRedirect(route('vehicles.index'));
+
+        auth()->logout();
+        $dashboardType = UserType::create(['name' => 'Solo inicio', 'slug' => 'solo-inicio', 'is_active' => true]);
+        $dashboardType->permissions()->sync(Permission::where('slug', 'dashboard.view')->pluck('id'));
+        $dashboardUser = User::factory()->create(['user_type_id' => $dashboardType->id]);
+        $this->post('/login', ['email' => $dashboardUser->email, 'password' => 'password'])
+            ->assertRedirect(route('admin.home'));
+        $this->get(route('admin.home'))->assertOk();
     }
 
     public function test_user_without_permissions_is_restricted_and_can_logout(): void
