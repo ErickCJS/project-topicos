@@ -333,6 +333,36 @@ class AttendancesController extends Controller
 
                 if ($data['type'] === 'Entrada') {
                     $this->assertEligible($data['employee_id'], $data['date']);
+
+                    $isOvernight = substr((string) $shift->end_time, 0, 8) <= substr((string) $shift->start_time, 0, 8);
+                    $existingExits = Attendance::query()
+                        ->where('employee_id', $data['employee_id'])
+                        ->where('shift_id', $data['shift_id'])
+                        ->where('type', 'Salida')
+                        ->where(function ($query) use ($data, $isOvernight) {
+                            $query->whereDate('date', $data['date']);
+
+                            if ($isOvernight) {
+                                $query->orWhereDate('date', CarbonImmutable::parse($data['date'])->addDay()->toDateString());
+                            }
+                        })
+                        ->get();
+
+                    $exitBeforeEntry = $existingExits->first(function (Attendance $exit) use ($markedAt) {
+                        $exitAt = CarbonImmutable::parse(
+                            $exit->date->toDateString().' '.$exit->time,
+                            $markedAt->getTimezone()
+                        );
+
+                        return $exitAt->lessThanOrEqualTo($markedAt);
+                    });
+
+                    if ($exitBeforeEntry) {
+                        throw ValidationException::withMessages([
+                            'time' => 'La hora de entrada no puede ser posterior a una salida ya registrada.',
+                        ]);
+                    }
+
                     $data['status'] = $rules->entryStatus($shift, $data['date'], $markedAt);
                     $data['origin'] = $this->attendanceOrigin($data['employee_id'], $data['shift_id'], $data['date']);
                 } else {
