@@ -30,7 +30,8 @@ class AdminController extends Controller
             ->whereDate('date', $fechaSeleccionada)
             ->whereIn('shift_id', $programaciones->pluck('shift_id')->unique())
             ->whereIn('employee_id', $employeeIds)
-            ->where('status', 'Presente')
+            ->where('type', 'Entrada')
+            ->whereIn('status', ['Presente', 'Tardanza'])
             ->get(['employee_id', 'shift_id'])
             ->groupBy(fn ($attendance) => $attendance->shift_id.':'.$attendance->employee_id);
         $programaciones = $programaciones->map(function ($programacion) use ($presentes) {
@@ -80,7 +81,7 @@ class AdminController extends Controller
             ->with(['employee', 'shift'])
             ->whereDate('date', $fechaSeleccionada)
             ->where('type', 'Entrada')
-            ->where('status', 'Presente')
+            ->whereIn('status', ['Presente', 'Tardanza'])
             ->where('origin', 'Retén')
             ->when($turnoSeleccionado, fn ($query, $shiftId) => $query->where('shift_id', $shiftId))
             ->whereNotExists(function ($query) use ($fechaSeleccionada) {

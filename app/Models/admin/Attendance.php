@@ -9,9 +9,9 @@ class Attendance extends Model
 {
     public const TYPES = ['Entrada', 'Salida'];
 
-    public const STATUSES = ['Presente', 'Ausente'];
+    public const STATUSES = ['Presente', 'Ausente', 'Tardanza'];
 
-    public const ORIGINS = ['Programado', 'Retén'];
+    public const ORIGINS = ['Programado', 'Retén', 'No programado'];
 
     protected $fillable = [
         'employee_id',

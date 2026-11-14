@@ -71,7 +71,8 @@
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': form.querySelector('input[name="_token"]')?.value
+                        || document.querySelector('meta[name="csrf-token"]').content
                 },
                 credentials: 'same-origin',
                 body: new FormData(form)
@@ -92,9 +93,13 @@
                 const values = Object.values(errors).flat();
                 throw new Error(values[0] || payload.message || 'No se pudo registrar la asistencia.');
             }
-            showMessage(payload.message, 'success');
+            const details = [payload.shift_name, payload.status]
+                .filter(Boolean)
+                .join(' · ');
+            showMessage(payload.message + (details ? ' · ' + details : ''), 'success');
             form.reset();
             shiftField.hidden = true;
+            shift.innerHTML = '';
             dni.focus();
         } catch (error) {
             password.value = '';

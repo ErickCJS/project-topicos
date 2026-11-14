@@ -74,6 +74,7 @@ Route::resource('vehiclescolor', ColorController::class)
     ->names('vehiclescolor');
 
 Route::get('attendances/history', [AttendancesController::class, 'history'])->name('attendances.history');
+Route::get('attendances/suggestion', [AttendancesController::class, 'suggest'])->name('attendances.suggest');
 Route::resource('attendances', AttendancesController::class)->names('attendances');
 Route::get('holidays/resumen', [HolidaysController::class, 'resumenFeriados'])
     ->name('holidays.resumen');

@@ -10,22 +10,86 @@
                 <i class="bi bi-box-arrow-up-right me-1"></i>Marcación de asistencia
             </a>
             <button type="button" class="btn btn-success" id="btnNuevo">
-                <i class="bi bi-plus-circle me-1"></i>Agregar nueva asistencia
+                <i class="bi bi-plus-circle me-1"></i>Agregar marcación
             </button>
+        </div>
+        <div class="card shadow-sm mb-3 attendance-filter-card">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h6 class="mb-1">Filtrar asistencias</h6>
+                        <small class="text-muted">Selecciona un periodo y refina los resultados por turno, tipo y estado.</small>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Periodos rápidos" id="attendance-quick-filters">
+                        <button type="button" class="btn btn-outline-primary active" data-period="today" aria-pressed="true">Hoy</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="last7" aria-pressed="false">Últimos 7 días</button>
+                        <button type="button" class="btn btn-outline-primary" data-period="month" aria-pressed="false">Este mes</button>
+                    </div>
+                </div>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-date-from" class="form-label small fw-semibold mb-1">Desde</label>
+                        <input type="date" id="attendance-date-from" class="form-control form-control-sm"
+                            value="{{ today()->toDateString() }}">
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-date-to" class="form-label small fw-semibold mb-1">Hasta</label>
+                        <input type="date" id="attendance-date-to" class="form-control form-control-sm"
+                            value="{{ today()->toDateString() }}">
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-filter-shift" class="form-label small fw-semibold mb-1">Turno</label>
+                        <select id="attendance-filter-shift" class="form-select form-select-sm">
+                            <option value="">Todos los turnos</option>
+                            @foreach($shifts as $shift)
+                                <option value="{{ $shift->id }}">{{ $shift->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-filter-type" class="form-label small fw-semibold mb-1">Tipo</label>
+                        <select id="attendance-filter-type" class="form-select form-select-sm">
+                            <option value="">Entrada y salida</option>
+                            @foreach(\App\Models\admin\Attendance::TYPES as $type)
+                                <option value="{{ $type }}">{{ $type }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
+                        <label for="attendance-filter-status" class="form-label small fw-semibold mb-1">Estado</label>
+                        <select id="attendance-filter-status" class="form-select form-select-sm">
+                            <option value="">Todos los estados</option>
+                            @foreach(\App\Models\admin\Attendance::STATUSES as $status)
+                                <option value="{{ $status }}">{{ $status }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2 d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm flex-grow-1" id="attendance-apply-filters">
+                            <i class="bi bi-funnel me-1"></i>Aplicar
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="attendance-clear-filters"
+                            title="Restablecer filtros" aria-label="Restablecer filtros">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="card">
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped table-hover align-middle w-100" id="DataTable">
-                    <thead>
+                    <thead class="table-light">
                         <tr>
                             <th>DNI</th>
-                            <th>Empleado</th>
-                            <th>Fecha y hora</th>
-                            <th>Tipo</th>
-                            <th>Estado</th>
+                            <th>Trabajador</th>
+                            <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Tipo de marcación</th>
                             <th>Turno</th>
-                            <th>Notas</th>
+                            <th>Estado</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
@@ -104,29 +168,109 @@ $(function () {
         processing: true,
         serverSide: true,
         searchDelay: 350,
-        ajax: "{{ route('attendances.index', [], false) }}",
-        order: [[2, 'desc']],
+        ajax: {
+            url: "{{ route('attendances.index', [], false) }}",
+            data: function (data) {
+                data.date_from = $('#attendance-date-from').val();
+                data.date_to = $('#attendance-date-to').val();
+                data.shift_id = $('#attendance-filter-shift').val();
+                data.type = $('#attendance-filter-type').val();
+                data.status = $('#attendance-filter-status').val();
+            }
+        },
+        order: [[2, 'desc'], [3, 'desc']],
         columns: [
             { data: 'dni', name: 'employees.dni' },
             { data: 'employee_name', name: 'employee_name' },
-            { data: 'date_time', name: 'attendances.date', searchable: false },
-            { data: 'type', name: 'attendances.type' },
-            { data: 'status', name: 'attendances.status' },
-            { data: 'shift_name', name: 'shifts.name' },
-            { data: 'notes', name: 'attendances.notes', defaultContent: '' },
+            { data: 'date_display', name: 'date_display', searchable: false },
+            { data: 'time_display', name: 'time_display', searchable: false },
+            { data: 'type_badge', name: 'type', orderable: false, searchable: false },
+            { data: 'shift_display', name: 'shift_display', searchable: false },
+            { data: 'status_badge', name: 'status_badge', orderable: false, searchable: false },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         language: {
-            search: 'Buscar:',
-            lengthMenu: 'Mostrar _MENU_ registros',
-            info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
-            infoEmpty: 'Mostrando 0 a 0 de 0 registros',
-            infoFiltered: '(filtrado de _MAX_ registros)',
-            loadingRecords: '',
-            zeroRecords: 'No se encontraron asistencias',
-            emptyTable: 'Aún no hay asistencias registradas',
+            search: 'Buscar trabajador:',
+            searchPlaceholder: 'Nombre o DNI...',
+            lengthMenu: 'Mostrar _MENU_ marcaciones',
+            info: 'Mostrando _START_ a _END_ de _TOTAL_ marcaciones',
+            infoEmpty: 'Mostrando 0 a 0 de 0 marcaciones',
+            infoFiltered: '(filtrado de _MAX_ marcaciones)',
+            loadingRecords: 'Cargando asistencias...',
+            processing: 'Procesando...',
+            zeroRecords: 'No se encontraron marcaciones para los filtros seleccionados',
+            emptyTable: 'No hay marcaciones en el periodo seleccionado',
             paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' }
+        },
+        initComplete: function () {
+            $('#DataTable_filter input')
+                .attr('placeholder', 'Nombre o DNI...')
+                .addClass('form-control form-control-sm');
         }
+    });
+
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    function formatDateForDisplay(value) {
+        if (!value) return '';
+        const parts = value.split('-');
+        return parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : value;
+    }
+
+    function applyDateRange(from, to, activeButton) {
+        $('#attendance-date-from').val(formatDateForInput(from));
+        $('#attendance-date-to').val(formatDateForInput(to));
+        $('#attendance-quick-filters [data-period]')
+            .removeClass('active')
+            .attr('aria-pressed', 'false');
+
+        if (activeButton) {
+            $(activeButton).addClass('active').attr('aria-pressed', 'true');
+        }
+
+        table.ajax.reload();
+    }
+
+    $('#attendance-quick-filters').on('click', '[data-period]', function () {
+        const today = new Date();
+        const period = $(this).data('period');
+        const from = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        if (period === 'last7') {
+            from.setDate(from.getDate() - 6);
+        } else if (period === 'month') {
+            from.setDate(1);
+        }
+
+        applyDateRange(from, today, this);
+    });
+
+    $('#attendance-apply-filters').on('click', function () {
+        const from = $('#attendance-date-from').val();
+        const to = $('#attendance-date-to').val();
+
+        if (from && to && from > to) {
+            window.RSUValidation.error('La fecha inicial no puede ser posterior a la fecha final.');
+            return;
+        }
+
+        $('#attendance-quick-filters [data-period]')
+            .removeClass('active')
+            .attr('aria-pressed', 'false');
+        table.ajax.reload();
+    });
+
+    $('#attendance-clear-filters').on('click', function () {
+        const today = new Date();
+        $('#attendance-filter-shift, #attendance-filter-type, #attendance-filter-status').val('');
+        table.search('');
+        $('#DataTable_filter input').val('');
+        applyDateRange(today, today, $('#attendance-quick-filters [data-period="today"]'));
     });
 
     function refresTable() {
@@ -163,6 +307,67 @@ $(function () {
             });
     }
 
+    let suggestionRequest = null;
+    let suggestionRequestId = 0;
+
+    function actualizarSugerencia() {
+        const form = $('#formModal form[data-attendance-mode="create"]');
+        if (!form.length) return;
+
+        const employeeId = form.find('#attendance_employee_id').val();
+        const date = form.find('#attendance_date').val();
+        const time = form.find('#attendance_time').val();
+        const feedback = form.find('#attendance-suggestion-feedback');
+        const submitButton = form.find('[type="submit"]');
+
+        if (suggestionRequest) suggestionRequest.abort();
+
+        if (!employeeId || !date || !time) {
+            submitButton.prop('disabled', true);
+            feedback.text('Selecciona un trabajador para asignar automáticamente la marcación.');
+            return;
+        }
+
+        const currentRequestId = ++suggestionRequestId;
+        submitButton.prop('disabled', true);
+        feedback.text('Asignando fecha, hora, turno y tipo de marcación...');
+
+        suggestionRequest = $.get("{{ route('attendances.suggest') }}", {
+            employee_id: employeeId,
+            date: date,
+            time: time
+        }).done(function (suggestion) {
+            if (currentRequestId !== suggestionRequestId) return;
+
+            const assignedTime = suggestion.time || time;
+            form.find('#attendance_date').val(suggestion.date);
+            form.find('#attendance_date_display').val(formatDateForDisplay(suggestion.date));
+            form.find('#attendance_time').val(assignedTime);
+            form.find('#attendance_time_display').val(assignedTime);
+            form.find('#attendance_shift_id').val(String(suggestion.shift_id));
+            form.find('#attendance_shift_display').val(suggestion.shift_display || suggestion.shift_name || 'Turno asignado');
+            form.find('#attendance_type').val(suggestion.type);
+            form.find('#attendance_type_display').val(suggestion.type);
+
+            feedback.text(suggestion.message);
+            submitButton.prop('disabled', !suggestion.shift_id);
+            cargarHistorial();
+        }).fail(function (xhr) {
+            if (currentRequestId !== suggestionRequestId || xhr.statusText === 'abort') return;
+
+            const errors = xhr.responseJSON?.errors || {};
+            const message = Object.values(errors).flat()[0]
+                || xhr.responseJSON?.message
+                || 'No se pudo asignar automáticamente el turno. Verifica las marcaciones del trabajador.';
+            form.find('#attendance_shift_id').val('');
+            form.find('#attendance_shift_display').val('Turno no disponible');
+            form.find('#attendance_type').val('');
+            form.find('#attendance_type_display').val('No asignado');
+            feedback.text(message);
+            submitButton.prop('disabled', true);
+        });
+    }
+
     function inicializarEmpleado() {
         const employeeSelect = $('#formModal select[name="employee_id"]');
         if (!employeeSelect.length || employeeSelect.hasClass('select2-hidden-accessible')) return;
@@ -179,7 +384,7 @@ $(function () {
 
     $('#btnNuevo').on('click', function () {
         $.get("{{ route('attendances.create') }}", function (response) {
-            mostrar_modal('Nueva Asistencia', response);
+            mostrar_modal('Nueva marcación', response);
             inicializarEmpleado();
             cargarHistorial();
         }).fail(function (error) {
@@ -198,7 +403,7 @@ $(function () {
 
     $(document).on('click', '.btnEditar', function () {
         $.get($(this).data('url'), function (response) {
-            mostrar_modal('Editar Asistencia', response);
+            mostrar_modal('Editar marcación', response);
             inicializarEmpleado();
             cargarHistorial();
         }).fail(function (error) {
@@ -210,18 +415,27 @@ $(function () {
         const employeeSelect = $('#formModal #attendance_employee_id');
         const selectedEmployee = employeeSelect.val();
         const date = $(this).val();
+
         $.get("{{ route('attendances.create') }}", { date: date }, function (response) {
             const options = $(response).find('#attendance_employee_id option');
             const validSelection = options.filter(function () { return this.value === selectedEmployee; }).length > 0;
+
             employeeSelect.empty().append(options.clone());
             employeeSelect.val(validSelection ? selectedEmployee : '').trigger('change.select2');
+
             cargarHistorial();
+            actualizarSugerencia();
         }).fail(function (error) {
             mostrar_error(error, 'No se pudo actualizar la lista de empleados.');
         });
     });
 
-    $('#formModal').on('change', '#attendance_employee_id', cargarHistorial);
+    $('#formModal').on('change', '#attendance_time', actualizarSugerencia);
+
+    $('#formModal').on('change', '#attendance_employee_id', function () {
+        cargarHistorial();
+        actualizarSugerencia();
+    });
 
     $(document).on('submit', '#formModal form', function (event) {
         event.preventDefault();
