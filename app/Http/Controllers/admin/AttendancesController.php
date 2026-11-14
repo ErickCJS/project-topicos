@@ -183,23 +183,33 @@ class AttendancesController extends Controller
         if ($pending->count() === 1) {
             $entry = $pending->first();
 
+            $shift = $entry->shift;
+
             return response()->json([
                 'type' => 'Salida',
                 'shift_id' => $entry->shift_id,
-                'shift_name' => $entry->shift?->name,
+                'shift_name' => $shift?->name,
+                'shift_display' => $shift
+                    ? $shift->name.' ('.substr($shift->start_time, 0, 5).' - '.substr($shift->end_time, 0, 5).')'
+                    : 'Turno asignado',
                 'date' => $markedAt->toDateString(),
-                'message' => 'Se encontró una entrada pendiente. Se seleccionó Salida y el turno correspondiente.',
+                'time' => $markedAt->format('H:i'),
+                'message' => 'Se encontró una entrada pendiente. Se asignaron automáticamente Salida y el turno de esa entrada.',
             ]);
         }
 
         $resolved = $rules->resolveShift($markedAt);
 
+        $shift = $resolved['shift'];
+
         return response()->json([
             'type' => 'Entrada',
-            'shift_id' => $resolved['shift']->id,
-            'shift_name' => $resolved['shift']->name,
+            'shift_id' => $shift->id,
+            'shift_name' => $shift->name,
+            'shift_display' => $shift->name.' ('.substr($shift->start_time, 0, 5).' - '.substr($shift->end_time, 0, 5).')',
             'date' => $resolved['start_date'],
-            'message' => 'Se seleccionó Entrada y el turno correspondiente al horario.',
+            'time' => $markedAt->format('H:i'),
+            'message' => 'Se asignaron automáticamente Entrada y el turno correspondiente al horario.',
         ]);
     }
 
