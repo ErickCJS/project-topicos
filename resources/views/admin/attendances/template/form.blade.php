@@ -2,6 +2,7 @@
     $editing = isset($attendance);
     $selectedDate = old('date', $editing ? $attendance->date->format('Y-m-d') : ($defaultDate ?? today()->format('Y-m-d')));
     $selectedTime = old('time', $editing ? substr($attendance->time, 0, 5) : ($defaultTime ?? now()->format('H:i')));
+    $selectedEmployeeId = old('employee_id', $editing ? $attendance->employee_id : '');
     $selectedShift = old('shift_id', $editing ? $attendance->shift_id : ($defaultShiftId ?? ''));
     $selectedType = old('type', $editing ? $attendance->type : ($defaultType ?? 'Entrada'));
 @endphp
