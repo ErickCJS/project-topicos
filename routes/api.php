@@ -23,3 +23,11 @@ Route::middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class])
 // API para aplicación móvil Flutter
 Route::post('/conductor/login', [DriverAuthController::class, 'login'])
     ->middleware('throttle:5,1');
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/conductor/programaciones', [
+        DriverAuthController::class,
+        'programaciones'
+    ]);
+});
