@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Models\admin\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\JsonResponse;
+use App\Models\admin\Attendance;
 
 class DriverAuthController extends Controller
 {
@@ -169,6 +171,226 @@ class DriverAuthController extends Controller
                 'full_name' => $employee->first_name . ' ' . $employee->last_name,
                 'dni' => $employee->dni,
             ],
+            'total' => $data->count(),
+            'data' => $data,
+        ], 200);
+    }
+
+
+    public function programacionesHoy(Request $request): JsonResponse
+    {
+        $employee = $request->user();
+
+        // 1. Validar conductor activo.
+        if (
+            !$employee instanceof Employee ||
+            (int) $employee->employee_type_id !== 1 ||
+            $employee->status !== 'Activo'
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes autorización para consultar esta información.'
+            ], 403);
+        }
+
+        // 2. Validar contrato vigente.
+        if (!$employee->hasVigenteContract()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes un contrato vigente.'
+            ], 403);
+        }
+
+        // 3. Obtener fecha actual de Perú.
+        $today = today('America/Lima')->toDateString();
+
+        // 4. Buscar solamente las programaciones de hoy.
+        $programaciones = Programming::query()
+            ->with([
+                'employees' => fn($query) => $query->orderByPivot('id'),
+                'vehicle',
+                'shift',
+            ])
+            ->where('driver_id', $employee->id)
+            ->whereDate('date', $today)
+            ->where('status', '!=', Programming::STATUS_CANCELLED)
+            ->orderBy('id')
+            ->get();
+
+        // 5. Si no tiene programación hoy.
+        if ($programaciones->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'has_programming' => false,
+                'message' => 'No tienes recorridos programados para hoy.',
+                'date' => $today,
+                'total' => 0,
+                'data' => [],
+            ], 200);
+        }
+
+        // 6. Obtener los integrantes de todos los recorridos.
+        $employeeIds = $programaciones
+            ->flatMap(fn($programming) => $programming->employees->pluck('id'))
+            ->push($employee->id)
+            ->unique()
+            ->values();
+
+        $shiftIds = $programaciones->pluck('shift_id')->unique();
+
+        // 7. Consultar asistencias de hoy.
+        $attendances = Attendance::query()
+            ->whereDate('date', $today)
+            ->whereIn('shift_id', $shiftIds)
+            ->whereIn('employee_id', $employeeIds)
+            ->where('type', 'Entrada')
+            ->orderByDesc('id')
+            ->get(['employee_id', 'shift_id', 'status'])
+            ->groupBy(
+                fn($attendance) =>
+                $attendance->shift_id . ':' . $attendance->employee_id
+            );
+
+        // 8. Preparar nombres de los días.
+        $dayNames = [
+            1 => 'Lun',
+            2 => 'Mar',
+            3 => 'Mié',
+            4 => 'Jue',
+            5 => 'Vie',
+            6 => 'Sáb',
+            7 => 'Dom',
+        ];
+
+        // 9. Construir respuesta.
+        $data = $programaciones->map(function ($programming) use (
+            $employee,
+            $attendances,
+            $dayNames
+        ) {
+            $snapshot = $programming->snapshot ?? [];
+
+            $team = $programming->employees
+                ->unique('id')
+                ->values();
+
+            // Garantizar que el conductor esté incluido.
+            if (!$team->contains(
+                fn($person) =>
+                (int) $person->id === (int) $programming->driver_id
+            )) {
+                $team->prepend($employee);
+            }
+
+            $helperNames = array_values($snapshot['helpers'] ?? []);
+            $helperIndex = 0;
+
+            // Información de cada integrante y asistencia.
+            $people = $team->map(function ($person) use (
+                $programming,
+                $snapshot,
+                $attendances,
+                &$helperIndex
+            ) {
+                $isDriver = (int) $person->id ===
+                    (int) $programming->driver_id;
+
+                if ($isDriver) {
+                    $name = $snapshot['driver']
+                        ?? trim($person->first_name . ' ' . $person->last_name);
+
+                    $role = 'driver';
+                } else {
+                    $name = $helperNames[$helperIndex]
+                        ?? trim($person->first_name . ' ' . $person->last_name);
+
+                    $helperIndex++;
+                    $role = 'helper';
+                }
+
+                $key = $programming->shift_id . ':' . $person->id;
+
+                $records = $attendances->get($key, collect());
+
+                $validAttendance = $records->first(
+                    fn($attendance) =>
+                    in_array(
+                        $attendance->status,
+                        ['Presente', 'Tardanza'],
+                        true
+                    )
+                );
+
+                $lastAttendance = $records->first();
+
+                return [
+                    'id' => $person->id,
+                    'name' => $name,
+                    'role' => $role,
+
+                    'attendance_status' => $validAttendance?->status
+                        ?? ($lastAttendance?->status ?? 'Pendiente'),
+
+                    'attended' => $validAttendance !== null,
+                ];
+            })->values();
+
+            // Comprobar si todos registraron su entrada.
+            $complete = $people->isNotEmpty()
+                && $people->every(fn($person) => $person['attended']);
+
+            $shift = $programming->shift;
+
+            return [
+                'id' => $programming->id,
+
+                'date' => $programming->date->toDateString(),
+
+                'day' => $dayNames[$programming->date->dayOfWeekIso],
+
+                'zone' => $snapshot['zone'] ?? null,
+
+                'vehicle' => $snapshot['vehicle']
+                    ?? $programming->vehicle?->name,
+
+                'plate' => $snapshot['plate']
+                    ?? $programming->vehicle?->plate,
+
+                'shift' => $snapshot['shift']
+                    ?? $shift?->name,
+
+                'hours' => $snapshot['hours']
+                    ?? ($shift
+                        ? substr($shift->start_time, 0, 5) . ' - ' .
+                        substr($shift->end_time, 0, 5)
+                        : null),
+
+                'status' => $programming->status,
+
+                'people' => $people,
+
+                'present_count' => $people->where('attended', true)->count(),
+
+                'missing_count' => $people->where('attended', false)->count(),
+
+                'complete' => $complete,
+
+                'can_start_route' => $complete && in_array(
+                    $programming->status,
+                    [
+                        Programming::STATUS_PROGRAMMED,
+                        Programming::STATUS_RESCHEDULED,
+                    ],
+                    true
+                ),
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'has_programming' => true,
+            'message' => 'Programaciones de hoy obtenidas correctamente.',
+            'date' => $today,
             'total' => $data->count(),
             'data' => $data,
         ], 200);

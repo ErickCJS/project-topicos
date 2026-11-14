@@ -30,4 +30,9 @@ Route::middleware('auth:sanctum')->group(function () {
         DriverAuthController::class,
         'programaciones'
     ]);
+    // Solamente las programaciones de hoy
+    Route::get('/conductor/programaciones/hoy', [
+        DriverAuthController::class,
+        'programacionesHoy'
+    ]);
 });
