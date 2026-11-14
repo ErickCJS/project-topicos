@@ -93,7 +93,7 @@
                 const values = Object.values(errors).flat();
                 throw new Error(values[0] || payload.message || 'No se pudo registrar la asistencia.');
             }
-            const details = [payload.shift_name, payload.status, payload.origin]
+            const details = [payload.shift_name, payload.status]
                 .filter(Boolean)
                 .join(' · ');
             showMessage(payload.message + (details ? ' · ' + details : ''), 'success');
