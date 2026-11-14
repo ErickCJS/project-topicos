@@ -48,6 +48,15 @@
                         </select>
                     </div>
                     <div class="col-6 col-lg-2">
+                        <label for="attendance-filter-type" class="form-label small fw-semibold mb-1">Tipo</label>
+                        <select id="attendance-filter-type" class="form-select form-select-sm">
+                            <option value="">Entrada y salida</option>
+                            @foreach(\\App\\Models\\admin\\Attendance::TYPES as $type)
+                                <option value="{{ $type }}">{{ $type }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
                         <label for="attendance-filter-status" class="form-label small fw-semibold mb-1">Estado</label>
                         <select id="attendance-filter-status" class="form-select form-select-sm">
                             <option value="">Todos los estados</option>
@@ -86,9 +95,9 @@
                             <th>DNI</th>
                             <th>Trabajador</th>
                             <th>Fecha</th>
+                            <th>Hora</th>
+                            <th>Tipo de marcación</th>
                             <th>Turno</th>
-                            <th>Entrada</th>
-                            <th>Salida</th>
                             <th>Estado</th>
                             <th>Origen</th>
                             <th class="text-center">Acciones</th>
@@ -175,33 +184,34 @@ $(function () {
                 data.date_from = $('#attendance-date-from').val();
                 data.date_to = $('#attendance-date-to').val();
                 data.shift_id = $('#attendance-filter-shift').val();
+                data.type = $('#attendance-filter-type').val();
                 data.status = $('#attendance-filter-status').val();
                 data.origin = $('#attendance-filter-origin').val();
             }
         },
-        order: [[2, 'desc']],
+        order: [[2, 'desc'], [3, 'desc']],
         columns: [
             { data: 'dni', name: 'employees.dni' },
             { data: 'employee_name', name: 'employee_name' },
             { data: 'date_display', name: 'date_display', searchable: false },
+            { data: 'time_display', name: 'time_display', searchable: false },
+            { data: 'type_badge', name: 'type', orderable: false, searchable: false },
             { data: 'shift_display', name: 'shift_display', searchable: false },
-            { data: 'entry_display', name: 'entry_time', orderable: false, searchable: false },
-            { data: 'exit_display', name: 'exit_time', orderable: false, searchable: false },
-            { data: 'status_badge', name: 'status', orderable: false, searchable: false },
-            { data: 'origin_badge', name: 'origin', orderable: false, searchable: false },
+            { data: 'status_badge', name: 'status_badge', orderable: false, searchable: false },
+            { data: 'origin_badge', name: 'origin_badge', orderable: false, searchable: false },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         language: {
             search: 'Buscar trabajador:',
             searchPlaceholder: 'Nombre o DNI...',
-            lengthMenu: 'Mostrar _MENU_ jornadas',
-            info: 'Mostrando _START_ a _END_ de _TOTAL_ jornadas',
-            infoEmpty: 'Mostrando 0 a 0 de 0 jornadas',
-            infoFiltered: '(filtrado de _MAX_ jornadas)',
+            lengthMenu: 'Mostrar _MENU_ marcaciones',
+            info: 'Mostrando _START_ a _END_ de _TOTAL_ marcaciones',
+            infoEmpty: 'Mostrando 0 a 0 de 0 marcaciones',
+            infoFiltered: '(filtrado de _MAX_ marcaciones)',
             loadingRecords: 'Cargando asistencias...',
             processing: 'Procesando...',
-            zeroRecords: 'No se encontraron asistencias para los filtros seleccionados',
-            emptyTable: 'No hay asistencias en el periodo seleccionado',
+            zeroRecords: 'No se encontraron marcaciones para los filtros seleccionados',
+            emptyTable: 'No hay marcaciones en el periodo seleccionado',
             paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' }
         },
         initComplete: function () {
@@ -263,7 +273,7 @@ $(function () {
 
     $('#attendance-clear-filters').on('click', function () {
         const today = new Date();
-        $('#attendance-filter-shift, #attendance-filter-status, #attendance-filter-origin').val('');
+        $('#attendance-filter-shift, #attendance-filter-type, #attendance-filter-status, #attendance-filter-origin').val('');
         table.search('');
         $('#DataTable_filter input').val('');
         applyDateRange(today, today, $('#attendance-quick-filters [data-period="today"]'));
