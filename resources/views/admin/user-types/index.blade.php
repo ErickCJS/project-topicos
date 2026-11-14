@@ -1,76 +1,28 @@
-@extends('adminlte::page')
+﻿@extends('adminlte::page')
 @section('title', 'Tipos de usuario | RSU')
-@section('css')
-    <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
-@stop
+@section('css')<link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}"><link rel="stylesheet" href="{{ asset('css/users-module.css') }}">@stop
 @section('content')
 <div class="users-module user-types-page">
-    <div class="user-types-heading"><div><span class="user-types-eyebrow">Administración de accesos</span><h1><i class="bi bi-person-badge me-2"></i>Tipos de usuario</h1><p>Organiza las cuentas y administra sus permisos.</p></div></div>
-    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
-    @if($errors->has('user_type'))<div class="alert alert-danger">{{ $errors->first('user_type') }}</div>@endif
-    @if($errors->has('name'))<div class="alert alert-danger">{{ $errors->first('name') }}</div>@endif
-
-    <section class="card user-type-create-card mb-4">
-        <div class="card-header"><strong><i class="bi bi-plus-circle me-2"></i>Crear tipo de usuario</strong></div>
-        <div class="card-body"><form method="post" action="{{ route('user-types.store') }}" class="row g-3 align-items-end">
-            @csrf
-            <div class="col-12 col-lg-4"><label class="form-label" for="newTypeName">Nombre</label><input class="form-control" id="newTypeName" name="name" required maxlength="100" value="{{ old('name') }}"></div>
-            <div class="col-12 col-lg-6"><label class="form-label" for="newTypeDescription">Descripción</label><input class="form-control" id="newTypeDescription" name="description" maxlength="1000" value="{{ old('description') }}"></div>
-            <div class="col-12 col-lg-2"><button class="btn btn-success w-100" type="submit"><i class="bi bi-plus-lg me-1"></i>Crear tipo</button></div>
-        </form></div>
-    </section>
-
-    <section class="card user-types-table-card">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 user-types-table">
-                <thead><tr><th>Nombre del tipo</th><th>Descripción</th><th class="text-center">Usuarios asignados</th><th>Estado</th><th>Última actualización</th><th class="text-center">Acciones</th></tr></thead>
-                <tbody>
-                @forelse($types as $type)
-                    @php
-                        $isAdministrator = $type->is_admin || $type->slug === 'administrador';
-                        $isIdentityProtected = $isAdministrator || $type->slug === 'pendiente-de-asignacion';
-                    @endphp
-                    <tr>
-                        <td><div class="user-type-name">{{ $type->name }}</div></td>
-                        <td class="user-type-description">{{ $type->description ?: 'Sin descripción' }}</td>
-                        <td class="text-center"><span class="user-type-count">{{ $type->users_count }}</span></td>
-                        <td><span class="user-type-status {{ $type->is_active ? 'is-active' : 'is-inactive' }}"><span></span>{{ $type->is_active ? 'Activo' : 'Inactivo' }}</span></td>
-                        <td class="user-type-date">{{ $type->updated_at?->format('d/m/Y H:i') ?: '—' }}</td>
-                        <td><div class="user-type-actions">
-                            @if($isAdministrator)
-                                <span class="user-type-protected"><i class="bi bi-shield-lock me-1"></i>Protegido</span>
-                            @elseif(!$isIdentityProtected)
-                                <a class="btn btn-sm btn-outline-success" href="{{ route('user-types.permissions', $type) }}" title="Configurar permisos" aria-label="Configurar permisos de {{ $type->name }}"><i class="bi bi-shield-check"></i></a>
-                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#editType{{ $type->id }}" title="Editar" aria-label="Editar {{ $type->name }}"><i class="bi bi-pencil-square"></i></button>
-                            @endif
-                            @if(!$isAdministrator && $type->users_count === 0)
-                                <form method="post" action="{{ route('user-types.destroy', $type) }}" onsubmit="return confirm('¿Eliminar este tipo de usuario?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar" aria-label="Eliminar {{ $type->name }}"><i class="bi bi-trash3"></i></button></form>
-                            @elseif(!$isAdministrator)
-                                <span class="user-type-delete-hint" title="Reasigna primero a los usuarios de este tipo"><button class="btn btn-sm btn-outline-secondary" type="button" disabled aria-label="No se puede eliminar; reasigna primero los usuarios"><i class="bi bi-trash3"></i></button></span>
-                            @endif
-                        </div></td>
-                    </tr>
-                @empty
-                    <tr><td colspan="6" class="user-types-empty">No hay tipos de usuario registrados.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    @foreach($types as $type)
-        @if(!$type->is_admin && !in_array($type->slug, ['administrador', 'pendiente-de-asignacion'], true))
-            <div class="modal fade" id="editType{{ $type->id }}" tabindex="-1" aria-labelledby="editTypeLabel{{ $type->id }}" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
-                    <form method="post" action="{{ route('user-types.update', $type) }}">
-                        @csrf @method('PUT')
-                        <div class="modal-header"><h2 class="modal-title fs-5" id="editTypeLabel{{ $type->id }}">Editar tipo de usuario</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
-                        <div class="modal-body"><div class="mb-3"><label class="form-label" for="typeName{{ $type->id }}">Nombre</label><input class="form-control" id="typeName{{ $type->id }}" name="name" value="{{ $type->name }}" required maxlength="100"></div><div class="mb-3"><label class="form-label" for="typeDescription{{ $type->id }}">Descripción</label><textarea class="form-control" id="typeDescription{{ $type->id }}" name="description" rows="3" maxlength="1000">{{ $type->description }}</textarea></div><input type="hidden" name="is_active" value="{{ $type->is_active ? 1 : 0 }}"></div>
-                        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar cambios</button></div>
-                    </form>
-                </div></div>
-            </div>
-        @endif
-    @endforeach
-</div>
+<div class="user-types-heading"><div><span class="user-types-eyebrow">Administración de accesos</span><h1><i class="bi bi-person-badge me-2"></i>Tipos de usuario</h1><p>Organiza las cuentas y administra sus permisos.</p></div><button class="btn btn-success" type="button" data-type-create><i class="bi bi-plus-lg me-1"></i>Crear tipo</button></div>
+<div id="typesNotice" aria-live="polite"></div>
+<section class="card user-types-table-card"><div class="table-responsive"><table class="table table-hover align-middle mb-0 user-types-table"><thead><tr><th>Nombre del tipo</th><th>Descripción</th><th class="text-center">Usuarios asignados</th><th>Estado</th><th>Última actualización</th><th class="text-center">Acciones</th></tr></thead><tbody>
+@forelse($types as $type)@php($isAdministrator=$type->is_admin || $type->slug==='administrador')@php($isProtected=$isAdministrator || $type->slug==='pendiente-de-asignacion')
+<tr data-type-row="{{ $type->id }}"><td><div class="user-type-name">{{ $type->name }}</div>@if($isAdministrator)<span class="user-type-protected"><i class="bi bi-shield-lock me-1"></i>Protegido</span>@endif</td><td class="user-type-description">{{ $type->description ?: 'Sin descripción' }}</td><td class="text-center"><span class="user-type-count">{{ $type->users_count }}</span></td><td><span class="user-type-status {{ $type->is_active?'is-active':'is-inactive' }}"><span></span>{{ $type->is_active?'Activo':'Inactivo' }}</span></td><td class="user-type-date">{{ $type->updated_at?->format('d/m/Y H:i') ?: '—' }}</td><td><div class="user-type-actions">
+@if(!$isProtected)<button type="button" class="btn btn-sm btn-outline-success" data-type-permissions="{{ route('user-types.permissions',$type) }}" title="Configurar permisos" aria-label="Configurar permisos de {{ $type->name }}"><i class="bi bi-shield-check"></i></button><button type="button" class="btn btn-sm btn-outline-secondary" data-type-edit data-url="{{ route('user-types.update',$type) }}" data-name="{{ $type->name }}" data-description="{{ $type->description }}" data-active="{{ (int)$type->is_active }}" title="Editar" aria-label="Editar {{ $type->name }}"><i class="bi bi-pencil-square"></i></button>@endif
+@if(!$isAdministrator)<button type="button" class="btn btn-sm btn-outline-danger" data-type-delete="{{ route('user-types.destroy',$type) }}" data-name="{{ $type->name }}" title="Eliminar" aria-label="Eliminar {{ $type->name }}" @disabled($type->users_count>0)><i class="bi bi-trash3"></i></button>@endif
+</div></td></tr>
+@empty<tr><td colspan="6" class="user-types-empty">No hay tipos de usuario registrados.</td></tr>@endforelse
+</tbody></table></div></section></div>
+<div class="modal fade" id="typeModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form id="typeForm"><div class="modal-header users-modal-header"><div class="users-modal-heading"><span class="users-modal-icon"><i class="bi bi-person-badge"></i></span><h2 class="modal-title fs-5" id="typeModalTitle">Crear tipo de usuario</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>@include('admin.user-types.partials.type-form')<div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar</button></div></form></div></div></div>
+<div class="modal fade" id="permissionModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"></div></div></div>
+@include('admin.user-types.partials.delete-modal')
 @stop
+@section('js')<script>
+(()=>{const csrf=document.querySelector('meta[name="csrf-token"]')?.content, typeEl=document.getElementById('typeModal'),permEl=document.getElementById('permissionModal'),delEl=document.getElementById('typeDeleteModal'),typeModal=bootstrap.Modal.getOrCreateInstance(typeEl),permModal=bootstrap.Modal.getOrCreateInstance(permEl),delModal=bootstrap.Modal.getOrCreateInstance(delEl);let endpoint='{{ route('user-types.store') }}',editing=false,deleteUrl='';const notice=(m,k='success')=>document.getElementById('typesNotice').innerHTML=`<div class="alert alert-${k}">${m}</div>`;
+const clearErrors=()=>typeEl.querySelectorAll('.is-invalid,.invalid-feedback').forEach(e=>{if(e.classList.contains('is-invalid'))e.classList.remove('is-invalid');else e.textContent=''});
+document.querySelector('[data-type-create]').onclick=()=>{editing=false;endpoint='{{ route('user-types.store') }}';document.getElementById('typeModalTitle').textContent='Crear tipo de usuario';document.getElementById('typeForm').reset();document.getElementById('typeActive').checked=true;clearErrors();typeModal.show()};document.querySelectorAll('[data-type-edit]').forEach(b=>b.onclick=()=>{editing=true;endpoint=b.dataset.url;document.getElementById('typeModalTitle').textContent='Editar tipo de usuario';document.getElementById('typeForm').reset();document.getElementById('typeName').value=b.dataset.name;document.getElementById('typeDescription').value=b.dataset.description;document.getElementById('typeActive').checked=b.dataset.active==='1';clearErrors();typeModal.show()});
+document.getElementById('typeActive').onchange=e=>document.querySelector('[name="is_active"]').value=e.target.checked?'1':'0';document.getElementById('typeForm').onsubmit=async e=>{e.preventDefault();clearErrors();const fd=new FormData(e.currentTarget);if(editing)fd.set('_method','PUT');const r=await fetch(endpoint,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN':csrf},body:fd});const j=await r.json();if(r.ok){typeModal.hide();notice(j.message);setTimeout(()=>location.reload(),450)}else if(j.errors){Object.entries(j.errors).forEach(([key,msg])=>{const el=e.currentTarget.querySelector(`[name="${key}"]`);if(el){el.classList.add('is-invalid');el.nextElementSibling?.classList.contains('invalid-feedback')&&(el.nextElementSibling.textContent=msg[0])}})}else notice(j.message||'No se pudo guardar el tipo.','danger')};
+document.querySelectorAll('[data-type-delete]').forEach(b=>b.onclick=()=>{deleteUrl=b.dataset.typeDelete;delEl.querySelector('.modal-body').textContent=`¿Confirma que desea eliminar el tipo «${b.dataset.name}»?`;delModal.show()});document.getElementById('confirmTypeDelete').onclick=async()=>{const r=await fetch(deleteUrl,{method:'DELETE',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN':csrf}}),j=await r.json();if(r.ok){delModal.hide();notice(j.message);setTimeout(()=>location.reload(),450)}else notice(j.message||'No se pudo eliminar el tipo.','danger')};
+document.querySelectorAll('[data-type-permissions]').forEach(b=>b.onclick=async()=>{const r=await fetch(b.dataset.typePermissions,{headers:{'X-Modal-Request':'1'}}),html=await r.text(),doc=new DOMParser().parseFromString(html,'text/html'),matrix=doc.querySelector('.user-permission-matrix');if(!r.ok||!matrix){notice('No se pudo cargar la matriz de permisos.','danger');return}permEl.querySelector('.modal-content').innerHTML=`<div class="modal-header users-modal-header"><div class="users-modal-heading"><span class="users-modal-icon"><i class="bi bi-shield-lock"></i></span><h2 class="modal-title fs-5">Configurar permisos</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div><div class="permission-modal-body"></div>`;permEl.querySelector('.permission-modal-body').append(matrix);permModal.show();doc.querySelectorAll('script').forEach(s=>{if(s.textContent.includes('permission-option')){const script=document.createElement('script');script.textContent=s.textContent;permEl.append(script);script.remove()}});const form=permEl.querySelector('#permissionMatrixForm');if(form){form.querySelectorAll('a').forEach(a=>{a.removeAttribute('href');a.href='#';a.onclick=e=>{e.preventDefault();permModal.hide()}});form.addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(form);fd.set('_method','PUT');const res=await fetch(form.action,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json','X-CSRF-TOKEN':csrf},body:fd}),data=await res.json();if(res.ok){permModal.hide();notice(data.message);setTimeout(()=>location.reload(),450)}else notice(data.message||'No se pudieron guardar los permisos.','danger')})}})
+})();
+</script>@stop

@@ -1,37 +1,24 @@
-@extends('adminlte::page')
-
+﻿@extends('adminlte::page')
 @section('title', 'Gestión de usuarios | RSU')
-
 @section('content')
 <div class="users-module">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
-        <h4 class="mb-0"><i class="bi bi-people me-2" aria-hidden="true"></i>Gestión de usuarios</h4>
-        <a href="{{ route('users.create') }}" class="btn btn-success"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Nuevo usuario</a>
-    </div>
-    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
-    <div class="card"><div class="card-body"><div class="table-responsive">
-        <table class="table table-striped table-hover align-middle w-100" id="usersTable">
-            <thead><tr><th>Fotografía</th><th>Nombres y apellidos</th><th>DNI</th><th>Correo electrónico</th><th>Teléfono</th><th>Tipo de usuario</th><th>Estado</th><th>Última actualización</th><th>Acciones</th></tr></thead>
-        </table>
-    </div></div></div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom"><h4 class="mb-0"><i class="bi bi-people me-2" aria-hidden="true"></i>Gestión de usuarios</h4><button type="button" class="btn btn-success" data-user-modal="{{ route('users.create') }}"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Nuevo usuario</button></div>
+    <div id="usersNotice" aria-live="polite"></div>
+    <div class="card"><div class="card-body"><div class="table-responsive"><table class="table table-striped table-hover align-middle w-100" id="usersTable"><thead><tr><th>Fotografía</th><th>Nombres y apellidos</th><th>DNI</th><th>Correo electrónico</th><th>Teléfono</th><th>Tipo de usuario</th><th>Estado</th><th>Última actualización</th><th>Acciones</th></tr></thead></table></div></div></div>
 </div>
+@include('admin.user.partials.modals')
 @stop
-
-@section('css')<link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">@stop
+@section('css')<link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}"><link rel="stylesheet" href="{{ asset('css/users-module.css') }}">@stop
 @section('js')
 <script>
 $(function () {
-    $('#usersTable').DataTable({
-        processing: true, serverSide: true, searchDelay: 350,
-        ajax: "{{ route('users.index', [], false) }}",
-        columns: [
-            {data:'photo', orderable:false, searchable:false}, {data:'name', name:'name'}, {data:'dni', name:'dni'},
-            {data:'email', name:'email'}, {data:'phone', name:'phone'}, {data:'type', name:'user_type_id'},
-            {data:'status', name:'is_active'}, {data:'updated_at', name:'updated_at'},
-            {data:'actions', orderable:false, searchable:false}
-        ],
-        language: {search:'Buscar:', lengthMenu:'Mostrar _MENU_ registros', info:'Mostrando _START_ a _END_ de _TOTAL_ registros', infoEmpty:'Mostrando 0 a 0 registros', infoFiltered:'(filtrado de _MAX_ registros)', zeroRecords:'No se encontraron usuarios', emptyTable:'Aún no hay usuarios registrados', paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}
-    });
+ const table=$('#usersTable').DataTable({processing:true,serverSide:true,searchDelay:350,ajax:"{{ route('users.index', [], false) }}",columns:[{data:'photo',orderable:false,searchable:false},{data:'name',name:'name'},{data:'dni',name:'dni'},{data:'email',name:'email'},{data:'phone',name:'phone'},{data:'type',name:'user_type_id'},{data:'status',name:'is_active'},{data:'updated_at',name:'updated_at'},{data:'actions',orderable:false,searchable:false}],language:{search:'Buscar:',lengthMenu:'Mostrar _MENU_ registros',info:'Mostrando _START_ a _END_ de _TOTAL_ registros',infoEmpty:'Mostrando 0 a 0 registros',infoFiltered:'(filtrado de _MAX_ registros)',zeroRecords:'No se encontraron usuarios',emptyTable:'Aún no hay usuarios registrados',paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}});
+ const modalEl=document.getElementById('usersModal'), modal=bootstrap.Modal.getOrCreateInstance(modalEl), delModal=bootstrap.Modal.getOrCreateInstance(document.getElementById('usersDeleteModal'));
+ const notice=(msg,kind='success')=>$('#usersNotice').html(`<div class="alert alert-${kind}">${$('<div>').text(msg).html()}</div>`);
+ $(document).on('click','[data-user-modal]',function(){const url=this.dataset.userModal;$.ajax({url,headers:{'X-Modal-Request':'1'}}).done(html=>{modalEl.querySelector('.modal-content').innerHTML=html;modal.show()}).fail(()=>notice('No se pudo cargar el formulario. Inténtelo nuevamente.','danger'))});
+ let delUrl='';$(document).on('click','[data-user-delete]',function(){delUrl=this.dataset.userDelete;delModal.show()});
+ $('#confirmUserDelete').on('click',function(){ $.ajax({url:delUrl,method:'DELETE',headers:{'X-CSRF-TOKEN':$('meta[name="csrf-token"]').attr('content'),'X-Requested-With':'XMLHttpRequest'}}).done(r=>{delModal.hide();table.ajax.reload(null,false);notice(r.mensaje||r.message||'El usuario se eliminó correctamente.')}).fail(x=>notice(x.responseJSON?.message||x.responseJSON?.mensaje||'No se pudo eliminar el usuario.','danger')) });
+ $(document).on('submit','#usersModal .js-modal-form',function(e){e.preventDefault();const form=this,fd=new FormData(form);form.querySelectorAll('.is-invalid').forEach(x=>x.classList.remove('is-invalid'));form.querySelectorAll('.invalid-feedback').forEach(x=>x.remove());$.ajax({url:form.action,method:'POST',data:fd,processData:false,contentType:false,headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}).done(r=>{modal.hide();table.ajax.reload(null,false);notice(r.message||'Los cambios se guardaron correctamente.')}).fail(x=>{const errors=x.responseJSON?.errors||{};Object.entries(errors).forEach(([key,msgs])=>{const input=form.querySelector(`[name="${key}"]`);if(input){input.classList.add('is-invalid');const err=document.createElement('div');err.className='invalid-feedback d-block';err.textContent=msgs[0];input.after(err)}});if(!Object.keys(errors).length)notice(x.responseJSON?.message||'No se pudo guardar. Inténtelo nuevamente.','danger')})});
 });
 </script>
 @stop

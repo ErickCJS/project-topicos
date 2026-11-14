@@ -34,7 +34,7 @@ class UserController extends Controller
         return response()->json(['draw' => (int) $request->input('draw'), 'recordsTotal' => $total, 'recordsFiltered' => $filtered, 'data' => $data]);
     }
 
-    public function create() { return view('admin.user.create', ['types' => UserType::where('is_active', true)->orderBy('name')->get()]); }
+    public function create(Request $request) { $data = ['types' => UserType::where('is_active', true)->orderBy('name')->get()]; return $request->header('X-Modal-Request') ? view('admin.user.partials.form-modal', $data) : view('admin.user.create', $data); }
 
     public function store(Request $request)
     {
@@ -44,21 +44,22 @@ class UserController extends Controller
             'user_type_id' => ['required', 'exists:user_types,id'],
             'birthdate' => ['nullable', 'date', 'before_or_equal:today'], 'phone' => ['nullable', 'string', 'max:30'], 'license' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:1000'], 'profile_photo' => ['nullable', 'image', 'max:5120'], 'is_active' => ['sometimes', 'boolean'],
-        ], [], ['name' => 'nombres', 'last_name' => 'apellidos', 'dni' => 'DNI', 'email' => 'correo electrónico', 'password' => 'contraseña', 'user_type_id' => 'tipo de usuario']);
-        if (UserType::whereKey($data['user_type_id'])->where('is_active', true)->doesntExist()) return back()->withErrors(['user_type_id' => 'Seleccione un tipo de usuario activo.'])->withInput();
+        ], ['required' => 'El campo :attribute es obligatorio.', 'digits' => 'El :attribute debe tener :digits dígitos.', 'unique' => 'El :attribute ya está registrado.', 'email' => 'Ingrese un :attribute válido.', 'min' => 'El :attribute debe tener al menos :min caracteres.', 'exists' => 'El :attribute seleccionado no es válido.', 'before_or_equal' => 'La :attribute no puede ser posterior a hoy.', 'image' => 'El archivo debe ser una imagen.', 'max' => 'El :attribute no debe superar :max.'], ['name' => 'nombre', 'last_name' => 'apellido', 'dni' => 'DNI', 'email' => 'correo electrónico', 'password' => 'contraseña', 'user_type_id' => 'tipo de usuario']);
+        if (UserType::whereKey($data['user_type_id'])->where('is_active', true)->doesntExist()) return $request->ajax() ? response()->json(['message' => 'Seleccione un tipo de usuario activo.', 'errors' => ['user_type_id' => ['Seleccione un tipo de usuario activo.']]], 422) : back()->withErrors(['user_type_id' => 'Seleccione un tipo de usuario activo.'])->withInput();
         $photo = $request->file('profile_photo')?->store('profile-photos', 'public');
         unset($data['profile_photo']);
         $data['profile_photo_path'] = $photo;
         $data['is_active'] = $request->boolean('is_active', true);
         User::create($data);
-        return redirect()->route('users.index')->with('success', 'El usuario se registró correctamente.');
+        return $request->ajax() ? response()->json(['message' => 'El usuario se registró correctamente.']) : redirect()->route('users.index')->with('success', 'El usuario se registró correctamente.');
     }
 
-    public function show(User $user) { return view('admin.user.show', compact('user')); }
+    public function show(Request $request, User $user) { return $request->header('X-Modal-Request') ? view('admin.user.partials.show-modal', compact('user')) : view('admin.user.show', compact('user')); }
 
-    public function edit(User $user)
+    public function edit(Request $request, User $user)
     {
-        return view('admin.user.edit', ['user' => $user, 'types' => UserType::where('is_active', true)->orderBy('name')->get()]);
+        $data = ['user' => $user, 'types' => UserType::where('is_active', true)->orderBy('name')->get()];
+        return $request->header('X-Modal-Request') ? view('admin.user.partials.form-modal', $data) : view('admin.user.edit', $data);
     }
 
     public function update(Request $request, User $user)
@@ -70,7 +71,7 @@ class UserController extends Controller
             'user_type_id' => ['required', Rule::exists('user_types', 'id')->where('is_active', true)], 'birthdate' => ['nullable', 'date', 'before_or_equal:today'],
             'phone' => ['nullable', 'string', 'max:30'], 'license' => ['nullable', 'string', 'max:50'], 'address' => ['nullable', 'string', 'max:1000'],
             'profile_photo' => ['nullable', 'image', 'max:5120'], 'is_active' => ['required', 'boolean'],
-        ], [], ['name' => 'nombres', 'last_name' => 'apellidos', 'user_type_id' => 'tipo de usuario']);
+        ], ['required' => 'El campo :attribute es obligatorio.', 'digits' => 'El :attribute debe tener :digits dígitos.', 'unique' => 'El :attribute ya está registrado.', 'email' => 'Ingrese un :attribute válido.', 'min' => 'El :attribute debe tener al menos :min caracteres.', 'exists' => 'El :attribute seleccionado no es válido.', 'before_or_equal' => 'La :attribute no puede ser posterior a hoy.', 'image' => 'El archivo debe ser una imagen.', 'max' => 'El :attribute no debe superar :max.'], ['name' => 'nombre', 'last_name' => 'apellido', 'dni' => 'DNI', 'email' => 'correo electrónico', 'password' => 'contraseña', 'user_type_id' => 'tipo de usuario']);
         if ($isAdmin) $data['user_type_id'] = $user->user_type_id;
         if (!$data['password']) unset($data['password']);
         if ($request->hasFile('profile_photo')) {
@@ -78,34 +79,34 @@ class UserController extends Controller
             $data['profile_photo_path'] = $request->file('profile_photo')->store('profile-photos', 'public');
         }
         unset($data['profile_photo']);
-        if ($isAdmin && !$request->boolean('is_active') && User::where('is_active', true)->where('user_type_id', $user->user_type_id)->count() <= 1) return back()->withErrors(['is_active' => 'No se puede desactivar al último administrador activo.'])->withInput();
+        if ($isAdmin && !$request->boolean('is_active') && User::where('is_active', true)->where('user_type_id', $user->user_type_id)->count() <= 1) return $request->ajax() ? response()->json(['message' => 'No se puede desactivar al último administrador activo.', 'errors' => ['is_active' => ['No se puede desactivar al último administrador activo.']]], 422) : back()->withErrors(['is_active' => 'No se puede desactivar al último administrador activo.'])->withInput();
         $user->update($data);
-        return redirect()->route('users.index')->with('success', 'Los datos del usuario se actualizaron correctamente.');
+        return $request->ajax() ? response()->json(['message' => 'Los datos del usuario se actualizaron correctamente.']) : redirect()->route('users.index')->with('success', 'Los datos del usuario se actualizaron correctamente.');
     }
 
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
-        if ($user->userType?->is_admin && $user->is_active && User::where('is_active', true)->where('user_type_id', $user->user_type_id)->count() <= 1) return response()->json(['mensaje' => 'No se puede eliminar al último administrador activo.'], 422);
+        if ($user->userType?->is_admin) return response()->json(['message' => 'No se puede eliminar una cuenta Administrador.'], 422);
         if ($user->profile_photo_path) Storage::disk('public')->delete($user->profile_photo_path);
         $user->delete();
-        return response()->json(['mensaje' => 'El usuario se eliminó correctamente.']);
+        return $request->ajax() ? response()->json(['message' => 'El usuario se eliminó correctamente.']) : redirect()->route('users.index')->with('success', 'El usuario se eliminó correctamente.');
     }
 
     public function status(Request $request, User $user)
     {
         $active = $request->boolean('is_active');
-        if (!$active && $user->userType?->is_admin && $user->is_active && User::where('is_active', true)->where('user_type_id', $user->user_type_id)->count() <= 1) return response()->json(['mensaje' => 'No se puede desactivar al último administrador activo.'], 422);
+        if (!$active && $user->userType?->is_admin && $user->is_active && User::where('is_active', true)->where('user_type_id', $user->user_type_id)->count() <= 1) return response()->json(['message' => 'No se puede desactivar al último administrador activo.'], 422);
         $user->update(['is_active' => $active]);
-        return response()->json(['mensaje' => 'El estado del usuario se actualizó correctamente.']);
+        return response()->json(['message' => 'El estado del usuario se actualizó correctamente.']);
     }
 
     public function assignType(Request $request, User $user)
     {
-        $data = $request->validate(['user_type_id' => ['required', 'exists:user_types,id']]);
+        $data = $request->validate(['user_type_id' => ['required', 'exists:user_types,id']], ['required' => 'El campo :attribute es obligatorio.', 'exists' => 'El tipo de usuario seleccionado no es válido.'], ['user_type_id' => 'tipo de usuario']);
         $type = UserType::findOrFail($data['user_type_id']);
-        if (!$type->is_active) return response()->json(['mensaje' => 'El tipo de usuario seleccionado está inactivo.'], 422);
-        if ($user->userType?->is_admin && !$type->is_admin && User::where('is_active', true)->where('user_type_id', $user->user_type_id)->count() <= 1) return response()->json(['mensaje' => 'No se puede dejar el sistema sin un administrador activo.'], 422);
+        if (!$type->is_active) return response()->json(['message' => 'El tipo de usuario seleccionado está inactivo.'], 422);
+        if ($user->userType?->is_admin && !$type->is_admin) return response()->json(['message' => 'No se puede modificar el tipo de una cuenta Administrador.'], 422);
         $user->update(['user_type_id' => $type->id]);
-        return response()->json(['mensaje' => 'El tipo de usuario se asignó correctamente.']);
+        return response()->json(['message' => 'El tipo de usuario se asignó correctamente.']);
     }
 }

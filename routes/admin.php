@@ -104,8 +104,8 @@ Route::delete('eliminar_imagen/{id_product}', [VehiclesController::class, 'elimi
 Route::patch('photos/{id_foto}/seleccionar', [VehiclesController::class, 'seleccionar_foto_principal'])->name('vehicles.photo.seleccionar');
 
 
-Route::resource('users', UserController::class)->except(['create'])->names('users');
 Route::get('users/create', [UserController::class, 'create'])->name('users.create');
+Route::resource('users', UserController::class)->except(['create'])->names('users');
 Route::patch('users/{user}/status', [UserController::class, 'status'])->name('users.status');
 Route::patch('users/{user}/type', [UserController::class, 'assignType'])->name('users.assign-type');
 Route::resource('user-types', UserTypeController::class)->only(['index', 'store', 'update', 'destroy'])->names('user-types');
