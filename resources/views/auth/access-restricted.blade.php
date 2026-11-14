@@ -1,156 +1,558 @@
 <x-guest-layout>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
     <style>
-        .restricted-screen {
+        html, body {
+            width: 100%;
+            min-height: 100%;
+            margin: 0;
+        }
+
+        body {
+            font-family: "Figtree", "Segoe UI", sans-serif;
+            background: #f3f6fa;
+        }
+
+        .access-page,
+        .access-page * {
+            box-sizing: border-box;
+        }
+
+        .access-page {
+            position: relative;
+            display: flex;
+            align-items: center;
+            min-height: 100vh;
+            min-height: 100svh;
+            overflow: hidden;
+            padding: 34px 18px;
             background:
-                radial-gradient(circle at 12% 15%, rgba(14, 116, 144, .09), transparent 25rem),
-                radial-gradient(circle at 88% 82%, rgba(37, 99, 235, .07), transparent 28rem),
-                #f3f6fb;
+                radial-gradient(circle at 8% 10%, rgba(16, 142, 154, .10), transparent 27rem),
+                radial-gradient(circle at 95% 90%, rgba(44, 104, 180, .09), transparent 30rem),
+                #f3f6fa;
         }
-        .restricted-panel {
-            background: linear-gradient(145deg, #102b46 0%, #123b55 55%, #145568 100%);
+
+        .access-page::before,
+        .access-page::after {
+            position: absolute;
+            z-index: 0;
+            content: "";
+            border: 1px solid rgba(35, 70, 100, .07);
+            border-radius: 50%;
+            pointer-events: none;
         }
-        .restricted-grid {
-            background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
-            background-size: 30px 30px;
-            mask-image: linear-gradient(to bottom, black, transparent 88%);
+
+        .access-page::before {
+            top: -270px;
+            right: -130px;
+            width: 510px;
+            height: 510px;
         }
-        .restricted-orb {
-            background: radial-gradient(circle, rgba(45, 212, 191, .24) 0%, rgba(45, 212, 191, .07) 42%, transparent 72%);
+
+        .access-page::after {
+            bottom: -310px;
+            left: -160px;
+            width: 520px;
+            height: 520px;
         }
-        .restricted-button {
-            background: linear-gradient(100deg, #087f75 0%, #0f766e 100%);
-            box-shadow: 0 10px 22px rgba(15, 118, 110, .18);
+
+        .access-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 1080px;
+            margin: auto;
         }
-        .restricted-button:hover {
-            background: linear-gradient(100deg, #066b64 0%, #115e59 100%);
+
+        .access-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .access-brand-mark {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            color: #fff;
+            background: #173651;
+            box-shadow: 0 7px 18px rgba(23, 54, 81, .16);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .08em;
+        }
+
+        .access-brand-title {
+            margin: 0;
+            color: #1d344c;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: .08em;
+        }
+
+        .access-brand-subtitle {
+            margin: 4px 0 0;
+            color: #8291a4;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .15em;
+            text-transform: uppercase;
+        }
+
+        .access-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 13px;
+            border: 1px solid #e4eaf0;
+            border-radius: 50rem;
+            color: #63748a;
+            background: rgba(255, 255, 255, .88);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .access-status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #e4a33b;
+            box-shadow: 0 0 0 3px rgba(228, 163, 59, .14);
+        }
+
+        .access-card {
+            overflow: hidden;
+            border: 1px solid #dfe7ef;
+            border-radius: 24px;
+            background: #fff;
+            box-shadow: 0 26px 70px rgba(26, 48, 72, .13);
+        }
+
+        .access-visual {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 540px;
+            overflow: hidden;
+            padding: 34px;
+            color: #fff;
+            background: linear-gradient(145deg, #102b46 0%, #123b55 58%, #145568 100%);
+        }
+
+        .access-visual::before {
+            position: absolute;
+            inset: 0;
+            content: "";
+            opacity: .48;
+            background-image:
+                linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+            background-size: 28px 28px;
+            mask-image: linear-gradient(to bottom, #000, transparent 90%);
+            pointer-events: none;
+        }
+
+        .access-visual::after {
+            position: absolute;
+            top: 80px;
+            right: -125px;
+            width: 330px;
+            height: 330px;
+            content: "";
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(45, 212, 191, .24), rgba(45, 212, 191, .04) 52%, transparent 72%);
+            pointer-events: none;
+        }
+
+        .access-visual-top,
+        .access-visual-center,
+        .access-visual-footer {
+            position: relative;
+            z-index: 1;
+        }
+
+        .access-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 11px;
+            border: 1px solid rgba(255,255,255,.17);
+            border-radius: 50rem;
+            color: #c8f5f1;
+            background: rgba(255,255,255,.08);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+
+        .access-emblem {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 142px;
+            height: 142px;
+            margin: 0 auto 27px;
+            border: 1px solid rgba(255,255,255,.20);
+            border-radius: 50%;
+            background: rgba(255,255,255,.07);
+            box-shadow: 0 0 0 12px rgba(255,255,255,.025), 0 0 65px rgba(45,212,191,.12);
+        }
+
+        .access-emblem-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 94px;
+            height: 94px;
+            border-radius: 25px;
+            color: #102f43;
+            background: linear-gradient(145deg, #a5f3e8, #2dd4bf);
+            box-shadow: 0 14px 28px rgba(0,0,0,.20);
+            font-size: 48px;
+        }
+
+        .access-visual-label {
+            margin: 0 0 10px;
+            color: #83e8df;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+        }
+
+        .access-visual-title {
+            max-width: 340px;
+            margin: 0 auto;
+            color: #fff;
+            font-size: clamp(25px, 2.4vw, 32px);
+            font-weight: 800;
+            line-height: 1.17;
+            letter-spacing: -.7px;
+        }
+
+        .access-visual-description {
+            max-width: 340px;
+            margin: 15px auto 0;
+            color: rgba(225, 240, 250, .77);
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        .access-visual-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(255,255,255,.13);
+            color: rgba(225, 240, 250, .58);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .04em;
+        }
+
+        .access-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 540px;
+            padding: 54px 52px;
+        }
+
+        .access-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            align-self: flex-start;
+            padding: 8px 12px;
+            border: 1px solid #f4dfb6;
+            border-radius: 50rem;
+            color: #95600e;
+            background: #fff8e9;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        .access-title {
+            margin: 22px 0 0;
+            color: #172d44;
+            font-size: clamp(29px, 3vw, 39px);
+            font-weight: 800;
+            line-height: 1.12;
+            letter-spacing: -1.2px;
+        }
+
+        .access-description {
+            margin: 18px 0 0;
+            color: #65758a;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .access-help {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-top: 28px;
+            padding: 18px;
+            border: 1px solid #dcecf8;
+            border-radius: 15px;
+            background: #f3f9fd;
+        }
+
+        .access-help-icon {
+            display: flex;
+            flex: 0 0 38px;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
+            color: #176b9a;
+            background: #fff;
+            box-shadow: 0 3px 10px rgba(23, 107, 154, .08);
+            font-size: 17px;
+        }
+
+        .access-help-title {
+            margin: 1px 0 5px;
+            color: #193750;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .access-help-text {
+            margin: 0;
+            color: #5e7185;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .access-logout {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 49px;
+            margin-top: 30px;
+            padding: 0 24px;
+            border: 0;
+            border-radius: 11px;
+            color: #fff;
+            background: linear-gradient(100deg, #087f75, #0f766e);
+            box-shadow: 0 9px 20px rgba(15, 118, 110, .18);
+            font-size: 13px;
+            font-weight: 800;
+            transition: background .2s ease, box-shadow .2s ease, transform .2s ease;
+        }
+
+        .access-logout:hover {
+            color: #fff;
+            background: linear-gradient(100deg, #066b64, #115e59);
+            box-shadow: 0 12px 24px rgba(15, 118, 110, .23);
             transform: translateY(-1px);
-            box-shadow: 0 13px 25px rgba(15, 118, 110, .24);
         }
-        @media (prefers-reduced-motion: reduce) {
-            .restricted-button { transition: none !important; }
+
+        .access-logout:focus-visible {
+            outline: 3px solid rgba(13, 148, 136, .28);
+            outline-offset: 3px;
+        }
+
+        .access-note {
+            margin: 25px 0 0;
+            padding-top: 17px;
+            border-top: 1px solid #edf1f5;
+            color: #92a0af;
+            font-size: 11px;
+            line-height: 1.7;
+        }
+
+        .access-page-footer {
+            margin: 17px 0 0;
+            color: #9aa7b5;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .14em;
+            text-align: center;
+        }
+
+        @media (max-width: 991.98px) {
+            .access-visual {
+                min-height: 360px;
+                padding: 27px;
+            }
+
+            .access-content {
+                min-height: auto;
+                padding: 40px;
+            }
+
+            .access-visual-center {
+                padding: 30px 0;
+            }
+
+            .access-emblem {
+                width: 112px;
+                height: 112px;
+                margin-bottom: 20px;
+            }
+
+            .access-emblem-inner {
+                width: 76px;
+                height: 76px;
+                border-radius: 21px;
+                font-size: 39px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .access-page {
+                align-items: flex-start;
+                padding: 20px 12px;
+            }
+
+            .access-topbar {
+                margin-bottom: 14px;
+            }
+
+            .access-status {
+                padding: 8px 10px;
+                font-size: 10px;
+            }
+
+            .access-card {
+                border-radius: 18px;
+            }
+
+            .access-visual {
+                min-height: 310px;
+                padding: 22px;
+            }
+
+            .access-visual-center {
+                padding: 22px 0;
+            }
+
+            .access-visual-title {
+                font-size: 24px;
+            }
+
+            .access-content {
+                padding: 30px 24px;
+            }
+
+            .access-title {
+                font-size: 30px;
+            }
+
+            .access-description {
+                font-size: 13px;
+            }
+
+            .access-logout {
+                width: 100%;
+            }
         }
     </style>
 
-    <div class="restricted-screen relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
-        <div class="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-cyan-100/60 blur-3xl"></div>
-        <div class="pointer-events-none absolute -bottom-28 right-0 h-96 w-96 rounded-full bg-blue-100/70 blur-3xl"></div>
-
-        <main class="relative z-10 w-full max-w-5xl">
-            <div class="mb-5 flex items-center justify-between px-1">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-extrabold tracking-tight text-white shadow-sm">
-                        RSU
-                    </div>
+    <main class="access-page">
+        <div class="access-wrapper">
+            <header class="access-topbar">
+                <div class="access-brand">
+                    <div class="access-brand-mark">RSU</div>
                     <div>
-                        <p class="text-sm font-bold tracking-wide text-slate-800">SISTEMA DE GESTIÓN</p>
-                        <p class="text-[11px] font-medium uppercase tracking-[.16em] text-slate-500">Portal institucional</p>
+                        <p class="access-brand-title">SISTEMA DE GESTIÓN</p>
+                        <p class="access-brand-subtitle">Portal institucional</p>
                     </div>
                 </div>
-                <div class="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm sm:flex">
-                    <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+
+                <div class="access-status">
+                    <span class="access-status-dot"></span>
                     Acceso pendiente
                 </div>
-            </div>
+            </header>
 
-            <section class="grid overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_28px_80px_-35px_rgba(15,23,42,.32)] md:grid-cols-[.88fr_1.12fr]">
-                <div class="restricted-panel relative isolate flex min-h-[300px] flex-col justify-between overflow-hidden p-8 text-white sm:p-10 md:min-h-[570px]">
-                    <div class="restricted-grid absolute inset-0 -z-10 opacity-80"></div>
-                    <div class="restricted-orb absolute -right-24 top-10 -z-10 h-80 w-80 rounded-full"></div>
-                    <div class="restricted-orb absolute -bottom-36 -left-24 -z-10 h-80 w-80 rounded-full"></div>
-
-                    <div class="relative">
-                        <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.18em] text-cyan-100">
-                            <span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span>
-                            Control de acceso
-                        </div>
-                    </div>
-
-                    <div class="relative flex flex-1 flex-col items-center justify-center py-9 text-center md:py-0">
-                        <div class="relative mb-7 flex h-36 w-36 items-center justify-center rounded-full border border-white/15 bg-white/[.07] shadow-[0_0_70px_rgba(45,212,191,.12)]">
-                            <div class="absolute inset-3 rounded-full border border-dashed border-cyan-100/25"></div>
-                            <div class="flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-300 to-teal-500 text-slate-950 shadow-xl shadow-cyan-950/25">
-                                <svg viewBox="0 0 64 64" class="h-14 w-14" fill="none" aria-hidden="true">
-                                    <path d="M32 6 52 14v15c0 13.2-8.5 23.5-20 29C20.5 52.5 12 42.2 12 29V14L32 6Z" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>
-                                    <rect x="23" y="28" width="18" height="15" rx="3" stroke="currentColor" stroke-width="3.5"/>
-                                    <path d="M27 28v-5a5 5 0 0 1 10 0v5" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-                                    <path d="M32 34v3" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-                                </svg>
+            <section class="access-card">
+                <div class="row g-0">
+                    <div class="col-lg-5">
+                        <div class="access-visual h-100">
+                            <div class="access-visual-top">
+                                <span class="access-kicker">
+                                    <i class="bi bi-shield-check"></i>
+                                    Control de acceso
+                                </span>
                             </div>
-                            <span class="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-4 border-[#123b55] bg-amber-400 text-slate-900">
-                                <svg viewBox="0 0 20 20" class="h-4 w-4" fill="currentColor" aria-hidden="true">
-                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.486 0l6.1 10.844c.75 1.333-.213 2.99-1.743 2.99H3.9c-1.53 0-2.493-1.657-1.743-2.99l6.1-10.844ZM11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1-6a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Z" clip-rule="evenodd"/>
-                                </svg>
-                            </span>
-                        </div>
 
-                        <p class="mb-2 text-xs font-bold uppercase tracking-[.2em] text-cyan-200">Acceso protegido</p>
-                        <h2 class="max-w-xs text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-                            Cada usuario accede solo a lo que necesita.
-                        </h2>
-                        <p class="mt-4 max-w-sm text-sm leading-6 text-blue-100/75">
-                            Los módulos disponibles dependen de los permisos asignados a tu cuenta.
-                        </p>
-                    </div>
-
-                    <div class="relative flex items-center justify-between border-t border-white/10 pt-5 text-[11px] text-blue-100/60">
-                        <span>Seguridad y control de accesos</span>
-                        <span class="font-semibold tracking-wider text-cyan-100/80">RSU</span>
-                    </div>
-                </div>
-
-                <div class="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
-                    <div class="mb-7 inline-flex w-fit items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-amber-700">
-                        <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                        Sin módulos asignados
-                    </div>
-
-                    <h1 class="max-w-lg text-3xl font-extrabold leading-[1.12] tracking-tight text-slate-900 sm:text-4xl">
-                        Tu cuenta aún no tiene acceso al sistema
-                    </h1>
-
-                    <p class="mt-5 max-w-lg text-sm leading-7 text-slate-600 sm:text-base">
-                        Has iniciado sesión correctamente, pero todavía no tienes módulos habilitados para trabajar en la plataforma.
-                    </p>
-
-                    <div class="mt-8 rounded-2xl border border-sky-100 bg-sky-50/80 p-5">
-                        <div class="flex items-start gap-3">
-                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm">
-                                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <circle cx="12" cy="12" r="9"></circle>
-                                    <path d="M12 11v5m0-8h.01" stroke-linecap="round"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-sm font-bold text-slate-900">¿Cómo puedes obtener acceso?</h3>
-                                <p class="mt-1.5 text-sm leading-6 text-slate-600">
-                                    Comunícate con el administrador para que revise tu tipo de usuario y te asigne los módulos y permisos correspondientes.
+                            <div class="access-visual-center text-center">
+                                <div class="access-emblem">
+                                    <div class="access-emblem-inner">
+                                        <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+                                    </div>
+                                </div>
+                                <p class="access-visual-label">Acceso protegido</p>
+                                <h2 class="access-visual-title">Cada usuario accede solo a lo que necesita.</h2>
+                                <p class="access-visual-description">
+                                    Los módulos disponibles dependen de los permisos asignados a tu cuenta.
                                 </p>
                             </div>
+
+                            <div class="access-visual-footer">
+                                <span>Seguridad y control de accesos</span>
+                                <span>RSU</span>
+                            </div>
                         </div>
                     </div>
 
-                    <form method="POST" action="{{ route('logout') }}" class="mt-9">
-                        @csrf
-                        <button type="submit" class="restricted-button inline-flex w-full items-center justify-center gap-3 rounded-xl px-6 py-4 text-sm font-bold text-white transition duration-200 focus:outline-none focus:ring-4 focus:ring-teal-200 sm:w-auto">
-                            <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                <path d="M10 17l5-5-5-5M15 12H3" stroke-linecap="round" stroke-linejoin="round"></path>
-                                <path d="M12 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" stroke-linecap="round"></path>
-                            </svg>
-                            Cerrar sesión
-                        </button>
-                    </form>
+                    <div class="col-lg-7">
+                        <div class="access-content h-100">
+                            <span class="access-badge">
+                                <i class="bi bi-exclamation-circle-fill"></i>
+                                Sin módulos asignados
+                            </span>
 
-                    <div class="mt-8 border-t border-slate-100 pt-5">
-                        <p class="text-xs leading-5 text-slate-400">
-                            Por seguridad, el sistema no permite ingresar a módulos que no hayan sido autorizados para tu cuenta.
-                        </p>
+                            <h1 class="access-title">Tu cuenta aún no tiene acceso al sistema</h1>
+
+                            <p class="access-description">
+                                Has iniciado sesión correctamente, pero todavía no tienes módulos habilitados para trabajar en la plataforma.
+                            </p>
+
+                            <div class="access-help">
+                                <div class="access-help-icon">
+                                    <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+                                </div>
+                                <div>
+                                    <h3 class="access-help-title">¿Cómo puedes obtener acceso?</h3>
+                                    <p class="access-help-text">
+                                        Comunícate con el administrador para que revise tu tipo de usuario y te asigne los módulos y permisos correspondientes.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="access-logout">
+                                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                                    Cerrar sesión
+                                </button>
+                            </form>
+
+                            <p class="access-note">
+                                Por seguridad, el sistema no permite ingresar a módulos que no hayan sido autorizados para tu cuenta.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <p class="mt-5 text-center text-[11px] font-medium tracking-wide text-slate-400">
-                SISTEMA DE GESTIÓN · ACCESO SEGURO
-            </p>
-        </main>
-    </div>
+            <p class="access-page-footer">SISTEMA DE GESTIÓN · ACCESO SEGURO</p>
+        </div>
+    </main>
 </x-guest-layout>
