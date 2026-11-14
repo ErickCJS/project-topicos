@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\DriverAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,3 +19,7 @@ Route::middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class])
         'permisos' => collect($service->permissions($user))->pluck('slug')->values(),
     ]);
 })->name('api.me.access');
+
+// API para aplicación móvil Flutter
+Route::post('/conductor/login', [DriverAuthController::class, 'login'])
+    ->middleware('throttle:5,1');
