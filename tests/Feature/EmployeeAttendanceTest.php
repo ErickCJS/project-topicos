@@ -57,6 +57,7 @@ class EmployeeAttendanceTest extends TestCase
             ->assertSee('name="password"', false)
             ->assertSee('name="_token"', false)
             ->assertSee('X-CSRF-TOKEN', false)
+            ->assertDontSee('payload.origin')
             ->assertDontSee('employee.dashboard');
 
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
@@ -73,7 +74,7 @@ class EmployeeAttendanceTest extends TestCase
             ->assertJsonPath('type', 'Entrada')
             ->assertJsonPath('shift_id', $this->morningShiftId)
             ->assertJsonPath('status', 'Presente')
-            ->assertJsonPath('origin', 'No programado');
+            ->assertJsonMissingPath('origin');
 
         $this->assertDatabaseHas('attendances', [
             'employee_id' => $this->employeeId,
@@ -269,7 +270,7 @@ class EmployeeAttendanceTest extends TestCase
             'dni' => '22334455',
             'password' => 'retainer123',
         ])->assertOk()
-            ->assertJsonPath('origin', 'Retén');
+            ->assertJsonMissingPath('origin');
 
         $this->assertDatabaseHas('attendances', [
             'employee_id' => $retainerId,
