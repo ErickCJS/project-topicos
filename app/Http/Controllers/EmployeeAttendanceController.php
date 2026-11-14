@@ -128,6 +128,7 @@ class EmployeeAttendanceController extends Controller
                     'time' => $now->format('H:i:s'),
                     'type' => 'Entrada',
                     'status' => $status,
+                    'origin' => $origin,
                 ]);
 
                 return [
@@ -135,7 +136,6 @@ class EmployeeAttendanceController extends Controller
                     'shift_id' => $shift->id,
                     'shift_name' => $shift->name,
                     'status' => $entry->status,
-                    'origin' => $origin,
                 ];
             }, 3);
         } catch (QueryException $exception) {
