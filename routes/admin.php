@@ -17,6 +17,7 @@ use App\Http\Controllers\admin\ReasonController;
 use App\Http\Controllers\admin\ShiftController;
 use App\Http\Controllers\admin\StaffGroupsController;
 use App\Http\Controllers\admin\UserController;
+use App\Http\Controllers\admin\UserTypeController;
 use App\Http\Controllers\admin\VacationController;
 use App\Http\Controllers\admin\ZoneController;
 use App\Http\Controllers\admin\VehiclesController;
@@ -102,4 +103,10 @@ Route::delete('eliminar_imagen/{id_product}', [VehiclesController::class, 'elimi
 Route::patch('photos/{id_foto}/seleccionar', [VehiclesController::class, 'seleccionar_foto_principal'])->name('vehicles.photo.seleccionar');
 
 
-Route::resource('users', UserController::class)->names('users');
+Route::resource('users', UserController::class)->except(['create'])->names('users');
+Route::get('users/create', [UserController::class, 'create'])->name('users.create');
+Route::patch('users/{user}/status', [UserController::class, 'status'])->name('users.status');
+Route::patch('users/{user}/type', [UserController::class, 'assignType'])->name('users.assign-type');
+Route::resource('user-types', UserTypeController::class)->only(['index', 'store', 'update', 'destroy'])->names('user-types');
+Route::get('user-types/{userType}/permissions', [UserTypeController::class, 'permissions'])->name('user-types.permissions');
+Route::put('user-types/{userType}/permissions', [UserTypeController::class, 'savePermissions'])->name('user-types.permissions.save');

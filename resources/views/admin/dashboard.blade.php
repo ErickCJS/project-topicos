@@ -96,7 +96,7 @@
     </section>
 </div>
 
-<div class="modal fade" id="dashboardProgrammingModal" data-details-url="{{ route('programming.modifications', ['programming' => '__ID__']) }}" data-options-url="{{ route('programming.modification-options', ['programming' => '__ID__']) }}" data-update-url="{{ route('programming.update-modifications', ['programming' => '__ID__']) }}" data-related-url="{{ route('programming.related', ['programming' => '__ID__']) }}" tabindex="-1" aria-labelledby="dashboardProgrammingModalTitle" aria-hidden="true">
+<div class="modal fade" id="dashboardProgrammingModal" data-can-edit="{{ Gate::allows('permission', 'programacion.edit') ? '1' : '0' }}" data-details-url="{{ route('programming.modifications', ['programming' => '__ID__']) }}" data-options-url="{{ route('programming.modification-options', ['programming' => '__ID__']) }}" data-update-url="{{ route('programming.update-modifications', ['programming' => '__ID__']) }}" data-related-url="{{ route('programming.related', ['programming' => '__ID__']) }}" tabindex="-1" aria-labelledby="dashboardProgrammingModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered dashboard-modal-dialog"><div class="modal-content dashboard-modal">
         <div class="modal-header"><div><span class="rsu-eyebrow">PROGRAMACIÓN</span><h5 class="modal-title" id="dashboardProgrammingModalTitle">Detalles</h5></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
         <div class="modal-body" id="dashboardProgrammingModalBody"><div class="dashboard-loading"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Cargando...</div></div>
