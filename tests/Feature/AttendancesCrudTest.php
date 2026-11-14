@@ -238,8 +238,8 @@ class AttendancesCrudTest extends TestCase
             ->assertJsonPath('data.0.employee_name', 'Ana Pérez')
             ->assertJsonPath('data.0.shift_name', 'Mañana')
             ->assertJsonPath('data.0.date_display', '16/10/2026')
-            ->assertJsonPath('data.0.entry_time', '08:30')
-            ->assertJsonPath('data.0.exit_time', '12:05')
+            ->assertJsonPath('data.0.entry_display', '08:30')
+            ->assertJsonPath('data.0.exit_display', '12:05')
             ->assertJsonPath('data.0.origin', 'No programado');
 
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
@@ -371,8 +371,8 @@ class AttendancesCrudTest extends TestCase
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 1)
             ->assertJsonPath('data.0.id', $entry->id)
-            ->assertJsonPath('data.0.entry_time', '21:00')
-            ->assertJsonPath('data.0.exit_time', '01:00');
+            ->assertJsonPath('data.0.entry_display', '21:00')
+            ->assertJsonPath('data.0.exit_display', '01:00');
     }
 
     public function test_daily_attendance_history_returns_shift_status_and_origin(): void
