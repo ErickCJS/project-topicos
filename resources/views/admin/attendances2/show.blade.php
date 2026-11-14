@@ -49,12 +49,6 @@
                 <span class="badge {{ $attendance->status === 'Presente' ? 'bg-success' : ($attendance->status === 'Tardanza' ? 'bg-warning text-dark' : 'bg-secondary') }}">{{ $attendance->status }}</span>
             </div>
         </div>
-        <div class="col-6">
-            <div class="attendance-detail-card">
-                <small class="attendance-detail-label">Origen</small>
-                <span class="attendance-detail-value">{{ $attendance->origin ?? 'No programado' }}</span>
-            </div>
-        </div>
         <div class="col-12">
             <div class="attendance-detail-card">
                 <small class="attendance-detail-label">Notas</small>
