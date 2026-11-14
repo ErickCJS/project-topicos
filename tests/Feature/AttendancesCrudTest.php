@@ -83,6 +83,7 @@ class AttendancesCrudTest extends TestCase
             ->assertSee('name="time"', false)
             ->assertSee('name="type"', false)
             ->assertSee('name="notes"', false)
+            ->assertSee('name="_token"', false)
             ->assertDontSee('name="status"', false)
             ->assertDontSee('name="origin"', false)
             ->assertDontSee('name="password"', false);
