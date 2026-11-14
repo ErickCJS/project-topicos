@@ -1,4 +1,4 @@
-<form action="{{ route('attendances.update', $attendance) }}" method="POST">
+<form action="{{ route('attendances.update', $attendance) }}" method="POST" data-attendance-mode="edit">
 @csrf
 @method('PUT')
 @include('admin.attendances.template.form')
