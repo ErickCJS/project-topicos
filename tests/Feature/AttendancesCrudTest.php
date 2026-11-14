@@ -246,14 +246,14 @@ class AttendancesCrudTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_list_and_view_attendance_with_status_and_origin(): void
+    public function test_admin_can_list_and_view_each_entry_and_exit_as_individual_rows(): void
     {
-        $attendance = $this->createAttendance([
+        $entry = $this->createAttendance([
             'status' => 'Tardanza',
             'origin' => 'No programado',
         ]);
 
-        Attendance::create([
+        $exit = Attendance::create([
             'employee_id' => $this->employeeId,
             'shift_id' => $this->morningShiftId,
             'date' => '2026-10-16',
@@ -269,7 +269,8 @@ class AttendancesCrudTest extends TestCase
             ->assertSee('attendance-date-from', false)
             ->assertSee('attendance-date-to', false)
             ->assertSee('Últimos 7 días')
-            ->assertSee('Este mes');
+            ->assertSee('Este mes')
+            ->assertSee('Tipo de marcación');
 
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('attendances.index', [
@@ -280,14 +281,18 @@ class AttendancesCrudTest extends TestCase
                 'date_to' => '2026-10-16',
             ]))
             ->assertOk()
-            ->assertJsonPath('recordsTotal', 1)
-            ->assertJsonPath('data.0.id', $attendance->id)
-            ->assertJsonPath('data.0.employee_name', 'Ana Pérez')
-            ->assertJsonPath('data.0.shift_name', 'Mañana')
-            ->assertJsonPath('data.0.date_display', '16/10/2026')
-            ->assertJsonPath('data.0.entry_display', '08:30')
-            ->assertJsonPath('data.0.exit_display', '12:05')
-            ->assertJsonPath('data.0.origin', 'No programado');
+            ->assertJsonPath('recordsTotal', 2)
+            ->assertJsonPath('recordsFiltered', 2)
+            ->assertJsonFragment([
+                'id' => $entry->id,
+                'type' => 'Entrada',
+                'time_display' => '08:30',
+            ])
+            ->assertJsonFragment([
+                'id' => $exit->id,
+                'type' => 'Salida',
+                'time_display' => '12:05',
+            ]);
 
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('attendances.index', [
@@ -299,17 +304,16 @@ class AttendancesCrudTest extends TestCase
                 'search' => ['value' => '12345678', 'regex' => 'false'],
             ]))
             ->assertOk()
-            ->assertJsonPath('recordsFiltered', 1)
-            ->assertJsonPath('data.0.dni', '12345678');
+            ->assertJsonPath('recordsFiltered', 2);
 
-        $this->get(route('attendances.show', $attendance))
+        $this->get(route('attendances.show', $entry))
             ->assertOk()
-            ->assertSee('Detalle de asistencia')
-            ->assertSee('Tardanza')
-            ->assertSee('No programado')
-            ->assertSee('Hora de entrada')
-            ->assertSee('Hora de salida')
-            ->assertSee('12:05')
+            ->assertSee('Detalle de marcación')
+            ->assertSee('Tipo de marcación')
+            ->assertSee('Entrada')
+            ->assertSee('Hora registrada')
+            ->assertSee('08:30')
+            ->assertDontSee('12:05')
             ->assertDontSee('password-hash-no-exponer')
             ->assertDontSee('ana@example.test');
     }
@@ -382,7 +386,7 @@ class AttendancesCrudTest extends TestCase
             ->assertJsonPath('data.0.origin', 'Programado');
     }
 
-    public function test_attendance_listing_pairs_overnight_exit_with_previous_day_entry(): void
+    public function test_overnight_entry_and_exit_are_listed_as_separate_records(): void
     {
         $nightShiftId = $this->createShift('Noche', '20:00:00', '02:00:00');
 
@@ -396,7 +400,7 @@ class AttendancesCrudTest extends TestCase
             'origin' => 'No programado',
         ]);
 
-        Attendance::create([
+        $exit = Attendance::create([
             'employee_id' => $this->employeeId,
             'shift_id' => $nightShiftId,
             'date' => '2026-10-17',
@@ -417,9 +421,28 @@ class AttendancesCrudTest extends TestCase
             ]))
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 1)
-            ->assertJsonPath('data.0.id', $entry->id)
-            ->assertJsonPath('data.0.entry_display', '21:00')
-            ->assertJsonPath('data.0.exit_display', '01:00');
+            ->assertJsonFragment([
+                'id' => $entry->id,
+                'type' => 'Entrada',
+                'time_display' => '21:00',
+            ]);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('attendances.index', [
+                'draw' => 5,
+                'start' => 0,
+                'length' => 10,
+                'date_from' => '2026-10-17',
+                'date_to' => '2026-10-17',
+                'shift_id' => $nightShiftId,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonFragment([
+                'id' => $exit->id,
+                'type' => 'Salida',
+                'time_display' => '01:00',
+            ]);
     }
 
     public function test_daily_attendance_history_returns_shift_status_and_origin(): void
@@ -464,15 +487,28 @@ class AttendancesCrudTest extends TestCase
         $this->assertDatabaseCount('attendances', 0);
     }
 
-    public function test_admin_can_delete_an_attendance(): void
+    public function test_admin_can_delete_an_individual_attendance_without_deleting_its_pair(): void
     {
-        $attendance = $this->createAttendance();
+        $entry = $this->createAttendance();
+        $exit = Attendance::create([
+            'employee_id' => $this->employeeId,
+            'shift_id' => $this->morningShiftId,
+            'date' => '2026-10-16',
+            'time' => '12:05',
+            'type' => 'Salida',
+            'status' => 'Presente',
+            'origin' => 'No programado',
+        ]);
 
-        $this->deleteJson(route('attendances.destroy', $attendance))
+        $this->deleteJson(route('attendances.destroy', $entry))
             ->assertOk()
             ->assertJson(['mensaje' => 'Asistencia eliminada correctamente.']);
 
-        $this->assertDatabaseMissing('attendances', ['id' => $attendance->id]);
+        $this->assertDatabaseMissing('attendances', ['id' => $entry->id]);
+        $this->assertDatabaseHas('attendances', ['id' => $exit->id, 'type' => 'Salida']);
+
+        $this->deleteJson(route('attendances.destroy', $exit))->assertOk();
+        $this->assertDatabaseMissing('attendances', ['id' => $exit->id]);
     }
 
     public function test_unauthenticated_users_cannot_access_attendance_routes(): void
