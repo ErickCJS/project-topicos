@@ -334,7 +334,13 @@ class UserPermissionSystemTest extends TestCase
         $type = UserType::create(['name' => 'Sin permisos', 'slug' => 'sin-permisos', 'is_active' => true]);
         $user = User::factory()->create(['user_type_id' => $type->id]);
         $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertRedirect(route('access.restricted'));
-        $this->get(route('access.restricted'))->assertOk()->assertSee('No tienes acceso al sistema')->assertSee('Cerrar sesión');
+        $this->get(route('access.restricted'))->assertOk()
+            ->assertSee('No tienes acceso al sistema')
+            ->assertSee('módulos habilitados')
+            ->assertSee('Comunícate con el administrador')
+            ->assertSee('Cerrar sesión');
+
+        $this->get(route('admin.home'))->assertRedirect(route('access.restricted'));
         $this->post(route('logout'))->assertRedirect('/');
         $this->assertGuest();
 
