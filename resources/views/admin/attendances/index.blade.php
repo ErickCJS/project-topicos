@@ -228,6 +228,12 @@ $(function () {
         return year + '-' + month + '-' + day;
     }
 
+    function formatDateForDisplay(value) {
+        if (!value) return '';
+        const parts = value.split('-');
+        return parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : value;
+    }
+
     function applyDateRange(from, to, activeButton) {
         $('#attendance-date-from').val(formatDateForInput(from));
         $('#attendance-date-to').val(formatDateForInput(to));
@@ -313,6 +319,9 @@ $(function () {
             });
     }
 
+    let suggestionRequest = null;
+    let suggestionRequestId = 0;
+
     function actualizarSugerencia() {
         const form = $('#formModal form[data-attendance-mode="create"]');
         if (!form.length) return;
@@ -321,29 +330,53 @@ $(function () {
         const date = form.find('#attendance_date').val();
         const time = form.find('#attendance_time').val();
         const feedback = form.find('#attendance-suggestion-feedback');
+        const submitButton = form.find('[type="submit"]');
+
+        if (suggestionRequest) suggestionRequest.abort();
 
         if (!employeeId || !date || !time) {
-            feedback.text('Selecciona un trabajador para sugerir el tipo de marcación y el turno.');
+            submitButton.prop('disabled', true);
+            feedback.text('Selecciona un trabajador para asignar automáticamente la marcación.');
             return;
         }
 
-        feedback.text('Calculando el turno y el tipo de marcación...');
-        $.get("{{ route('attendances.suggest') }}", {
+        const currentRequestId = ++suggestionRequestId;
+        submitButton.prop('disabled', true);
+        feedback.text('Asignando fecha, hora, turno y tipo de marcación...');
+
+        suggestionRequest = $.get("{{ route('attendances.suggest') }}", {
             employee_id: employeeId,
             date: date,
             time: time
         }).done(function (suggestion) {
+            if (currentRequestId !== suggestionRequestId) return;
+
+            const assignedTime = suggestion.time || time;
             form.find('#attendance_date').val(suggestion.date);
-            form.find('#attendance_shift_id').val(String(suggestion.shift_id)).trigger('change');
+            form.find('#attendance_date_display').val(formatDateForDisplay(suggestion.date));
+            form.find('#attendance_time').val(assignedTime);
+            form.find('#attendance_time_display').val(assignedTime);
+            form.find('#attendance_shift_id').val(String(suggestion.shift_id));
+            form.find('#attendance_shift_display').val(suggestion.shift_display || suggestion.shift_name || 'Turno asignado');
             form.find('#attendance_type').val(suggestion.type);
+            form.find('#attendance_type_display').val(suggestion.type);
+
             feedback.text(suggestion.message);
+            submitButton.prop('disabled', !suggestion.shift_id);
             cargarHistorial();
         }).fail(function (xhr) {
+            if (currentRequestId !== suggestionRequestId || xhr.statusText === 'abort') return;
+
             const errors = xhr.responseJSON?.errors || {};
             const message = Object.values(errors).flat()[0]
                 || xhr.responseJSON?.message
-                || 'No se pudo determinar automáticamente el turno. Selecciónalo manualmente.';
+                || 'No se pudo asignar automáticamente el turno. Verifica las marcaciones del trabajador.';
+            form.find('#attendance_shift_id').val('');
+            form.find('#attendance_shift_display').val('Turno no disponible');
+            form.find('#attendance_type').val('');
+            form.find('#attendance_type_display').val('No asignado');
             feedback.text(message);
+            submitButton.prop('disabled', true);
         });
     }
 
