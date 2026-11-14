@@ -184,7 +184,7 @@ class UserPermissionSystemTest extends TestCase
         $this->assertTrue(Hash::check('password', $passwordHash));
 
         $this->post('/login', ['email' => $user->email, 'password' => 'password'])
-            ->assertRedirect(config('fortify.home'));
+            ->assertRedirect(route('access.restricted'));
         $this->assertAuthenticatedAs($user);
         $this->assertSame($passwordHash, $user->fresh()->password);
         $this->get(route('users.index'))->assertForbidden();
