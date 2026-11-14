@@ -1,4 +1,4 @@
-<form action="{{ route('attendances.store') }}" method="POST">
+<form action="{{ route('attendances.store') }}" method="POST" data-attendance-mode="create">
 @csrf
 @include('admin.attendances.template.form')
 <div class="attendance-modal-footer">
