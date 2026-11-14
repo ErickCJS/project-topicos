@@ -160,7 +160,7 @@ class AttendancesCrudTest extends TestCase
         ]))
             ->assertCreated()
             ->assertJsonPath('data.status', 'Tardanza')
-            ->assertJsonPath('data.origin', 'No programado');
+            ->assertJsonMissingPath('data.origin');
 
         $this->assertDatabaseHas('attendances', [
             'employee_id' => $this->employeeId,
@@ -231,7 +231,7 @@ class AttendancesCrudTest extends TestCase
             'type' => 'Entrada',
         ]))->assertCreated()
             ->assertJsonPath('data.status', 'Presente')
-            ->assertJsonPath('data.origin', 'No programado');
+            ->assertJsonMissingPath('data.origin');
     }
 
     public function test_admin_update_recalculates_entry_status_from_shift_start(): void
@@ -302,6 +302,7 @@ class AttendancesCrudTest extends TestCase
         $this->get(route('attendances.index'))
             ->assertOk()
             ->assertSee('Listado de Asistencias')
+            ->assertDontSee('Origen')
             ->assertSee('attendance-date-from', false)
             ->assertSee('attendance-date-to', false)
             ->assertSee('Últimos 7 días')
@@ -345,6 +346,7 @@ class AttendancesCrudTest extends TestCase
         $this->get(route('attendances.show', $entry))
             ->assertOk()
             ->assertSee('Detalle de marcación')
+            ->assertDontSee('Origen')
             ->assertSee('Tipo de marcación')
             ->assertSee('Entrada')
             ->assertSee('Hora registrada')
@@ -384,7 +386,7 @@ class AttendancesCrudTest extends TestCase
             ->assertJsonPath('recordsFiltered', 2);
     }
 
-    public function test_attendance_listing_filters_by_shift_status_and_origin(): void
+    public function test_attendance_listing_filters_by_shift_status_and_type(): void
     {
         $date = today()->toDateString();
 
@@ -414,13 +416,12 @@ class AttendancesCrudTest extends TestCase
                 'shift_id' => $this->afternoonShiftId,
                 'type' => 'Entrada',
                 'status' => 'Presente',
-                'origin' => 'Programado',
             ]))
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 1)
             ->assertJsonPath('data.0.shift_name', 'Tarde')
             ->assertJsonPath('data.0.status', 'Presente')
-            ->assertJsonPath('data.0.origin', 'Programado');
+            ->assertJsonMissingPath('data.0.origin');
     }
 
     public function test_overnight_entry_and_exit_are_listed_as_separate_records(): void
@@ -482,7 +483,7 @@ class AttendancesCrudTest extends TestCase
             ]);
     }
 
-    public function test_daily_attendance_history_returns_shift_status_and_origin(): void
+    public function test_daily_attendance_history_does_not_expose_origin(): void
     {
         $this->createAttendance([
             'status' => 'Tardanza',
@@ -499,7 +500,7 @@ class AttendancesCrudTest extends TestCase
             ->assertJsonPath('0.type', 'Entrada')
             ->assertJsonPath('0.status', 'Tardanza')
             ->assertJsonPath('0.shift', 'Mañana')
-            ->assertJsonPath('0.origin', 'No programado');
+            ->assertJsonMissingPath('0.origin');
     }
 
     public function test_invalid_attendance_data_is_rejected(): void
