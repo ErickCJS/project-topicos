@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\admin\Attendance;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -25,6 +26,12 @@ class AttendancesCrudTest extends TestCase
         if ($connection !== 'sqlite' || $database !== ':memory:') {
             throw new RuntimeException('AttendancesCrudTest solo puede ejecutarse con SQLite en memoria.');
         }
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     protected function setUp(): void
@@ -70,23 +77,19 @@ class AttendancesCrudTest extends TestCase
         $this->afternoonShiftId = $this->createShift('Tarde', '12:00:00', '17:00:00');
     }
 
-    public function test_create_and_edit_forms_do_not_require_programming_or_manual_status_selection(): void
+    public function test_create_form_uses_current_date_time_and_suggested_shift_and_edit_preserves_values(): void
     {
+        Carbon::setTestNow('2026-10-16 07:10:00');
+
         $this->get(route('attendances.create'))
             ->assertOk()
             ->assertSee('12345678 - Ana Pérez')
-            ->assertSee('Mañana (07:00 - 12:00)')
-            ->assertSee('No es necesario que el empleado tenga una programación asignada.')
-            ->assertSee('name="employee_id"', false)
-            ->assertSee('name="shift_id"', false)
-            ->assertSee('name="date"', false)
-            ->assertSee('name="time"', false)
-            ->assertSee('name="type"', false)
-            ->assertSee('name="notes"', false)
-            ->assertSee('name="_token"', false)
-            ->assertDontSee('name="status"', false)
-            ->assertDontSee('name="origin"', false)
-            ->assertDontSee('name="password"', false);
+            ->assertSee('value="2026-10-16"', false)
+            ->assertSee('value="07:10"', false)
+            ->assertSee('value="'.$this->morningShiftId.'" selected', false)
+            ->assertSee('value="Entrada" selected', false)
+            ->assertSee('Puede registrar asistencia aunque no tenga programación asignada.')
+            ->assertSee('name="_token"', false);
 
         $attendance = $this->createAttendance();
 
@@ -94,7 +97,51 @@ class AttendancesCrudTest extends TestCase
             ->assertOk()
             ->assertSee(route('attendances.update', $attendance), false)
             ->assertSee('2026-10-16')
-            ->assertSee('08:30');
+            ->assertSee('08:30')
+            ->assertSee('value="'.$this->morningShiftId.'" selected', false)
+            ->assertSee('value="Entrada" selected', false)
+            ->assertSee('name="_token"', false);
+    }
+
+    public function test_suggestion_selects_exit_for_pending_entry_and_entry_for_next_shift(): void
+    {
+        Carbon::setTestNow('2026-10-16 07:00:00');
+
+        $this->createAttendance([
+            'date' => '2026-10-16',
+            'time' => '07:00',
+            'type' => 'Entrada',
+        ]);
+
+        $this->getJson(route('attendances.suggest', [
+            'employee_id' => $this->employeeId,
+            'date' => '2026-10-16',
+            'time' => '11:30',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('type', 'Salida')
+            ->assertJsonPath('shift_id', $this->morningShiftId)
+            ->assertJsonPath('date', '2026-10-16');
+
+        Attendance::create([
+            'employee_id' => $this->employeeId,
+            'shift_id' => $this->morningShiftId,
+            'date' => '2026-10-16',
+            'time' => '11:35',
+            'type' => 'Salida',
+            'status' => 'Presente',
+            'origin' => 'No programado',
+        ]);
+
+        $this->getJson(route('attendances.suggest', [
+            'employee_id' => $this->employeeId,
+            'date' => '2026-10-16',
+            'time' => '12:00',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('type', 'Entrada')
+            ->assertJsonPath('shift_id', $this->afternoonShiftId)
+            ->assertJsonPath('date', '2026-10-16');
     }
 
     public function test_admin_can_register_an_unprogrammed_entry_and_status_is_calculated(): void
