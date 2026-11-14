@@ -249,6 +249,34 @@ class AttendancesCrudTest extends TestCase
         ]);
     }
 
+    public function test_admin_cannot_edit_entry_to_a_time_after_its_registered_exit(): void
+    {
+        $entry = $this->createAttendance(['time' => '07:00']);
+
+        Attendance::create([
+            'employee_id' => $this->employeeId,
+            'shift_id' => $this->morningShiftId,
+            'date' => '2026-10-16',
+            'time' => '12:00',
+            'type' => 'Salida',
+            'status' => 'Presente',
+            'origin' => 'No programado',
+        ]);
+
+        $this->putJson(route('attendances.update', $entry), $this->validData([
+            'time' => '12:10',
+            'type' => 'Entrada',
+        ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('time');
+
+        $this->assertDatabaseHas('attendances', [
+            'id' => $entry->id,
+            'time' => '07:00',
+            'type' => 'Entrada',
+        ]);
+    }
+
     public function test_admin_can_list_and_view_each_entry_and_exit_as_individual_rows(): void
     {
         $entry = $this->createAttendance([
