@@ -55,6 +55,8 @@ class EmployeeAttendanceTest extends TestCase
             ->assertSee('Registrar asistencia')
             ->assertSee('name="dni"', false)
             ->assertSee('name="password"', false)
+            ->assertSee('name="_token"', false)
+            ->assertSee('X-CSRF-TOKEN', false)
             ->assertDontSee('employee.dashboard');
 
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
