@@ -47,7 +47,7 @@ return [
     'route_map' => [
         'admin.home' => 'dashboard.view', 'programming.index' => 'programacion.view', 'programming.holidays' => 'programacion.view',
         'programming.people' => 'programacion.view', 'programming.group' => 'programacion.view', 'programming.check' => 'programacion.create',
-        'programming.store' => 'programacion.create', 'programming.show' => 'programacion.details', 'programming.update' => 'programacion.edit',
+        'programming.store' => 'programacion.create', 'programming.show' => 'programacion.details', 'programming.locations' => 'programacion.details', 'programming.update' => 'programacion.edit',
         'programming.related' => 'programacion.details',
         'programming.destroy' => 'programacion.delete', 'programming.history' => 'programacion.history', 'programming.modifications' => 'programacion.history',
         'programming.modification-options' => 'programacion.edit', 'programming.update-modifications' => 'programacion.edit',
