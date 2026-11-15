@@ -20,6 +20,9 @@ class ProgrammingModificationService
 
     public function options(Programming $programming, int $shiftId): array
     {
+        if ($programming->started_at !== null || ! in_array($programming->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
+            $this->reject('Un recorrido iniciado solo permite consultar su detalle.');
+        }
         $shift = Shift::findOrFail($shiftId);
         $conflictingRoutes = $this->overlappingRoutes($programming, $shift);
         $busyVehicles = $conflictingRoutes->pluck('vehicle_id')->map(fn ($id) => (int) $id)->all();
@@ -96,8 +99,8 @@ class ProgrammingModificationService
         try {
             return DB::transaction(function () use ($programming, $changes, $userId) {
                 $row = Programming::query()->whereKey($programming->id)->lockForUpdate()->firstOrFail();
-                if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
-                    $this->reject('Solo se puede modificar un recorrido programado.');
+                if ($row->started_at !== null || ! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
+                    $this->reject('Solo se puede modificar un recorrido que aún no haya sido iniciado.');
                 }
 
                 $row->load('employees');
