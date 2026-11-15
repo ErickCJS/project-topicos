@@ -161,7 +161,9 @@ class DriverAuthController extends Controller
 
                 'days' => $days,
 
-                'status' => $programacion->status,
+                'status' => $programacion->started_at !== null && $programacion->finished_at === null
+                    && in_array($programacion->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)
+                    ? Programming::STATUS_STARTED : $programacion->status,
                 'notes' => $programacion->notes,
                 'route_started' => $programacion->started_at !== null,
                 'route_finished' => $programacion->finished_at !== null
@@ -432,7 +434,9 @@ class DriverAuthController extends Controller
                         substr($shift->end_time, 0, 5)
                         : null),
 
-                'status' => $programming->status,
+                'status' => $routeStarted && !$routeFinished
+                    && in_array($programming->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)
+                    ? Programming::STATUS_STARTED : $programming->status,
 
                 'people' => $people,
 
