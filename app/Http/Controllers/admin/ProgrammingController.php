@@ -183,7 +183,7 @@ class ProgrammingController extends Controller
     public function bulkUndo(Request $request)
     {
         $ids = $request->validate(['ids'=>['required','array','min:1','max:1000'], 'ids.*'=>['integer','distinct','exists:programmings,id']])['ids'];
-        DB::transaction(function () use ($ids, $request) { foreach (Programming::whereIn('id',$ids)->lockForUpdate()->get() as $row) { if ($row->created_by !== $request->user()->id || $row->status !== 'Programado') $this->reject('Solo puede deshacer programaciones masivas propias que sigan pendientes.'); $before=$row->toArray(); $row->employees()->detach(); $row->update(['status'=>'Anulado','group_date_key'=>null,'vehicle_date_key'=>null]); $row->changes()->create(['user_id'=>$request->user()->id,'action'=>'Reversión masiva','before'=>$before,'after'=>$row->toArray()]); } }, 3);
+        DB::transaction(function () use ($ids, $request) { foreach (Programming::whereIn('id',$ids)->lockForUpdate()->get() as $row) { if ($row->created_by !== $request->user()->id || $row->started_at !== null || $row->status !== 'Programado') $this->reject('Solo puede deshacer programaciones masivas propias que sigan pendientes y no hayan sido iniciadas.'); $before=$row->toArray(); $row->employees()->detach(); $row->update(['status'=>'Anulado','group_date_key'=>null,'vehicle_date_key'=>null]); $row->changes()->create(['user_id'=>$request->user()->id,'action'=>'Reversión masiva','before'=>$before,'after'=>$row->toArray()]); } }, 3);
         return response()->json(['message'=>'Programación masiva deshecha.']);
     }
 
@@ -219,7 +219,7 @@ class ProgrammingController extends Controller
             'zone_id' => ['required', 'integer', 'exists:zones,id'],
             'type' => ['required', 'in:shift,driver,helper,vehicle'],
         ], ['end_date.after_or_equal' => 'La fecha final no puede ser anterior a la fecha inicial.']);
-        $rows = Programming::with('employees')->whereIn('status', [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED])->where('zone_id', $data['zone_id'])
+        $rows = Programming::with('employees')->whereIn('status', [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED])->whereNull('started_at')->where('zone_id', $data['zone_id'])
             ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->get();
         $helperIds = $rows->flatMap(fn (Programming $row) => $row->employees->where('pivot.role', 'helper')->pluck('id'))->unique()->values();
         $people = Employee::where('status', 'Activo')->when($data['type'] === 'driver', fn ($q) => $q->where('employee_type_id', 1))->when($data['type'] === 'helper', fn ($q) => $q->where('employee_type_id', '!=', 1))->orderBy('last_name')->orderBy('first_name')->get()
