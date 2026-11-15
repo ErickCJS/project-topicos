@@ -218,16 +218,13 @@ class DriverProgrammingController extends Controller
             [$startAt, $endAt] = $window;
             $now = CarbonImmutable::now(self::TIMEZONE);
 
-            // Intervalo inclusivo al inicio y exclusivo al final: [inicio, fin).
-            if ($now->lessThan($startAt) || !$now->lessThan($endAt)) {
+            // Desde la hora de inicio del turno en adelante. La hora final no bloquea.
+            if ($now->lessThan($startAt)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Solo puedes iniciar el recorrido dentro del horario '
-                        . $startAt->format('H:i') . ' - ' . $endAt->format('H:i') . '.',
-                    'start_window' => [
-                        'start' => $startAt->format('H:i'),
-                        'end' => $endAt->format('H:i'),
-                    ],
+                    'message' => 'Podrás iniciar el recorrido a partir de las '
+                        . $startAt->format('H:i') . '.',
+                    'start_time' => $startAt->format('H:i'),
                 ], 422);
             }
 
@@ -316,8 +313,7 @@ class DriverProgrammingController extends Controller
             ];
             $canStart = $validStatus
                 && !$routeStarted
-                && $now->greaterThanOrEqualTo($startAt)
-                && $now->lessThan($endAt);
+                && $now->greaterThanOrEqualTo($startAt);
         }
 
         if ($routeStarted) {
@@ -328,10 +324,8 @@ class DriverProgrammingController extends Controller
             $message = 'El turno no tiene un horario válido configurado.';
         } elseif ($now->lessThan($window[0])) {
             $message = 'Podrás iniciar el recorrido a las ' . $window[0]->format('H:i') . '.';
-        } elseif (!$now->lessThan($window[1])) {
-            $message = 'El horario de inicio finalizó a las ' . $window[1]->format('H:i') . '.';
         } else {
-            $message = 'Estás dentro del horario. Puedes iniciar el recorrido.';
+            $message = 'El horario de inicio ya está habilitado. Puedes iniciar el recorrido.';
         }
 
         return [
