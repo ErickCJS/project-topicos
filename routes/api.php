@@ -37,6 +37,12 @@ Route::middleware('auth:sanctum')->group(function () {
         DriverAuthController::class,
         'programacionesHoy'
     ]);
+    // Iniciar recorrido únicamente dentro del horario configurado del turno.
+    Route::post('/conductor/programaciones/{programming}/iniciar', [
+        DriverProgrammingController::class,
+        'start'
+    ]);
+
     // Detalle de una programación específica del conductor autenticado.
     Route::get('/conductor/programaciones/{programming}', [
         DriverProgrammingController::class,
