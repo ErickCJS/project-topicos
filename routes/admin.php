@@ -41,6 +41,7 @@ Route::post('cambios/masivos/check', [BulkChangeController::class, 'check'])->na
 Route::post('cambios/masivos/apply', [BulkChangeController::class, 'apply'])->name('cambios.bulk.apply');
 Route::post('programming/check', [ProgrammingController::class, 'check'])->name('programming.check');
 Route::post('programming', [ProgrammingController::class, 'store'])->name('programming.store');
+Route::get('programming/{programming}/locations', [ProgrammingController::class, 'locations'])->name('programming.locations');
 Route::get('programming/{id}/history', [ProgrammingController::class, 'history'])->name('programming.history');
 Route::get('programming/{programming}/modifications', [ProgrammingController::class, 'modifications'])->name('programming.modifications');
 Route::get('programming/{programming}/modification-options', [ProgrammingController::class, 'modificationOptions'])->name('programming.modification-options');
