@@ -146,9 +146,13 @@ class DriverProgrammingController extends Controller
             // nunca de que todos los ayudantes hayan marcado asistencia.
             'can_start_route' => $startAvailability['can_start_route'],
             'route_started' => $startAvailability['route_started'],
+            'route_finished' => $startAvailability['route_finished'],
+            'can_finish_route' => $startAvailability['can_finish_route'],
             'started_at' => $startAvailability['started_at'],
+            'finished_at' => $startAvailability['finished_at'],
             'start_window' => $startAvailability['start_window'],
             'start_message' => $startAvailability['message'],
+            'finish_message' => $startAvailability['finish_message'],
             'server_time' => $startAvailability['server_time'],
         ];
 
@@ -218,13 +222,18 @@ class DriverProgrammingController extends Controller
             [$startAt, $endAt] = $window;
             $now = CarbonImmutable::now(self::TIMEZONE);
 
-            // Desde la hora de inicio del turno en adelante. La hora final no bloquea.
-            if ($now->lessThan($startAt)) {
+            // El inicio debe ocurrir dentro del turno: [hora inicial, hora final).
+            // Una vez iniciado, la finalización puede ser después del horario.
+            if ($now->lessThan($startAt) || !$now->lessThan($endAt)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Podrás iniciar el recorrido a partir de las '
-                        . $startAt->format('H:i') . '.',
-                    'start_time' => $startAt->format('H:i'),
+                    'message' => 'Puedes iniciar el recorrido únicamente entre '
+                        . $startAt->format('H:i') . ' y antes de las '
+                        . $endAt->format('H:i') . '.',
+                    'start_window' => [
+                        'start' => $startAt->format('H:i'),
+                        'end' => $endAt->format('H:i'),
+                    ],
                 ], 422);
             }
 
@@ -240,6 +249,94 @@ class DriverProgrammingController extends Controller
                     'id' => $programming->id,
                     'route_started' => true,
                     'started_at' => $now->format('H:i'),
+                ],
+            ]);
+        });
+    }
+
+    /**
+     * Finaliza un recorrido que ya fue iniciado.
+     * No existe límite de hora para finalizar: puede terminar antes o después
+     * del horario normal del turno.
+     */
+    public function finish(Request $request, int $programmingId): JsonResponse
+    {
+        $employee = $request->user();
+
+        if ($error = $this->validateDriver($employee)) {
+            return $error;
+        }
+
+        return DB::transaction(function () use ($employee, $programmingId) {
+            $programming = Programming::query()
+                ->where('driver_id', $employee->id)
+                ->whereKey($programmingId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$programming || $programming->status === Programming::STATUS_CANCELLED) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró la programación solicitada.',
+                ], 404);
+            }
+
+            if ($programming->started_at === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No puedes finalizar un recorrido que todavía no ha sido iniciado.',
+                ], 409);
+            }
+
+            if (
+                $programming->status === Programming::STATUS_FINISHED ||
+                $programming->finished_at !== null
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este recorrido ya fue finalizado.',
+                    'finished_at' => $programming->finished_at
+                        ?->timezone(self::TIMEZONE)
+                        ->format('H:i'),
+                ], 409);
+            }
+
+            if (!in_array($programming->status, [
+                Programming::STATUS_PROGRAMMED,
+                Programming::STATUS_RESCHEDULED,
+            ], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El estado del recorrido no permite finalizarlo.',
+                ], 409);
+            }
+
+            $now = CarbonImmutable::now(self::TIMEZONE);
+
+            if ($now->lessThan($programming->started_at->timezone(self::TIMEZONE))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La hora de finalización no puede ser anterior al inicio.',
+                ], 422);
+            }
+
+            $programming->forceFill([
+                'status' => Programming::STATUS_FINISHED,
+                'ended_by' => $employee->id,
+                'finished_at' => $now,
+            ])->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Recorrido finalizado correctamente.',
+                'data' => [
+                    'id' => $programming->id,
+                    'route_started' => true,
+                    'route_finished' => true,
+                    'started_at' => $programming->started_at
+                        ->timezone(self::TIMEZONE)
+                        ->format('H:i'),
+                    'finished_at' => $now->format('H:i'),
                 ],
             ]);
         });
@@ -296,6 +393,8 @@ class DriverProgrammingController extends Controller
         $now = CarbonImmutable::now(self::TIMEZONE);
         $window = $this->scheduleWindow($programming);
         $routeStarted = $programming->started_at !== null;
+        $routeFinished = $programming->status === Programming::STATUS_FINISHED
+            || $programming->finished_at !== null;
         $validStatus = in_array($programming->status, [
             Programming::STATUS_PROGRAMMED,
             Programming::STATUS_RESCHEDULED,
@@ -303,6 +402,7 @@ class DriverProgrammingController extends Controller
 
         $startWindow = null;
         $startedAt = $programming->started_at?->timezone(self::TIMEZONE)->format('H:i');
+        $finishedAt = $programming->finished_at?->timezone(self::TIMEZONE)->format('H:i');
         $canStart = false;
 
         if ($window !== null) {
@@ -313,27 +413,45 @@ class DriverProgrammingController extends Controller
             ];
             $canStart = $validStatus
                 && !$routeStarted
-                && $now->greaterThanOrEqualTo($startAt);
+                && $now->greaterThanOrEqualTo($startAt)
+                && $now->lessThan($endAt);
         }
 
-        if ($routeStarted) {
-            $message = 'El recorrido ya fue iniciado a las ' . $startedAt . '.';
+        $canFinish = $routeStarted && !$routeFinished;
+
+        if ($routeFinished) {
+            $message = 'El recorrido se finalizó a las ' . $finishedAt . '.';
+            $finishMessage = 'Este recorrido ya fue finalizado.';
+        } elseif ($routeStarted) {
+            $message = 'Recorrido iniciado a las ' . $startedAt . '. Puedes finalizarlo cuando termines el servicio.';
+            $finishMessage = 'El recorrido sigue abierto. Finalízalo al terminar.';
         } elseif (!$validStatus) {
             $message = 'Este recorrido ya no se encuentra disponible para iniciar.';
+            $finishMessage = 'No hay un recorrido abierto para finalizar.';
         } elseif ($window === null) {
             $message = 'El turno no tiene un horario válido configurado.';
+            $finishMessage = 'No hay un recorrido abierto para finalizar.';
         } elseif ($now->lessThan($window[0])) {
             $message = 'Podrás iniciar el recorrido a las ' . $window[0]->format('H:i') . '.';
+            $finishMessage = 'No hay un recorrido abierto para finalizar.';
+        } elseif (!$now->lessThan($window[1])) {
+            $message = 'El horario para iniciar finalizó a las ' . $window[1]->format('H:i') . '.';
+            $finishMessage = 'No hay un recorrido abierto para finalizar.';
         } else {
-            $message = 'El horario de inicio ya está habilitado. Puedes iniciar el recorrido.';
+            $message = 'Estás dentro del horario. Puedes iniciar el recorrido.';
+            $finishMessage = 'No hay un recorrido abierto para finalizar.';
         }
 
         return [
             'can_start_route' => $canStart,
             'route_started' => $routeStarted,
+            'route_finished' => $routeFinished,
+            'can_finish_route' => $canFinish,
             'started_at' => $startedAt,
+            'finished_at' => $finishedAt,
             'start_window' => $startWindow,
             'message' => $message,
+            'finish_message' => $finishMessage,
             'server_time' => $now->format('H:i:s'),
         ];
     }
