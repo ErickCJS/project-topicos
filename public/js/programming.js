@@ -70,6 +70,12 @@ $(function () {
         ],
         language:{search:'Buscar:',lengthMenu:'Mostrar _MENU_ registros',info:'Mostrando _START_ a _END_ de _TOTAL_ registros',infoEmpty:'Sin registros',infoFiltered:'(filtrado de _MAX_ registros)',zeroRecords:'No se encontraron programaciones',emptyTable:'No hay programaciones para las fechas seleccionadas',paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}
     });
+    // Refresca los estados de la tabla sin interrumpir el detalle del seguimiento activo.
+    setInterval(() => {
+        if (!document.hidden && !$('#programmingDetailModal').hasClass('show')) {
+            table.ajax.reload(null, false);
+        }
+    }, 15000);
     const exportOptions = {columns:index => index !== 7 && table.column(index).visible(),orthogonal:'export',modifier:{search:'applied',order:'applied',selected:null}};
     function reportMetadata() {
         const rows = table.rows({search:'applied'}).data().toArray();
