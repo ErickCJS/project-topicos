@@ -20,6 +20,7 @@ use Database\Seeders\StaffGroupsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -1863,4 +1864,56 @@ class ProgrammingBackendTest extends TestCase
         $this->postJson(route('programming.rescheduling.store', $origin), [...$payload, 'validation_token' => $check->json('validation_token')])->assertCreated();
         $this->get(route('admin.home', ['fecha' => '2026-11-02']))->assertOk()->assertSee('Reprogramado');
     }
+
+    public function test_driver_location_discards_exact_and_nearby_consecutive_points(): void
+    {
+        $this->generate(['end_date' => '2026-11-02']);
+        $programming = Programming::firstOrFail();
+        $programming->forceFill([
+            'status' => Programming::STATUS_STARTED,
+            'started_at' => now()->subMinute(),
+            'started_by' => $this->driver->id,
+        ])->save();
+
+        Sanctum::actingAs($this->driver);
+
+        $endpoint = '/api/conductor/programaciones/'.$programming->id.'/ubicacion';
+        $origin = ['latitude' => -6.7800000, 'longitude' => -79.8300000, 'accuracy' => 4];
+
+        $this->postJson($endpoint, $origin)
+            ->assertCreated()
+            ->assertJsonPath('stored', true)
+            ->assertJsonPath('duplicate', false);
+
+        // Repetición exacta: no debe crear un segundo registro.
+        $this->postJson($endpoint, $origin)
+            ->assertOk()
+            ->assertJsonPath('stored', false)
+            ->assertJsonPath('duplicate', true);
+
+        // Oscilación GPS de aproximadamente 11 m: sigue siendo el mismo punto.
+        $this->postJson($endpoint, [
+            ...$origin,
+            'latitude' => -6.7799000,
+        ])->assertOk()
+            ->assertJsonPath('stored', false)
+            ->assertJsonPath('duplicate', true)
+            ->assertJsonPath('minimum_distance_meters', 15);
+
+        // El desplazamiento se calcula desde el último punto GUARDADO,
+        // no desde una lectura repetida que el servidor descartó.
+        $this->postJson($endpoint, [
+            ...$origin,
+            'latitude' => -6.7798000,
+        ])->assertCreated()
+            ->assertJsonPath('stored', true)
+            ->assertJsonPath('duplicate', false);
+
+        $this->assertDatabaseCount('programming_locations', 2);
+        $this->assertDatabaseHas('programming_locations', [
+            'programming_id' => $programming->id,
+            'latitude' => -6.7800000,
+        ]);
+    }
+
 }
