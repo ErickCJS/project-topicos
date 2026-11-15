@@ -380,6 +380,16 @@ $(function () {
                 badge.textContent = finished ? 'RECORRIDO FINALIZADO' : 'SEGUIMIENTO EN VIVO';
             }
             if (count) count.textContent = `${points.length} ubicaciones registradas`;
+            if (finished) {
+                const statusNode = document.getElementById('programmingDetailStatus');
+                if (statusNode) {
+                    statusNode.textContent = 'Finalizado';
+                    statusNode.className = 'programming-status programming-status--finished';
+                }
+                if (adminRouteTimer) clearInterval(adminRouteTimer);
+                adminRouteTimer = null;
+                table.ajax.reload(null, false);
+            }
             if (!points.length) {
                 if (message) message.textContent = finished
                     ? 'El recorrido finalizó sin ubicaciones GPS registradas.'
@@ -417,16 +427,7 @@ $(function () {
                 else if (!adminRouteHasBounds) adminRouteMap.fitBounds(adminRouteLine.getBounds(), {padding: [28, 28]});
             }
             if (message) message.classList.add('d-none');
-            if (finished) {
-                const statusNode = document.getElementById('programmingDetailStatus');
-                if (statusNode) {
-                    statusNode.textContent = 'Finalizado';
-                    statusNode.className = 'programming-status programming-status--finished';
-                }
-                if (adminRouteTimer) clearInterval(adminRouteTimer);
-                adminRouteTimer = null;
-                table.ajax.reload(null, false);
-            }
+
         }).fail(xhr => {
             const message = document.getElementById('programmingRouteMapMessage');
             if (message) message.textContent = xhr.responseJSON?.message || 'No se pudo consultar el recorrido.';
