@@ -429,8 +429,12 @@ $(function () {
                 adminRouteStartMarker.setLatLng(points[0]);
                 adminRouteEndMarker.setLatLng(points[points.length - 1]);
                 adminRouteEndMarker.setStyle({fillColor: finished ? '#2563eb' : '#f59e0b'});
-                if (isLive && !finished) adminRouteMap.panTo(points[points.length - 1], {animate: true, duration: .45});
-                else if (!adminRouteHasBounds) adminRouteMap.fitBounds(adminRouteLine.getBounds(), {padding: [28, 28]});
+                if (finished || !adminRouteHasBounds) {
+                    adminRouteMap.fitBounds(adminRouteLine.getBounds(), {padding: [28, 28]});
+                    adminRouteHasBounds = true;
+                } else if (isLive) {
+                    adminRouteMap.panTo(points[points.length - 1], {animate: true, duration: .45});
+                }
             }
             if (message) message.classList.add('d-none');
 
