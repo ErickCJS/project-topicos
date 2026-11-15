@@ -21,7 +21,7 @@ class Programming extends Model
 
     protected function casts(): array
     {
-        return ['date' => 'date', 'snapshot' => 'array', 'finished_at' => 'datetime'];
+        return ['date' => 'date', 'snapshot' => 'array', 'started_at' => 'datetime', 'finished_at' => 'datetime'];
     }
 
     public function setDateAttribute($value): void
