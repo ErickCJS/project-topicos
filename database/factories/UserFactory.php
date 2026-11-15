@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Models\Team;
 use App\Models\User;
-use App\Models\UserType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -38,7 +37,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'profile_photo_path' => null,
             'current_team_id' => null,
-            'user_type_id' => UserType::firstOrCreate(['slug' => 'administrador'], ['name' => 'Administrador', 'is_admin' => true, 'is_system' => true])->id,
+            'is_admin' => true,
             'is_active' => true,
         ];
     }
@@ -51,6 +50,11 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    public function regular(): static
+    {
+        return $this->state(fn (array $attributes) => ['is_admin' => false]);
     }
 
     /**

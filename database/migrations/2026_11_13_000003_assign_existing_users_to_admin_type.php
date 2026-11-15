@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\UserType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -8,29 +7,32 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $adminType = UserType::firstOrCreate(
-            ['slug' => 'administrador'],
-            ['name' => 'Administrador', 'is_admin' => true, 'is_system' => true, 'is_active' => true]
-        );
-        $adminType->forceFill(['name' => 'Administrador', 'is_admin' => true, 'is_system' => true, 'is_active' => true])->save();
-
-        $testUser = DB::table('users')->where('email', 'user@gmail.com')->first(['id']);
-        $testType = null;
-        if ($testUser) {
-            $testType = UserType::firstOrCreate(
-                ['slug' => 'usuario-de-prueba'],
-                ['name' => 'Usuario de prueba', 'is_admin' => false, 'is_system' => true, 'is_active' => true]
-            );
-            $testType->forceFill(['name' => 'Usuario de prueba', 'is_admin' => false, 'is_system' => true, 'is_active' => true])->save();
+        $now = now();
+        $adminId = DB::table('user_types')->where('slug', 'administrador')->value('id');
+        if (!$adminId) {
+            $adminId = DB::table('user_types')->insertGetId([
+                'name' => 'Administrador', 'slug' => 'administrador', 'is_admin' => true,
+                'is_system' => true, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
+            ]);
         }
 
-        DB::transaction(function () use ($adminType, $testUser, $testType) {
-            DB::table('users')->where('email', '<>', 'user@gmail.com')->update(['user_type_id' => $adminType->id]);
-            if ($testUser && $testType) DB::table('users')->where('id', $testUser->id)->update(['user_type_id' => $testType->id]);
-        });
+        $test = DB::table('users')->where('email', 'user@gmail.com')->first(['id']);
+        $testId = null;
+        if ($test) {
+            $testId = DB::table('user_types')->where('slug', 'usuario-de-prueba')->value('id');
+            if (!$testId) {
+                $testId = DB::table('user_types')->insertGetId([
+                    'name' => 'Usuario de prueba', 'slug' => 'usuario-de-prueba', 'is_admin' => false,
+                    'is_system' => true, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+            }
+        }
+
+        DB::table('user_types')->where('id', $adminId)->update(['name' => 'Administrador', 'is_admin' => true, 'is_system' => true, 'is_active' => true, 'updated_at' => $now]);
+        if ($testId) DB::table('user_types')->where('id', $testId)->update(['name' => 'Usuario de prueba', 'is_admin' => false, 'is_system' => true, 'is_active' => true, 'updated_at' => $now]);
+        DB::table('users')->where('email', '<>', 'user@gmail.com')->update(['user_type_id' => $adminId]);
+        if ($test) DB::table('users')->where('id', $test->id)->update(['user_type_id' => $testId]);
     }
 
-    public function down(): void
-    {
-    }
+    public function down(): void {}
 };

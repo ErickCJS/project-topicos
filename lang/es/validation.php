@@ -108,7 +108,7 @@ return [
     'uuid' => 'El campo :attribute debe ser un UUID válido.',
     'attributes' => [
         'name' => 'nombres', 'last_name' => 'apellidos', 'dni' => 'DNI', 'email' => 'correo electrónico',
-        'password' => 'contraseña', 'change_password' => 'cambio de contraseña', 'user_type_id' => 'tipo de usuario',
+        'password' => 'contraseña', 'change_password' => 'cambio de contraseña',
         'profile_photo' => 'fotografía', 'birthdate' => 'fecha de nacimiento', 'phone' => 'teléfono',
         'license' => 'licencia', 'address' => 'dirección', 'permissions' => 'permisos',
         'permissions.*' => 'permiso', 'description' => 'descripción', 'is_active' => 'estado',

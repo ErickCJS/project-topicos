@@ -30,8 +30,7 @@ return [
             'cambios-masivos' => ['Cambios masivos', 'cambios.bulk', ['view', 'options', 'check', 'apply']],
         ],
         'Gestión de usuarios' => [
-            'usuarios' => ['Usuarios', 'users', ['view', 'details', 'create', 'edit', 'delete', 'status', 'assign-type']],
-            'tipos-usuario' => ['Tipos de usuario', 'user-types', ['view', 'create', 'edit', 'delete', 'configure']],
+            'usuarios' => ['Usuarios', 'users', ['view']],
         ],
     ],
     'actions' => [
@@ -43,7 +42,7 @@ return [
         'bulk-generate' => 'Generar programación masiva', 'bulk-undo' => 'Deshacer programación masiva',
         'bulk-modifications-view' => 'Consultar modificaciones masivas', 'bulk-modifications-check' => 'Validar modificaciones masivas',
         'bulk-modifications-apply' => 'Aplicar modificaciones masivas', 'options' => 'Cargar opciones', 'check' => 'Validar cambios', 'apply' => 'Aplicar cambios',
-        'status' => 'Cambiar estado', 'assign-type' => 'Asignar tipo', 'configure' => 'Configurar permisos',
+        'status' => 'Cambiar estado',
     ],
     'route_map' => [
         'admin.home' => 'dashboard.view', 'programming.index' => 'programacion.view', 'programming.holidays' => 'programacion.view',
@@ -57,14 +56,15 @@ return [
         'programming.bulk.context' => 'programacion.bulk-context', 'programming.bulk.check' => 'programacion.bulk-check', 'programming.bulk.generate' => 'programacion.bulk-generate', 'programming.bulk.undo' => 'programacion.bulk-undo',
         'programming.bulk-modifications.check' => 'programacion.bulk-modifications-check', 'programming.bulk-modifications.options' => 'programacion.bulk-modifications-view', 'programming.bulk-modifications.apply' => 'programacion.bulk-modifications-apply',
         'cambios.bulk.index' => 'cambios-masivos.view', 'cambios.bulk.options' => 'cambios-masivos.options', 'cambios.bulk.check' => 'cambios-masivos.check', 'cambios.bulk.apply' => 'cambios-masivos.apply',
-        'contracts.cancel' => 'contratos.cancel', 'attendances.history' => 'asistencias.history', 'vacations.check' => 'vacaciones.view', 'vacations.balance' => 'vacaciones.view', 'vacations.approve' => 'vacaciones.approve', 'vacations.reject' => 'vacaciones.reject',
+        'contracts.cancel' => 'contratos.cancel', 'attendances.history' => 'asistencias.history', 'attendances.suggest' => 'asistencias.view', 'vacations.check' => 'vacaciones.view', 'vacations.balance' => 'vacaciones.view', 'vacations.approve' => 'vacaciones.approve', 'vacations.reject' => 'vacaciones.reject',
         'vehicles.retonar_models' => 'vehiculos.create', 'vehicles.photo.retornar_vista_imagenes' => 'vehiculos.images', 'vehicles.photo.subirimagenes' => 'vehiculos.images',
         'vehicles.photo.retonar_rutas_fotos' => 'vehiculos.images', 'vehicles.photo.eliminar_imagen' => 'vehiculos.images', 'vehicles.photo.seleccionar' => 'vehiculos.images',
         'zones.provinces' => 'zonas.create', 'zones.districts' => 'zonas.create', 'zones.perimeters' => 'zonas.map', 'staffgroups.helpers' => 'grupos-personal.helpers',
         'holidays.resumen' => 'feriados.summary', 'holidays.cargaFeriado' => 'feriados.load',
-        'users.index' => 'usuarios.view', 'users.create' => 'usuarios.create', 'users.store' => 'usuarios.create', 'users.show' => 'usuarios.details', 'users.edit' => 'usuarios.edit', 'users.update' => 'usuarios.edit', 'users.destroy' => 'usuarios.delete',
-        'users.status' => 'usuarios.status', 'users.assign-type' => 'usuarios.assign-type',
-        'user-types.index' => 'tipos-usuario.view', 'user-types.store' => 'tipos-usuario.create', 'user-types.update' => 'tipos-usuario.edit', 'user-types.destroy' => 'tipos-usuario.delete',
-        'user-types.permissions' => 'tipos-usuario.configure', 'user-types.permissions.save' => 'tipos-usuario.configure',
+        'users.index' => 'usuarios.view',
+    ],
+    'admin_only_routes' => [
+        'cambios.create', 'cambios.store', 'cambios.edit', 'cambios.update', 'cambios.destroy',
+        'users.permissions', 'users.permissions.save', 'users.type-label', 'users.status',
     ],
 ];

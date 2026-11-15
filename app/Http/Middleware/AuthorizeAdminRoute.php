@@ -6,7 +6,6 @@ use App\Models\PermissionRoute;
 use App\Services\UserPermissionService;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthorizeAdminRoute
@@ -31,13 +30,8 @@ class AuthorizeAdminRoute
             return redirect()->route('access.restricted');
         }
 
-        if (!Schema::hasTable('user_types') || !Schema::hasColumn('users', 'user_type_id')) {
-            $routeName = $request->route()?->getName();
-            if ($routeName && $permissions->allowsRoute($user, $routeName)) return $next($request);
-            abort(403);
-        }
         $routeName = $request->route()?->getName();
-        if ($routeName && (str_starts_with($routeName, 'users.') || str_starts_with($routeName, 'user-types.'))) abort(403);
+        if ($routeName && str_starts_with($routeName, 'users.')) abort(403);
         $permission = $routeName ? PermissionRoute::with('permission')->where('route_name', $routeName)->first()?->permission : null;
         if (!$permission || !$permissions->allows($user, $permission->slug)) abort(403);
         return $next($request);

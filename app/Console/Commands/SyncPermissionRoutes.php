@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\Module;
 use App\Models\Permission;
 use App\Models\PermissionRoute;
-use App\Models\UserType;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -28,6 +27,8 @@ class SyncPermissionRoutes extends Command
         }
 
         $routeMap = config('permissions.route_map');
+        $adminOnlyRoutes = config('permissions.admin_only_routes', []);
+        PermissionRoute::whereIn('route_name', $adminOnlyRoutes)->delete();
         $prefixes = [];
         foreach (config('permissions.catalog') as $children) {
             foreach ($children as $slug => [$name, $prefix, $keys]) $prefixes[$prefix] = $slug;
@@ -35,6 +36,7 @@ class SyncPermissionRoutes extends Command
         foreach (app('router')->getRoutes() as $route) {
             $name = $route->getName();
             if (!$name || ($route->uri() !== 'admin' && !str_starts_with($route->uri(), 'admin/'))) continue;
+            if (in_array($name, $adminOnlyRoutes, true)) continue;
             $permissionSlug = $routeMap[$name] ?? null;
             if (!$permissionSlug) {
                 foreach ($prefixes as $prefix => $moduleSlug) {
@@ -54,13 +56,6 @@ class SyncPermissionRoutes extends Command
             PermissionRoute::updateOrCreate(['route_name' => $name], ['permission_id' => $permission->id]);
         }
 
-        $adminType = UserType::firstOrCreate(['slug' => 'administrador'], ['name' => 'Administrador', 'is_admin' => true, 'is_system' => true, 'is_active' => true]);
-        $adminType->forceFill(['name' => 'Administrador', 'is_admin' => true, 'is_system' => true, 'is_active' => true])->save();
-        UserType::firstOrCreate(['slug' => 'pendiente-de-asignacion'], ['name' => 'Pendiente de asignación', 'is_system' => true, 'is_active' => true]);
-        if (app()->environment(['local', 'testing'])) {
-            $testType = UserType::firstOrCreate(['slug' => 'usuario-de-prueba'], ['name' => 'Usuario de prueba', 'is_admin' => false, 'is_system' => true, 'is_active' => true]);
-            $testType->forceFill(['name' => 'Usuario de prueba', 'is_admin' => false, 'is_system' => true, 'is_active' => true])->save();
-        }
         $this->info('Catálogo sincronizado.');
         if ($unclassified) {
             $this->warn('Rutas administrativas sin clasificar:');

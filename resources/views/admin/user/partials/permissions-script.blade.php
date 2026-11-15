@@ -17,11 +17,8 @@
             card.querySelector('[data-module-selected]').textContent = count(moduleOptions);
             card.dataset.configured = count(moduleOptions) > 0 ? '1' : '0';
         });
-        form.querySelectorAll('[data-submodule-card]').forEach(card => {
-            card.querySelector('[data-submodule-selected]').textContent = count([...card.querySelectorAll('.permission-option')]);
-        });
-        const selected = count(options);
-        const percent = options.length ? Math.round(selected * 100 / options.length) : 0;
+        form.querySelectorAll('[data-submodule-card]').forEach(card => card.querySelector('[data-submodule-selected]').textContent = count([...card.querySelectorAll('.permission-option')]));
+        const selected = count(options), percent = options.length ? Math.round(selected * 100 / options.length) : 0;
         document.querySelector('[data-permission-selected]').textContent = selected;
         document.querySelector('[data-sticky-count]').textContent = selected;
         document.querySelector('[data-module-count]').textContent = form.querySelectorAll('[data-module-card][data-configured="1"]').length;

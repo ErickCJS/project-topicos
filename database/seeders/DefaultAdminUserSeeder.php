@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use App\Models\UserType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -14,17 +13,6 @@ class DefaultAdminUserSeeder extends Seeder
 
     public function run(): void
     {
-        $adminType = UserType::firstOrCreate(
-            ['slug' => 'administrador'],
-            ['name' => 'Administrador', 'is_admin' => true, 'is_system' => true, 'is_active' => true]
-        );
-        $adminType->forceFill([
-            'name' => 'Administrador',
-            'is_admin' => true,
-            'is_system' => true,
-            'is_active' => true,
-        ])->save();
-
         $user = User::firstOrNew(['email' => self::EMAIL]);
         if (!$user->exists) {
             $user->forceFill([
@@ -40,7 +28,7 @@ class DefaultAdminUserSeeder extends Seeder
         }
 
         $user->forceFill([
-            'user_type_id' => $adminType->id,
+            'is_admin' => true,
             'is_active' => true,
         ])->save();
     }

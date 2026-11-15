@@ -909,7 +909,7 @@ return [
         [
             'text' => 'Gestión de usuarios',
             'icon' => 'bi bi-people',
-            'can' => 'module', 'model' => ['usuarios', 'tipos-usuario'],
+            'can' => 'module', 'model' => ['usuarios'],
             'submenu' => [
                 [
                     'text' => 'Usuarios',
@@ -917,10 +917,6 @@ return [
                     'icon' => 'bi bi-list-ul',
                     'can' => 'permission', 'model' => ['usuarios.view'],
                 ],
-                [
-                    'text' => 'Tipos de usuario', 'route' => 'user-types.index', 'icon' => 'bi bi-person-badge',
-                    'can' => 'permission', 'model' => ['tipos-usuario.view'],
-                ]
             ],
         ],
     ],

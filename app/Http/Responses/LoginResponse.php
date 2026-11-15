@@ -47,7 +47,7 @@ class LoginResponse implements LoginResponseContract
         }
 
         $routeName = $matched->getName();
-        if (!$routeName || str_starts_with($routeName, 'users.') || str_starts_with($routeName, 'user-types.') || !$this->permissions->allowsRoute($request->user(), $routeName)) return null;
+        if (!$routeName || str_starts_with($routeName, 'users.') || !$this->permissions->allowsRoute($request->user(), $routeName)) return null;
 
         $query = isset($parts['query']) ? '?'.$parts['query'] : '';
         return url($path).$query;

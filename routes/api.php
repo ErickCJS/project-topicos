@@ -10,9 +10,10 @@ Route::get('/user', function (Request $request) {
 })->middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class]);
 
 Route::middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class])->get('/me/access', function (Request $request, App\Services\UserPermissionService $service) {
-    $user = $request->user()->load('userType');
+    $user = $request->user();
     return response()->json([
-        'tipo' => $user->userType ? ['id' => $user->userType->id, 'nombre' => $user->userType->name, 'slug' => $user->userType->slug] : null,
+        'is_admin' => (bool) $user->is_admin,
+        'user_type_label' => $user->user_type_label,
         'modulos' => collect($service->permissions($user))->groupBy(fn ($permission) => $permission['module']['parent']['slug'] ?? $permission['module']['slug'])->map(fn ($items, $module) => [
             'identificador' => $module,
             'submodulos' => $items->groupBy('module.slug')->map(fn ($permissions, $slug) => ['identificador' => $slug, 'permisos' => $permissions->pluck('slug')->values()])->values(),
