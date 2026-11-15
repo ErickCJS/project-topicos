@@ -163,6 +163,14 @@ class DriverAuthController extends Controller
 
                 'status' => $programacion->status,
                 'notes' => $programacion->notes,
+                'route_started' => $programacion->started_at !== null,
+                'route_finished' => $programacion->finished_at !== null
+                    || $programacion->status === Programming::STATUS_FINISHED,
+                'can_finish_route' => $programacion->started_at !== null
+                    && $programacion->finished_at === null
+                    && $programacion->status !== Programming::STATUS_FINISHED,
+                'started_at' => $programacion->started_at?->timezone('America/Lima')->format('H:i'),
+                'finished_at' => $programacion->finished_at?->timezone('America/Lima')->format('H:i'),
             ];
         })->values();
 
