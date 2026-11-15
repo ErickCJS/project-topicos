@@ -24,7 +24,7 @@ class ProgrammingService
         if (! $group->state) {
             $this->reject('El grupo seleccionado está inactivo.');
         }
-        if ($editing && ! in_array($editing->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
+        if ($editing && ($editing->started_at !== null || ! in_array($editing->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true))) {
             $this->reject('Solo se puede modificar una programación pendiente.');
         }
         if ($editing && $data['start_date'] !== $data['end_date']) {
@@ -123,7 +123,7 @@ class ProgrammingService
         if (! $group->state) {
             $this->reject('El grupo seleccionado está inactivo.');
         }
-        if ($editing && (! in_array($editing->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true) || $data['start_date'] !== $data['end_date']
+        if ($editing && ($editing->started_at !== null || ! in_array($editing->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true) || $data['start_date'] !== $data['end_date']
             || ! in_array(CarbonImmutable::parse($data['start_date'])->dayOfWeekIso, array_map('intval', $data['days']), true))) {
             $this->reject('Seleccione una fecha y día válidos para modificar el recorrido pendiente.');
         }
