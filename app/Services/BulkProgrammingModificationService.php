@@ -129,6 +129,7 @@ class BulkProgrammingModificationService
     {
         return Programming::query()
             ->whereIn('status', [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED])
+            ->whereNull('started_at')
             ->where('zone_id', $data['zone_id'])
             ->whereDate('date', '>=', $data['start_date'])
             ->whereDate('date', '<=', $data['end_date'])
