@@ -1,16 +1,20 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\\Http\\Controllers\\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\admin\Attendance;
-use App\Models\admin\Employee;
-use App\Models\admin\Programming;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\\Http\\Controllers\\Controller;
+use App\\Models\\admin\\Attendance;
+use App\\Models\\admin\\Employee;
+use App\\Models\\admin\\Programming;
+use Carbon\\CarbonImmutable;
+use Illuminate\\Http\\JsonResponse;
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\DB;
 
 class DriverProgrammingController extends Controller
 {
+    private const TIMEZONE = 'America/Lima';
+
     /**
      * Devuelve el detalle de una programación asignada al conductor autenticado.
      */
@@ -18,25 +22,10 @@ class DriverProgrammingController extends Controller
     {
         $employee = $request->user();
 
-        if (
-            !$employee instanceof Employee ||
-            (int) $employee->employee_type_id !== 1 ||
-            $employee->status !== 'Activo'
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No tienes autorización para consultar esta programación.',
-            ], 403);
+        if ($error = $this->validateDriver($employee)) {
+            return $error;
         }
 
-        if (!$employee->hasVigenteContract()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No tienes un contrato vigente.',
-            ], 403);
-        }
-
-        // La consulta queda limitada al conductor autenticado.
         $programming = Programming::query()
             ->with([
                 'employees' => fn ($query) => $query->orderByPivot('id'),
@@ -63,7 +52,7 @@ class DriverProgrammingController extends Controller
             ->unique('id')
             ->values();
 
-        // El conductor siempre aparece en el equipo, aunque no esté en la tabla pivote.
+        // El conductor siempre aparece en el equipo.
         if (!$team->contains(fn ($person) => (int) $person->id === (int) $programming->driver_id)) {
             $team->prepend($employee);
         }
@@ -125,13 +114,15 @@ class DriverProgrammingController extends Controller
                 'attendance_status' => $validAttendance?->status
                     ?? ($lastAttendance?->status ?? 'Pendiente'),
                 'attendance_time' => $validAttendance?->time
-                    ?? $lastAttendance?->time,
+                    ?? ($lastAttendance?->time),
                 'attended' => $validAttendance !== null,
             ];
         })->values();
 
         $complete = $people->isNotEmpty()
             && $people->every(fn ($person) => $person['attended']);
+
+        $startAvailability = $this->startAvailability($programming);
 
         $data = [
             'id' => $programming->id,
@@ -150,11 +141,15 @@ class DriverProgrammingController extends Controller
             'present_count' => $people->where('attended', true)->count(),
             'missing_count' => $people->where('attended', false)->count(),
             'complete' => $complete,
-            'can_start_route' => $complete && in_array(
-                $programming->status,
-                [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED],
-                true
-            ),
+
+            // La habilitación depende del horario y del estado del recorrido,
+            // nunca de que todos los ayudantes hayan marcado asistencia.
+            'can_start_route' => $startAvailability['can_start_route'],
+            'route_started' => $startAvailability['route_started'],
+            'started_at' => $startAvailability['started_at'],
+            'start_window' => $startAvailability['start_window'],
+            'start_message' => $startAvailability['message'],
+            'server_time' => $startAvailability['server_time'],
         ];
 
         return response()->json([
@@ -162,5 +157,190 @@ class DriverProgrammingController extends Controller
             'message' => 'Detalle de la programación obtenido correctamente.',
             'data' => $data,
         ]);
+    }
+
+    /**
+     * Inicia el recorrido solo dentro del horario real del turno.
+     * La validación se repite en el servidor aunque Flutter ya haya habilitado el botón.
+     */
+    public function start(Request $request, int $programmingId): JsonResponse
+    {
+        $employee = $request->user();
+
+        if ($error = $this->validateDriver($employee)) {
+            return $error;
+        }
+
+        return DB::transaction(function () use ($employee, $programmingId) {
+            $programming = Programming::query()
+                ->with('shift')
+                ->where('driver_id', $employee->id)
+                ->whereKey($programmingId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$programming || $programming->status === Programming::STATUS_CANCELLED) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró la programación solicitada.',
+                ], 404);
+            }
+
+            if (!in_array($programming->status, [
+                Programming::STATUS_PROGRAMMED,
+                Programming::STATUS_RESCHEDULED,
+            ], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este recorrido ya no se encuentra disponible para iniciar.',
+                ], 409);
+            }
+
+            if ($programming->started_at !== null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este recorrido ya fue iniciado.',
+                    'started_at' => $programming->started_at
+                        ->timezone(self::TIMEZONE)
+                        ->format('H:i'),
+                ], 409);
+            }
+
+            $window = $this->scheduleWindow($programming);
+
+            if ($window === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El turno no tiene un horario válido configurado.',
+                ], 422);
+            }
+
+            [$startAt, $endAt] = $window;
+            $now = CarbonImmutable::now(self::TIMEZONE);
+
+            // Intervalo inclusivo al inicio y exclusivo al final: [inicio, fin).
+            if ($now->lessThan($startAt) || !$now->lessThan($endAt)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo puedes iniciar el recorrido dentro del horario '
+                        . $startAt->format('H:i') . ' - ' . $endAt->format('H:i') . '.',
+                    'start_window' => [
+                        'start' => $startAt->format('H:i'),
+                        'end' => $endAt->format('H:i'),
+                    ],
+                ], 422);
+            }
+
+            $programming->forceFill([
+                'started_by' => $employee->id,
+                'started_at' => $now,
+            ])->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Recorrido iniciado correctamente.',
+                'data' => [
+                    'id' => $programming->id,
+                    'route_started' => true,
+                    'started_at' => $now->format('H:i'),
+                ],
+            ]);
+        });
+    }
+
+    private function validateDriver($employee): ?JsonResponse
+    {
+        if (
+            !$employee instanceof Employee ||
+            (int) $employee->employee_type_id !== 1 ||
+            $employee->status !== 'Activo'
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes autorización para realizar esta operación.',
+            ], 403);
+        }
+
+        if (!$employee->hasVigenteContract()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes un contrato vigente.',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    /**
+     * Calcula el intervalo usando las horas configuradas en la tabla shifts.
+     * También contempla turnos que terminan al día siguiente, por ejemplo 20:00 - 02:00.
+     */
+    private function scheduleWindow(Programming $programming): ?array
+    {
+        $shift = $programming->shift;
+
+        if (!$shift || !$shift->start_time || !$shift->end_time) {
+            return null;
+        }
+
+        $date = $programming->date->toDateString();
+        $startAt = CarbonImmutable::parse($date . ' ' . $shift->start_time, self::TIMEZONE);
+        $endAt = CarbonImmutable::parse($date . ' ' . $shift->end_time, self::TIMEZONE);
+
+        if ($endAt->lessThanOrEqualTo($startAt)) {
+            $endAt = $endAt->addDay();
+        }
+
+        return [$startAt, $endAt];
+    }
+
+    private function startAvailability(Programming $programming): array
+    {
+        $now = CarbonImmutable::now(self::TIMEZONE);
+        $window = $this->scheduleWindow($programming);
+        $routeStarted = $programming->started_at !== null;
+        $validStatus = in_array($programming->status, [
+            Programming::STATUS_PROGRAMMED,
+            Programming::STATUS_RESCHEDULED,
+        ], true);
+
+        $startWindow = null;
+        $startedAt = $programming->started_at?->timezone(self::TIMEZONE)->format('H:i');
+        $canStart = false;
+
+        if ($window !== null) {
+            [$startAt, $endAt] = $window;
+            $startWindow = [
+                'start' => $startAt->format('H:i'),
+                'end' => $endAt->format('H:i'),
+            ];
+            $canStart = $validStatus
+                && !$routeStarted
+                && $now->greaterThanOrEqualTo($startAt)
+                && $now->lessThan($endAt);
+        }
+
+        if ($routeStarted) {
+            $message = 'El recorrido ya fue iniciado a las ' . $startedAt . '.';
+        } elseif (!$validStatus) {
+            $message = 'Este recorrido ya no se encuentra disponible para iniciar.';
+        } elseif ($window === null) {
+            $message = 'El turno no tiene un horario válido configurado.';
+        } elseif ($now->lessThan($window[0])) {
+            $message = 'Podrás iniciar el recorrido a las ' . $window[0]->format('H:i') . '.';
+        } elseif (!$now->lessThan($window[1])) {
+            $message = 'El horario de inicio finalizó a las ' . $window[1]->format('H:i') . '.';
+        } else {
+            $message = 'Estás dentro del horario. Puedes iniciar el recorrido.';
+        }
+
+        return [
+            'can_start_route' => $canStart,
+            'route_started' => $routeStarted,
+            'started_at' => $startedAt,
+            'start_window' => $startWindow,
+            'message' => $message,
+            'server_time' => $now->format('H:i:s'),
+        ];
     }
 }
