@@ -7,6 +7,7 @@
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 <link rel="stylesheet" href="{{ asset('css/programming.css') }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 @stop
 
 @section('content')
@@ -45,6 +46,7 @@
 @stop
 
 @section('js')
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{{ asset('js/programming-reports.js') }}"></script>
 <script src="{{ asset('js/programming.js') }}"></script>
 <script src="{{ asset('js/bulk-programming.js') }}"></script>
