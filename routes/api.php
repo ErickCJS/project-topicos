@@ -50,6 +50,12 @@ Route::middleware('auth:sanctum')->group(function () {
         'finish'
     ]);
 
+    // Consultar todos los puntos GPS aceptados de un recorrido (activo o finalizado).
+    Route::get('/conductor/programaciones/{programming}/ubicaciones', [
+        DriverLocationController::class,
+        'index'
+    ]);
+
     // Registrar ubicaciones GPS del conductor mientras el recorrido esté abierto.
     Route::post('/conductor/programaciones/{programming}/ubicacion', [
         DriverLocationController::class,
