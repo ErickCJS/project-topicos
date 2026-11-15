@@ -14,9 +14,9 @@ class DriverLocationController extends Controller
 {
     private const TIMEZONE = 'America/Lima';
 
-    // Considera repetida una ubicación que no se ha desplazado más de 5 metros
-    // respecto al último punto guardado para esta programación.
-    private const DUPLICATE_RADIUS_METERS = 5.0;
+    // El GPS puede oscilar varios metros aunque el vehículo permanezca quieto.
+    // Se exige un desplazamiento real de 15 m desde el último punto ACEPTADO.
+    private const DUPLICATE_RADIUS_METERS = 15.0;
 
     /**
      * Devuelve el recorrido histórico completo de una programación del conductor.
@@ -88,7 +88,7 @@ class DriverLocationController extends Controller
 
     /**
      * Guarda una posición GPS de un recorrido abierto.
-     * Los puntos consecutivos dentro de un radio de 5 m se reciben, pero no se duplican en BD.
+     * Los puntos consecutivos dentro de un radio de 15 m se reciben, pero no se duplican en BD.
      */
     public function store(Request $request, int $programmingId): JsonResponse
     {
