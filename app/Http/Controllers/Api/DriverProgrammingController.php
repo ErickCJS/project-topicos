@@ -161,16 +161,20 @@ class DriverProgrammingController extends Controller
             'missing_count' => $people->where('attended', false)->count(),
             'complete' => $complete,
 
-            // La habilitación depende del horario y del estado del recorrido,
-            // nunca de que todos los ayudantes hayan marcado asistencia.
-            'can_start_route' => $startAvailability['can_start_route'],
+            // Todos los integrantes asignados, incluido el conductor, deben registrar
+            // asistencia válida antes de que el inicio quede habilitado.
+            'can_start_route' => $startAvailability['can_start_route'] && $complete,
             'route_started' => $startAvailability['route_started'],
             'route_finished' => $startAvailability['route_finished'],
             'can_finish_route' => $startAvailability['can_finish_route'],
             'started_at' => $startAvailability['started_at'],
             'finished_at' => $startAvailability['finished_at'],
             'start_window' => $startAvailability['start_window'],
-            'start_message' => $startAvailability['message'],
+            'start_message' => (
+                $startAvailability['can_start_route'] && !$complete
+            )
+                ? 'No puedes iniciar el recorrido hasta que todo el personal asignado registre su asistencia.'
+                : $startAvailability['message'],
             'finish_message' => $startAvailability['finish_message'],
             'server_time' => $startAvailability['server_time'],
         ];
@@ -196,7 +200,10 @@ class DriverProgrammingController extends Controller
 
         return DB::transaction(function () use ($employee, $programmingId) {
             $programming = Programming::query()
-                ->with('shift')
+                ->with([
+                    'shift',
+                    'employees' => fn ($query) => $query->orderByPivot('id'),
+                ])
                 ->where('driver_id', $employee->id)
                 ->whereKey($programmingId)
                 ->lockForUpdate()
@@ -254,6 +261,47 @@ class DriverProgrammingController extends Controller
                         'end' => $endAt->format('H:i'),
                     ],
                 ], 422);
+            }
+
+            // Verificar nuevamente la asistencia en el servidor para evitar
+            // iniciar el recorrido con cualquier integrante pendiente.
+            $team = $programming->employees->unique('id')->values();
+
+            if (!$team->contains(
+                fn ($person) => (int) $person->id === (int) $programming->driver_id
+            )) {
+                $team->push($employee);
+            }
+
+            $teamIds = $team->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $attendedIds = Attendance::query()
+                ->whereDate('date', $programming->date->toDateString())
+                ->where('shift_id', $programming->shift_id)
+                ->where('type', 'Entrada')
+                ->whereIn('employee_id', $teamIds)
+                ->whereIn('status', ['Presente', 'Tardanza'])
+                ->distinct()
+                ->pluck('employee_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $missingPeople = $team
+                ->reject(fn ($person) => in_array((int) $person->id, $attendedIds, true))
+                ->map(fn ($person) => trim($person->first_name . ' ' . $person->last_name))
+                ->values();
+
+            if ($missingPeople->isNotEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No puedes iniciar el recorrido. Todo el personal asignado debe registrar su asistencia.',
+                    'missing_people' => $missingPeople,
+                    'present_count' => count($attendedIds),
+                    'total_count' => $team->count(),
+                ], 409);
             }
 
             $programming->forceFill([
