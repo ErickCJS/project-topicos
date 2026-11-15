@@ -20,6 +20,9 @@ $(function () {
     let peopleRequest = null, peopleRevision = 0, peopleReady = false;
     let preferredPeople = {driver: '', helpers: []}, preferredVehicle = '', currentGroupCapacity = 1;
     let modificationId = null, modificationCurrent = null, modificationHistory = [], modificationOptions = null;
+    let adminRouteTimer = null, adminRouteMap = null, adminRouteLine = null;
+    let adminRouteStartMarker = null, adminRouteEndMarker = null, adminRouteId = null, adminRouteFetching = false;
+    let adminRouteHasBounds = false;
 
     function request(method, path, data = {}) {
         return $.ajax({url: base + path, method, data: method === 'GET' ? data : JSON.stringify(data),
@@ -48,8 +51,9 @@ $(function () {
         columns:[
             {data:'date',render:(v,t) => ['display','export'].includes(t) ? dateLabel(v) : v},
             {data:'status',render:(v,t) => {
-                const statusClass = v === 'Anulado' ? 'programming-status--annulled'
-                    : v === 'Finalizado' ? 'programming-status--finished'
+                const statusClass = v === 'Iniciado' ? 'programming-status--started'
+                    : v === 'Anulado' ? 'programming-status--annulled'
+                        : v === 'Finalizado' ? 'programming-status--finished'
                         : v === 'Reprogramado' ? 'programming-status--rescheduled'
                             : v === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
                 return t === 'display' ? `<span class="programming-status ${statusClass}">${escape(v)}</span>` : v;
@@ -59,7 +63,10 @@ $(function () {
             {data:'vehicle',render:(v,t,row) => t === 'display' ? `<span class="programming-vehicle">${escape(v)}<small>${escape(row.plate)}</small></span>` : `${v} ${row.plate}`},
             {data:'driver',render:$.fn.dataTable.render.text()},
             {data:'helpers',render:(v,t) => t === 'display' ? v.map(name => `<span class="programming-helper">${escape(name)}</span>`).join('') : v.join(', ')},
-            { data: null, orderable: false, searchable: false, render: row => `<div class="programming-actions table-action-buttons d-flex justify-content-center" data-id="${row.id}">${['Programado','Reprogramado'].includes(row.status) ? button('edit', 'pencil-square', 'Modificar programación', 'outline-warning') + button('annul','ban','Anular programación','outline-danger') + button('group','people','Ver grupo asociado','outline-primary') + button('finish','check-circle','Aceptar y finalizar recorrido','outline-success') : button('detail','eye','Ver detalle','outline-primary')}</div>`}
+            { data: null, orderable: false, searchable: false, render: row => {
+                const canManage = !row.started_at && ['Programado','Reprogramado'].includes(row.status);
+                return `<div class="programming-actions table-action-buttons d-flex justify-content-center" data-id="${row.id}">${canManage ? button('edit', 'pencil-square', 'Modificar programación', 'outline-warning') + button('annul','ban','Anular programación','outline-danger') + button('group','people','Ver grupo asociado','outline-primary') + button('finish','check-circle','Aceptar y finalizar recorrido','outline-success') : button('detail','eye','Ver detalle del recorrido','outline-primary')}</div>`;
+            }}
         ],
         language:{search:'Buscar:',lengthMenu:'Mostrar _MENU_ registros',info:'Mostrando _START_ a _END_ de _TOTAL_ registros',infoEmpty:'Sin registros',infoFiltered:'(filtrado de _MAX_ registros)',zeroRecords:'No se encontraron programaciones',emptyTable:'No hay programaciones para las fechas seleccionadas',paginate:{first:'Primero',previous:'Anterior',next:'Siguiente',last:'Último'}}
     });
@@ -342,9 +349,96 @@ $(function () {
             <td>${escape(change.after?.reason ? modificationReasonLabel(change.after) : '—')}</td><td>${escape(change.user)}</td>
         </tr>`).join('');
     }
+    function stopAdminRouteMap() {
+        if (adminRouteTimer) clearInterval(adminRouteTimer);
+        adminRouteTimer = null;
+        adminRouteFetching = false;
+        if (adminRouteMap) adminRouteMap.remove();
+        adminRouteMap = null;
+        adminRouteLine = null;
+        adminRouteStartMarker = null;
+        adminRouteEndMarker = null;
+        adminRouteId = null;
+        adminRouteHasBounds = false;
+    }
+
+    function refreshAdminRouteMap(id, isLive) {
+        if (adminRouteId !== id || adminRouteFetching) return;
+        adminRouteFetching = true;
+        request('GET', '/' + id + '/locations').done(response => {
+            const data = response.data || {};
+            const locations = Array.isArray(data.locations) ? data.locations : [];
+            const points = locations.map(point => [Number(point.latitude), Number(point.longitude)])
+                .filter(point => Number.isFinite(point[0]) && Number.isFinite(point[1]));
+            const finished = data.route_finished === true || data.status === 'Finalizado';
+            const badge = document.getElementById('programmingRouteState');
+            const message = document.getElementById('programmingRouteMapMessage');
+            const count = document.getElementById('programmingRoutePointCount');
+            if (badge) {
+                badge.className = finished ? 'badge bg-success-subtle text-success-emphasis' : 'badge bg-danger-subtle text-danger-emphasis';
+                badge.textContent = finished ? 'RECORRIDO FINALIZADO' : 'SEGUIMIENTO EN VIVO';
+            }
+            if (count) count.textContent = `${points.length} ubicaciones registradas`;
+            if (!points.length) {
+                if (message) message.textContent = finished
+                    ? 'El recorrido finalizó sin ubicaciones GPS registradas.'
+                    : 'Esperando la primera ubicación enviada por el conductor…';
+                return;
+            }
+            if (!window.L) {
+                if (message) message.textContent = 'No se pudo cargar el mapa. Verifique su conexión a internet.';
+                return;
+            }
+            if (!adminRouteMap) {
+                const element = document.getElementById('programmingRouteMap');
+                if (!element) return;
+                adminRouteMap = L.map(element, {scrollWheelZoom: true, zoomControl: true});
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(adminRouteMap);
+                adminRouteLine = L.polyline(points, {color: '#16834a', weight: 5, opacity: .9}).addTo(adminRouteMap);
+                adminRouteStartMarker = L.circleMarker(points[0], {
+                    radius: 7, color: '#ffffff', weight: 2, fillColor: '#16834a', fillOpacity: 1
+                }).addTo(adminRouteMap).bindTooltip('Inicio del recorrido');
+                adminRouteEndMarker = L.circleMarker(points[points.length - 1], {
+                    radius: 8, color: '#ffffff', weight: 2, fillColor: finished ? '#2563eb' : '#f59e0b', fillOpacity: 1
+                }).addTo(adminRouteMap).bindTooltip(finished ? 'Fin del recorrido' : 'Última ubicación');
+                adminRouteMap.fitBounds(adminRouteLine.getBounds(), {padding: [28, 28]});
+                adminRouteHasBounds = true;
+                setTimeout(() => adminRouteMap && adminRouteMap.invalidateSize(), 180);
+            } else {
+                adminRouteLine.setLatLngs(points);
+                adminRouteStartMarker.setLatLng(points[0]);
+                adminRouteEndMarker.setLatLng(points[points.length - 1]);
+                adminRouteEndMarker.setStyle({fillColor: finished ? '#2563eb' : '#f59e0b'});
+                if (isLive && !finished) adminRouteMap.panTo(points[points.length - 1], {animate: true, duration: .45});
+                else if (!adminRouteHasBounds) adminRouteMap.fitBounds(adminRouteLine.getBounds(), {padding: [28, 28]});
+            }
+            if (message) message.classList.add('d-none');
+            if (finished && adminRouteTimer) {
+                clearInterval(adminRouteTimer);
+                adminRouteTimer = null;
+            }
+        }).fail(xhr => {
+            const message = document.getElementById('programmingRouteMapMessage');
+            if (message) message.textContent = xhr.responseJSON?.message || 'No se pudo consultar el recorrido.';
+        }).always(() => { adminRouteFetching = false; });
+    }
+
+    function openAdminRouteMap(id, row) {
+        stopAdminRouteMap();
+        if (!row.started_at) return;
+        adminRouteId = id;
+        const isLive = !(row.route_finished === true || row.status === 'Finalizado');
+        refreshAdminRouteMap(id, isLive);
+        if (isLive) adminRouteTimer = setInterval(() => refreshAdminRouteMap(id, true), 5000);
+    }
+
     function details(row, history) {
         const helpers = Array.isArray(row.helpers) ? row.helpers : [];
-        const statusClass = row.status === 'Anulado' ? 'programming-status--annulled'
+        const statusClass = row.status === 'Iniciado' ? 'programming-status--started'
+            : row.status === 'Anulado' ? 'programming-status--annulled'
             : row.status === 'Finalizado' ? 'programming-status--finished'
                 : row.status === 'Reprogramado' ? 'programming-status--rescheduled'
                     : row.status === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
@@ -352,6 +446,7 @@ $(function () {
             ['Fecha',dateLabel(row.date)], ['Estado',`<span class="programming-status ${statusClass}">${escape(row.status)}</span>`],
             ['Grupo',row.group], ['Zona',row.zone], ['Turno',`${row.shift} · ${row.hours}`],
             ['Vehículo',`${row.vehicle} · ${row.plate}`], ['Observaciones',row.notes || 'Sin observaciones'],
+            ...(row.started_at ? [['Inicio real',row.started_at]] : []),
             ['Finalización',row.finished_at || 'Pendiente'],
             ...(row.holiday_work ? [['Trabajo en feriado',`${row.holiday_work.names.join(', ')} · Autorizado el ${dateLabel(row.holiday_work.authorized_at)}`]] : []),
         ];
@@ -369,6 +464,15 @@ $(function () {
                     </div>
                 </section>
             </div>
+            ${row.started_at ? `<section class="programming-detail-panel programming-detail-route" aria-label="Mapa del recorrido">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <h6 class="programming-detail-heading mb-0"><i class="bi bi-geo-alt me-2" aria-hidden="true"></i>Seguimiento del recorrido</h6>
+                    <span id="programmingRouteState" class="badge ${row.route_finished || row.status === 'Finalizado' ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger-emphasis'}">${row.route_finished || row.status === 'Finalizado' ? 'RECORRIDO FINALIZADO' : 'SEGUIMIENTO EN VIVO'}</span>
+                </div>
+                <div id="programmingRouteMapMessage" class="small text-body-secondary mb-2">Cargando ubicaciones del recorrido…</div>
+                <div id="programmingRouteMap" class="programming-route-map"></div>
+                <div id="programmingRoutePointCount" class="small text-body-secondary mt-2">Consultando ubicaciones…</div>
+            </section>` : ''}
             <section class="programming-detail-panel programming-detail-history" aria-label="Historial de cambios">
                 <h6 class="programming-detail-heading"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Historial de cambios</h6>
                 <div class="table-responsive">
@@ -567,16 +671,20 @@ $(function () {
     $('#programmingModificationsModal').on('hidden.bs.modal',function(){
         modificationId=null;modificationCurrent=null;modificationHistory=[];modificationOptions=null;
     });
+    $('#programmingDetailModal').on('hidden.bs.modal', stopAdminRouteMap);
     $('#programmingTable').on('click','[data-action]',async function(){
         const id = Number(this.closest('[data-id]').dataset.id), action = this.dataset.action;
         if(action === 'edit') {openModificationModule(id);return;}
         if(action === 'detail' || action === 'group') {
-            $('#programmingDetailTitle').text('Detalle de programación y grupo');
+            stopAdminRouteMap();
+            $('#programmingDetailTitle').text(action === 'detail' ? 'Detalle de programación' : 'Detalle de programación y grupo');
             $('#programmingDetailBody').html('<div class="text-center text-body-secondary py-5"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cargando datos e historial…</div>');
             detail.show();
             $.when(request('GET','/' + id),request('GET','/' + id + '/history'))
                 .done((rowResult,historyResult) => {
-                    $('#programmingDetailBody').html(details(rowResult[0],historyResult[0].data || []));
+                    const row = rowResult[0];
+                    $('#programmingDetailBody').html(details(row,historyResult[0].data || []));
+                    openAdminRouteMap(id, row);
                 })
                 .fail(errors);
             return;
