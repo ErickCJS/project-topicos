@@ -19,6 +19,74 @@ class DriverLocationController extends Controller
     private const DUPLICATE_RADIUS_METERS = 5.0;
 
     /**
+     * Devuelve el recorrido histórico completo de una programación del conductor.
+     * Este endpoint también permite consultar recorridos finalizados.
+     */
+    public function index(Request $request, int $programmingId): JsonResponse
+    {
+        $employee = $request->user();
+
+        if (
+            !$employee instanceof Employee ||
+            (int) $employee->employee_type_id !== 1
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes autorización para consultar ubicaciones.',
+            ], 403);
+        }
+
+        $programming = Programming::query()
+            ->where('driver_id', $employee->id)
+            ->whereKey($programmingId)
+            ->where('status', '!=', Programming::STATUS_CANCELLED)
+            ->first();
+
+        if (!$programming) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró la programación solicitada.',
+            ], 404);
+        }
+
+        $locations = DB::table('programming_locations')
+            ->where('programming_id', $programming->id)
+            ->where('employee_id', $employee->id)
+            ->orderBy('id')
+            ->get([
+                'id',
+                'latitude',
+                'longitude',
+                'accuracy',
+                'recorded_at',
+            ])
+            ->map(fn ($location) => [
+                'id' => (int) $location->id,
+                'latitude' => (float) $location->latitude,
+                'longitude' => (float) $location->longitude,
+                'accuracy' => $location->accuracy === null
+                    ? null
+                    : (float) $location->accuracy,
+                'recorded_at' => CarbonImmutable::parse($location->recorded_at, 'UTC')
+                    ->timezone(self::TIMEZONE)
+                    ->toIso8601String(),
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'programming_id' => $programming->id,
+                'route_started' => $programming->started_at !== null,
+                'route_finished' => $programming->finished_at !== null
+                    || $programming->status === Programming::STATUS_FINISHED,
+                'total_points' => $locations->count(),
+                'locations' => $locations,
+            ],
+        ]);
+    }
+
+    /**
      * Guarda una posición GPS de un recorrido abierto.
      * Los puntos consecutivos dentro de un radio de 5 m se reciben, pero no se duplican en BD.
      */
