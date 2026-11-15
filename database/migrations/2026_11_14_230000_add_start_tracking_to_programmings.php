@@ -16,12 +16,19 @@ return new class extends Migration
                 ->nullOnDelete();
 
             $table->timestamp('started_at')->nullable()->after('started_by');
+
+            $table->foreignId('ended_by')
+                ->nullable()
+                ->after('started_at')
+                ->constrained('employees')
+                ->nullOnDelete();
         });
     }
 
     public function down(): void
     {
         Schema::table('programmings', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('ended_by');
             $table->dropConstrainedForeignId('started_by');
             $table->dropColumn('started_at');
         });
