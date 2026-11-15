@@ -406,15 +406,29 @@ class DriverProgrammingController extends Controller
     private function scheduleWindow(Programming $programming): ?array
     {
         $shift = $programming->shift;
+        $snapshot = $programming->snapshot ?? [];
+        $snapshotHours = trim((string) ($snapshot['hours'] ?? ''));
 
-        if (!$shift || !$shift->start_time || !$shift->end_time) {
+        // La programación guarda una copia del horario que se asignó al conductor.
+        // Usamos ese mismo horario que ve Flutter, aunque el turno maestro cambie después.
+        if (
+            $snapshotHours !== '' &&
+            preg_match('/(\\d{1,2}:\\d{2})\\s*[-–—]\\s*(\\d{1,2}:\\d{2})/', $snapshotHours, $matches)
+        ) {
+            $startTime = $matches[1];
+            $endTime = $matches[2];
+        } elseif ($shift && $shift->start_time && $shift->end_time) {
+            $startTime = substr($shift->start_time, 0, 5);
+            $endTime = substr($shift->end_time, 0, 5);
+        } else {
             return null;
         }
 
         $date = $programming->date->toDateString();
-        $startAt = CarbonImmutable::parse($date . ' ' . $shift->start_time, self::TIMEZONE);
-        $endAt = CarbonImmutable::parse($date . ' ' . $shift->end_time, self::TIMEZONE);
+        $startAt = CarbonImmutable::parse($date . ' ' . $startTime, self::TIMEZONE);
+        $endAt = CarbonImmutable::parse($date . ' ' . $endTime, self::TIMEZONE);
 
+        // Los turnos nocturnos, como 20:00 - 02:00, terminan al día siguiente.
         if ($endAt->lessThanOrEqualTo($startAt)) {
             $endAt = $endAt->addDay();
         }
