@@ -154,7 +154,9 @@ class DriverProgrammingController extends Controller
             'hours' => $snapshot['hours'] ?? ($shift
                 ? substr($shift->start_time, 0, 5) . ' - ' . substr($shift->end_time, 0, 5)
                 : null),
-            'status' => $programming->status,
+            'status' => $programming->started_at !== null && $programming->finished_at === null
+                && in_array($programming->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)
+                ? Programming::STATUS_STARTED : $programming->status,
             'notes' => $programming->notes,
             'people' => $people,
             'present_count' => $people->where('attended', true)->count(),
