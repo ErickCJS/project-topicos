@@ -366,6 +366,7 @@ $(function () {
         if (adminRouteId !== id || adminRouteFetching) return;
         adminRouteFetching = true;
         request('GET', '/' + id + '/locations').done(response => {
+            if (adminRouteId !== id) return;
             const data = response.data || {};
             const locations = Array.isArray(data.locations) ? data.locations : [];
             const points = locations.map(point => [Number(point.latitude), Number(point.longitude)])
@@ -416,9 +417,15 @@ $(function () {
                 else if (!adminRouteHasBounds) adminRouteMap.fitBounds(adminRouteLine.getBounds(), {padding: [28, 28]});
             }
             if (message) message.classList.add('d-none');
-            if (finished && adminRouteTimer) {
-                clearInterval(adminRouteTimer);
+            if (finished) {
+                const statusNode = document.getElementById('programmingDetailStatus');
+                if (statusNode) {
+                    statusNode.textContent = 'Finalizado';
+                    statusNode.className = 'programming-status programming-status--finished';
+                }
+                if (adminRouteTimer) clearInterval(adminRouteTimer);
                 adminRouteTimer = null;
+                table.ajax.reload(null, false);
             }
         }).fail(xhr => {
             const message = document.getElementById('programmingRouteMapMessage');
@@ -443,7 +450,7 @@ $(function () {
                 : row.status === 'Reprogramado' ? 'programming-status--rescheduled'
                     : row.status === 'Programado' ? 'programming-status--scheduled' : 'programming-status--default';
         const facts = [
-            ['Fecha',dateLabel(row.date)], ['Estado',`<span class="programming-status ${statusClass}">${escape(row.status)}</span>`],
+            ['Fecha',dateLabel(row.date)], ['Estado',`<span id="programmingDetailStatus" class="programming-status ${statusClass}">${escape(row.status)}</span>`],
             ['Grupo',row.group], ['Zona',row.zone], ['Turno',`${row.shift} · ${row.hours}`],
             ['Vehículo',`${row.vehicle} · ${row.plate}`], ['Observaciones',row.notes || 'Sin observaciones'],
             ...(row.started_at ? [['Inicio real',row.started_at]] : []),
