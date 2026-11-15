@@ -1909,11 +1909,16 @@ class ProgrammingBackendTest extends TestCase
             ->assertJsonPath('stored', true)
             ->assertJsonPath('duplicate', false);
 
-        $this->assertDatabaseCount('programming_locations', 2);
-        $this->assertDatabaseHas('programming_locations', [
-            'programming_id' => $programming->id,
-            'latitude' => -6.7800000,
-        ]);
+        $storedLatitudes = DB::table('programming_locations')
+            ->where('programming_id', $programming->id)
+            ->orderBy('id')
+            ->pluck('latitude')
+            ->map(fn ($latitude) => (float) $latitude)
+            ->all();
+
+        $this->assertCount(2, $storedLatitudes);
+        $this->assertEqualsWithDelta(-6.7800000, $storedLatitudes[0], 0.0000001);
+        $this->assertEqualsWithDelta(-6.7798000, $storedLatitudes[1], 0.0000001);
     }
 
 }
