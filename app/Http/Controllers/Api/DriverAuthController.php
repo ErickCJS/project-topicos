@@ -388,8 +388,11 @@ class DriverAuthController extends Controller
                 Programming::STATUS_RESCHEDULED,
             ], true);
 
+            // El inicio solo se habilita cuando todo el personal asignado
+            // (incluido el conductor) tiene asistencia válida.
             $canStartRoute = $validStatus
                 && !$routeStarted
+                && $complete
                 && $startAt !== null
                 && $endAt !== null
                 && $now->greaterThanOrEqualTo($startAt)
@@ -431,7 +434,7 @@ class DriverAuthController extends Controller
 
                 'complete' => $complete,
 
-                // El equipo puede tener asistencias pendientes; eso no impide iniciar.
+                // La lista tampoco habilita el inicio mientras falte alguna asistencia.
                 'can_start_route' => $canStartRoute,
                 'route_started' => $routeStarted,
                 'route_finished' => $routeFinished,
