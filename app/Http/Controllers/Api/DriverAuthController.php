@@ -346,18 +346,35 @@ class DriverAuthController extends Controller
             $now = CarbonImmutable::now('America/Lima');
             $startAt = null;
             $endAt = null;
+            $snapshotHours = trim((string) ($snapshot['hours'] ?? ''));
 
-            if ($shift && $shift->start_time && $shift->end_time) {
+            // Evaluar con el mismo horario asignado y mostrado en la programación.
+            if (
+                $snapshotHours !== '' &&
+                preg_match('/(\\d{1,2}:\\d{2})\\s*[-–—]\\s*(\\d{1,2}:\\d{2})/', $snapshotHours, $matches)
+            ) {
+                $startTime = $matches[1];
+                $endTime = $matches[2];
+            } elseif ($shift && $shift->start_time && $shift->end_time) {
+                $startTime = substr($shift->start_time, 0, 5);
+                $endTime = substr($shift->end_time, 0, 5);
+            } else {
+                $startTime = null;
+                $endTime = null;
+            }
+
+            if ($startTime !== null && $endTime !== null) {
                 $programmingDate = $programming->date->toDateString();
                 $startAt = CarbonImmutable::parse(
-                    $programmingDate . ' ' . $shift->start_time,
+                    $programmingDate . ' ' . $startTime,
                     'America/Lima'
                 );
                 $endAt = CarbonImmutable::parse(
-                    $programmingDate . ' ' . $shift->end_time,
+                    $programmingDate . ' ' . $endTime,
                     'America/Lima'
                 );
 
+                // Los turnos nocturnos terminan al día siguiente.
                 if ($endAt->lessThanOrEqualTo($startAt)) {
                     $endAt = $endAt->addDay();
                 }
@@ -421,6 +438,11 @@ class DriverAuthController extends Controller
                 'can_finish_route' => $canFinishRoute,
                 'started_at' => $programming->started_at?->timezone('America/Lima')->format('H:i'),
                 'finished_at' => $programming->finished_at?->timezone('America/Lima')->format('H:i'),
+                'start_window' => $startAt && $endAt ? [
+                    'start' => $startAt->format('H:i'),
+                    'end' => $endAt->format('H:i'),
+                ] : null,
+                'server_time' => $now->format('H:i:s'),
             ];
         })->values();
 
