@@ -347,6 +347,34 @@ class ProgrammingController extends Controller
         ]);
     }
 
+    public function locations(Programming $programming)
+    {
+        if ($programming->started_at === null) {
+            return response()->json(['success' => false, 'message' => 'El recorrido todavía no ha sido iniciado.'], 409);
+        }
+
+        $locations = DB::table('programming_locations')->where('programming_id', $programming->id)
+            ->orderBy('id')->get(['id', 'latitude', 'longitude', 'accuracy', 'recorded_at'])
+            ->map(fn ($location) => [
+                'id' => (int) $location->id,
+                'latitude' => (float) $location->latitude,
+                'longitude' => (float) $location->longitude,
+                'accuracy' => $location->accuracy === null ? null : (float) $location->accuracy,
+                'recorded_at' => CarbonImmutable::parse($location->recorded_at, 'UTC')->timezone('America/Lima')->toIso8601String(),
+            ])->values();
+
+        return response()->json(['success' => true, 'data' => [
+            'programming_id' => $programming->id,
+            'status' => $programming->status,
+            'route_started' => true,
+            'route_finished' => $programming->status === Programming::STATUS_FINISHED || $programming->finished_at !== null,
+            'total_points' => $locations->count(),
+            'started_at' => $programming->started_at?->timezone('America/Lima')->toIso8601String(),
+            'finished_at' => $programming->finished_at?->timezone('America/Lima')->toIso8601String(),
+            'locations' => $locations,
+        ]]);
+    }
+
     public function history(string $id)
     {
         $programming = Programming::withTrashed()->findOrFail($id);
@@ -434,8 +462,8 @@ class ProgrammingController extends Controller
     {
         DB::transaction(function () use ($programming, $request) {
             $row = Programming::whereKey($programming->id)->lockForUpdate()->firstOrFail();
-            if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
-                $this->reject('El recorrido ya está finalizado.');
+            if ($row->started_at !== null || ! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
+                $this->reject('Un recorrido iniciado no puede modificarse desde administración.');
             }
             $before = $row->toArray();
             $row->update(['status' => 'Finalizado', 'finished_by' => $request->user()->id, 'finished_at' => now()]);
@@ -449,8 +477,8 @@ class ProgrammingController extends Controller
     {
         DB::transaction(function () use ($programming, $request) {
             $row = Programming::whereKey($programming->id)->lockForUpdate()->firstOrFail();
-            if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
-                $this->reject('Solo se puede anular un recorrido programado.');
+            if ($row->started_at !== null || ! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
+                $this->reject('No se puede anular un recorrido iniciado o que ya salió del estado pendiente.');
             }
             $before = $row->toArray();
             $row->employees()->detach();
@@ -465,8 +493,8 @@ class ProgrammingController extends Controller
     {
         DB::transaction(function () use ($programming, $request) {
             $row = Programming::whereKey($programming->id)->lockForUpdate()->firstOrFail();
-            if (! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
-                $this->reject('No se puede eliminar un recorrido finalizado.');
+            if ($row->started_at !== null || ! in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)) {
+                $this->reject('No se puede eliminar un recorrido iniciado o que ya salió del estado pendiente.');
             }
             $before = $row->toArray();
             $row->employees()->detach();
@@ -483,7 +511,10 @@ class ProgrammingController extends Controller
         return ['id' => $row->id, 'date' => $row->date->toDateString(), 'status' => $row->status,
             'group_id' => $row->staff_group_id, 'parent_programming_id' => $row->parent_programming_id,
             'child_programming_id' => $row->childProgrammings()->value('id'), ...$row->snapshot, 'notes' => $row->notes,
-            'finished_at' => $row->finished_at?->format('d/m/Y H:i')];
+            'started_at' => $row->started_at?->timezone('America/Lima')->format('d/m/Y H:i'),
+            'finished_at' => $row->finished_at?->timezone('America/Lima')->format('d/m/Y H:i'),
+            'route_started' => $row->started_at !== null,
+            'route_finished' => $row->status === Programming::STATUS_FINISHED || $row->finished_at !== null];
     }
 
     private function validated(Request $request, bool $requirePeople = true): array
