@@ -14,6 +14,7 @@ class Programming extends Model
 
     public const STATUS_PROGRAMMED = 'Programado';
     public const STATUS_RESCHEDULED = 'Reprogramado';
+    public const STATUS_STARTED = 'Iniciado';
     public const STATUS_FINISHED = 'Finalizado';
     public const STATUS_CANCELLED = 'Anulado';
 
