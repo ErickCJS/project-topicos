@@ -43,6 +43,12 @@ Route::middleware('auth:sanctum')->group(function () {
         'start'
     ]);
 
+    // Finalizar un recorrido que ya fue iniciado, sin límite de horario.
+    Route::post('/conductor/programaciones/{programming}/finalizar', [
+        DriverProgrammingController::class,
+        'finish'
+    ]);
+
     // Detalle de una programación específica del conductor autenticado.
     Route::get('/conductor/programaciones/{programming}', [
         DriverProgrammingController::class,
