@@ -1919,6 +1919,24 @@ class ProgrammingBackendTest extends TestCase
         $this->assertCount(2, $storedLatitudes);
         $this->assertEqualsWithDelta(-6.7800000, $storedLatitudes[0], 0.0000001);
         $this->assertEqualsWithDelta(-6.7798000, $storedLatitudes[1], 0.0000001);
+
+        // Simula una fila antigua repetida, creada antes de aplicar el umbral.
+        $timestamp = now()->utc()->toDateTimeString();
+        DB::table('programming_locations')->insert([
+            'programming_id' => $programming->id,
+            'employee_id' => $this->driver->id,
+            'latitude' => -6.7797900,
+            'longitude' => -79.8300000,
+            'accuracy' => 4,
+            'recorded_at' => $timestamp,
+            'created_at' => $timestamp,
+            'updated_at' => $timestamp,
+        ]);
+
+        $this->getJson('/api/conductor/programaciones/'.$programming->id.'/ubicaciones')
+            ->assertOk()
+            ->assertJsonPath('data.total_points', 2)
+            ->assertJsonCount(2, 'data.locations');
     }
 
 }
