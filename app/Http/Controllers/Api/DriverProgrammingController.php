@@ -305,6 +305,7 @@ class DriverProgrammingController extends Controller
             }
 
             $programming->forceFill([
+                'status' => Programming::STATUS_STARTED,
                 'started_by' => $employee->id,
                 'started_at' => $now,
             ])->save();
@@ -368,7 +369,9 @@ class DriverProgrammingController extends Controller
                 ], 409);
             }
 
-            if (!in_array($programming->status, [
+            // La compatibilidad de estados pendientes solo cubre recorridos antiguos
+            // cuyo started_at se guardó antes de persistir el estado Iniciado.
+            if ($programming->status !== Programming::STATUS_STARTED && !in_array($programming->status, [
                 Programming::STATUS_PROGRAMMED,
                 Programming::STATUS_RESCHEDULED,
             ], true)) {
