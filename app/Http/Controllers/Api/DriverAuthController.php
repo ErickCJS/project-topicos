@@ -342,6 +342,42 @@ class DriverAuthController extends Controller
                 && $people->every(fn($person) => $person['attended']);
 
             $shift = $programming->shift;
+            $now = CarbonImmutable::now('America/Lima');
+            $startAt = null;
+            $endAt = null;
+
+            if ($shift && $shift->start_time && $shift->end_time) {
+                $programmingDate = $programming->date->toDateString();
+                $startAt = CarbonImmutable::parse(
+                    $programmingDate . ' ' . $shift->start_time,
+                    'America/Lima'
+                );
+                $endAt = CarbonImmutable::parse(
+                    $programmingDate . ' ' . $shift->end_time,
+                    'America/Lima'
+                );
+
+                if ($endAt->lessThanOrEqualTo($startAt)) {
+                    $endAt = $endAt->addDay();
+                }
+            }
+
+            $routeStarted = $programming->started_at !== null;
+            $routeFinished = $programming->status === Programming::STATUS_FINISHED
+                || $programming->finished_at !== null;
+            $validStatus = in_array($programming->status, [
+                Programming::STATUS_PROGRAMMED,
+                Programming::STATUS_RESCHEDULED,
+            ], true);
+
+            $canStartRoute = $validStatus
+                && !$routeStarted
+                && $startAt !== null
+                && $endAt !== null
+                && $now->greaterThanOrEqualTo($startAt)
+                && $now->lessThan($endAt);
+
+            $canFinishRoute = $routeStarted && !$routeFinished;
 
             return [
                 'id' => $programming->id,
@@ -377,14 +413,13 @@ class DriverAuthController extends Controller
 
                 'complete' => $complete,
 
-                'can_start_route' => $complete && in_array(
-                    $programming->status,
-                    [
-                        Programming::STATUS_PROGRAMMED,
-                        Programming::STATUS_RESCHEDULED,
-                    ],
-                    true
-                ),
+                // El equipo puede tener asistencias pendientes; eso no impide iniciar.
+                'can_start_route' => $canStartRoute,
+                'route_started' => $routeStarted,
+                'route_finished' => $routeFinished,
+                'can_finish_route' => $canFinishRoute,
+                'started_at' => $programming->started_at?->timezone('America/Lima')->format('H:i'),
+                'finished_at' => $programming->finished_at?->timezone('America/Lima')->format('H:i'),
             ];
         })->values();
 
