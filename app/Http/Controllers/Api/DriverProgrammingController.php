@@ -22,7 +22,7 @@ class DriverProgrammingController extends Controller
     {
         $employee = $request->user();
 
-        if ($error = $this->validateDriver($employee)) {
+        if ($error = $this->validateDriverIdentity($employee)) {
             return $error;
         }
 
@@ -42,6 +42,25 @@ class DriverProgrammingController extends Controller
                 'success' => false,
                 'message' => 'No se encontró la programación solicitada.',
             ], 404);
+        }
+
+        // Si todavía no se ha iniciado, exige conductor activo y contrato vigente.
+        // Si ya está abierta, permite consultar y finalizar aunque la vigencia cambie
+        // durante el recorrido (por ejemplo, en un turno nocturno).
+        if ($programming->started_at === null) {
+            if ($employee->status !== 'Activo') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tu cuenta de conductor no está activa.',
+                ], 403);
+            }
+
+            if (!$employee->hasVigenteContract()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes un contrato vigente.',
+                ], 403);
+            }
         }
 
         $snapshot = $programming->snapshot ?? [];
@@ -263,7 +282,7 @@ class DriverProgrammingController extends Controller
     {
         $employee = $request->user();
 
-        if ($error = $this->validateDriver($employee)) {
+        if ($error = $this->validateDriverIdentity($employee)) {
             return $error;
         }
 
@@ -342,16 +361,31 @@ class DriverProgrammingController extends Controller
         });
     }
 
-    private function validateDriver($employee): ?JsonResponse
+    private function validateDriverIdentity($employee): ?JsonResponse
     {
         if (
             !$employee instanceof Employee ||
-            (int) $employee->employee_type_id !== 1 ||
-            $employee->status !== 'Activo'
+            (int) $employee->employee_type_id !== 1
         ) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes autorización para realizar esta operación.',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    private function validateDriver($employee): ?JsonResponse
+    {
+        if ($error = $this->validateDriverIdentity($employee)) {
+            return $error;
+        }
+
+        if ($employee->status !== 'Activo') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tu cuenta de conductor no está activa.',
             ], 403);
         }
 
