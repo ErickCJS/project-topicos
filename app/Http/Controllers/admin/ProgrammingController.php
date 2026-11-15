@@ -24,6 +24,8 @@ use Yajra\DataTables\Facades\DataTables;
 
 class ProgrammingController extends Controller
 {
+    private const MINIMUM_ROUTE_MOVEMENT_METERS = 15.0;
+
     public function __construct(private ProgrammingService $service, private ProgrammingModificationService $modificationService, private BulkProgrammingModificationService $bulkModificationService, private ProgrammingReschedulingService $reschedulingService) {}
 
     public function index(Request $request)
@@ -363,6 +365,23 @@ class ProgrammingController extends Controller
                 'recorded_at' => CarbonImmutable::parse($location->recorded_at, 'UTC')->timezone('America/Lima')->toIso8601String(),
             ])->values();
 
+        // Elimina puntos cercanos que pudieron guardarse antes de aplicar el
+        // umbral de 15 m. Solo comparamos con el último punto aceptado.
+        $locations = $locations->reduce(function ($accepted, $location) {
+            $last = $accepted->last();
+            if ($last && $this->locationDistanceInMeters(
+                $last['latitude'],
+                $last['longitude'],
+                $location['latitude'],
+                $location['longitude']
+            ) <= self::MINIMUM_ROUTE_MOVEMENT_METERS) {
+                return $accepted;
+            }
+
+            $accepted->push($location);
+            return $accepted;
+        }, collect())->values();
+
         return response()->json(['success' => true, 'data' => [
             'programming_id' => $programming->id,
             'status' => $programming->status,
@@ -700,6 +719,23 @@ class ProgrammingController extends Controller
         }
         unset($data['validation_token']);
         return $data;
+    }
+
+    private function locationDistanceInMeters(
+        float $latitudeA,
+        float $longitudeA,
+        float $latitudeB,
+        float $longitudeB
+    ): float {
+        $earthRadius = 6371000.0;
+        $latA = deg2rad($latitudeA);
+        $latB = deg2rad($latitudeB);
+        $deltaLat = deg2rad($latitudeB - $latitudeA);
+        $deltaLon = deg2rad($longitudeB - $longitudeA);
+        $a = sin($deltaLat / 2) ** 2
+            + cos($latA) * cos($latB) * sin($deltaLon / 2) ** 2;
+
+        return 2 * $earthRadius * atan2(sqrt($a), sqrt(max(0, 1 - $a)));
     }
 
     private function reject(string $message): never
