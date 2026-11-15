@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\admin\Attendance;
 use App\Models\admin\Employee;
 use App\Models\admin\Programming;
+use App\Models\admin\ProgrammingLocation;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 class DriverProgrammingController extends Controller
 {
     private const TIMEZONE = 'America/Lima';
+    private const LOCATION_DUPLICATE_RADIUS_METERS = 5.0;
 
     /**
      * Devuelve el detalle de una programación asignada al conductor autenticado.
@@ -359,6 +361,167 @@ class DriverProgrammingController extends Controller
                 ],
             ]);
         });
+    }
+
+
+    /**
+     * Recibe una posición GPS del conductor para un recorrido que ya inició.
+     *
+     * Flutter puede enviar un punto cada 5 segundos. Si el nuevo punto está
+     * a 5 metros o menos del último punto guardado, se considera repetido
+     * y no se inserta otra fila.
+     */
+    public function storeLocation(Request $request): JsonResponse
+    {
+        $employee = $request->user();
+
+        if ($error = $this->validateDriverIdentity($employee)) {
+            return $error;
+        }
+
+        if ($employee->status !== 'Activo') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tu cuenta de conductor no está activa.',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'id_programacion' => ['required', 'integer', 'min:1'],
+            'latitud' => ['required', 'numeric', 'between:-90,90'],
+            'longitud' => ['required', 'numeric', 'between:-180,180'],
+            'precision_metros' => ['nullable', 'numeric', 'between:0,1000'],
+        ]);
+
+        return DB::transaction(function () use ($employee, $data): JsonResponse {
+            // El bloqueo serializa los envíos simultáneos para esta programación.
+            // Así dos peticiones simultáneas no pueden guardar el mismo punto.
+            $programming = Programming::query()
+                ->whereKey((int) $data['id_programacion'])
+                ->where('driver_id', $employee->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$programming || $programming->status === Programming::STATUS_CANCELLED) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontró una programación asignada a tu cuenta.',
+                ], 404);
+            }
+
+            if ($programming->started_at === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Debes iniciar el recorrido antes de enviar ubicaciones.',
+                ], 409);
+            }
+
+            if (
+                $programming->finished_at !== null ||
+                $programming->status === Programming::STATUS_FINISHED
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El recorrido ya fue finalizado. No se aceptan más ubicaciones.',
+                ], 409);
+            }
+
+            $lastLocation = ProgrammingLocation::query()
+                ->where('programming_id', $programming->id)
+                ->orderByDesc('id')
+                ->first();
+
+            $latitude = (float) $data['latitud'];
+            $longitude = (float) $data['longitud'];
+            $distanceFromLast = null;
+
+            if ($lastLocation) {
+                $distanceFromLast = $this->distanceInMeters(
+                    (float) $lastLocation->latitude,
+                    (float) $lastLocation->longitude,
+                    $latitude,
+                    $longitude
+                );
+
+                if ($distanceFromLast <= self::LOCATION_DUPLICATE_RADIUS_METERS) {
+                    return response()->json([
+                        'success' => true,
+                        'recorded' => false,
+                        'duplicate' => true,
+                        'message' => 'La ubicación no cambió significativamente. No se registró un punto duplicado.',
+                        'data' => [
+                            'id_programacion' => $programming->id,
+                            'ultima_ubicacion_id' => $lastLocation->id,
+                            'ultima_ubicacion_registrada' => $lastLocation->recorded_at
+                                ->timezone(self::TIMEZONE)
+                                ->toIso8601String(),
+                            'distancia_desde_ultimo_metros' => round($distanceFromLast, 2),
+                            'radio_duplicado_metros' => self::LOCATION_DUPLICATE_RADIUS_METERS,
+                            'intervalo_envio_segundos' => 5,
+                        ],
+                    ], 200);
+                }
+            }
+
+            $recordedAt = CarbonImmutable::now(self::TIMEZONE);
+
+            $location = ProgrammingLocation::create([
+                'programming_id' => $programming->id,
+                'employee_id' => $employee->id,
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'accuracy_meters' => $data['precision_metros'] ?? null,
+                'recorded_at' => $recordedAt,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'recorded' => true,
+                'duplicate' => false,
+                'message' => 'Ubicación registrada correctamente.',
+                'data' => [
+                    'id' => $location->id,
+                    'id_programacion' => $programming->id,
+                    'latitud' => (float) $location->latitude,
+                    'longitud' => (float) $location->longitude,
+                    'precision_metros' => $location->accuracy_meters !== null
+                        ? (float) $location->accuracy_meters
+                        : null,
+                    'registrado_en' => $location->recorded_at
+                        ->timezone(self::TIMEZONE)
+                        ->toIso8601String(),
+                    'distancia_desde_ultimo_metros' => $distanceFromLast !== null
+                        ? round($distanceFromLast, 2)
+                        : null,
+                    'radio_duplicado_metros' => self::LOCATION_DUPLICATE_RADIUS_METERS,
+                    'intervalo_envio_segundos' => 5,
+                ],
+            ], 201);
+        }, 3);
+    }
+
+    /**
+     * Distancia Haversine entre dos coordenadas GPS, en metros.
+     */
+    private function distanceInMeters(
+        float $latitude1,
+        float $longitude1,
+        float $latitude2,
+        float $longitude2
+    ): float {
+        $earthRadius = 6371000.0;
+
+        $lat1 = deg2rad($latitude1);
+        $lat2 = deg2rad($latitude2);
+        $deltaLatitude = deg2rad($latitude2 - $latitude1);
+        $deltaLongitude = deg2rad($longitude2 - $longitude1);
+
+        $a = sin($deltaLatitude / 2) ** 2
+            + cos($lat1) * cos($lat2) * sin($deltaLongitude / 2) ** 2;
+
+        $c = 2 * atan2(sqrt($a), sqrt(max(0.0, 1 - $a)));
+
+        return $earthRadius * $c;
     }
 
     private function validateDriverIdentity($employee): ?JsonResponse
