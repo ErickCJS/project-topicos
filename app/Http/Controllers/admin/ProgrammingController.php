@@ -508,7 +508,10 @@ class ProgrammingController extends Controller
 
     private function row(Programming $row): array
     {
-        return ['id' => $row->id, 'date' => $row->date->toDateString(), 'status' => $row->status,
+        return ['id' => $row->id, 'date' => $row->date->toDateString(),
+            'status' => $row->started_at !== null && $row->finished_at === null
+                && in_array($row->status, [Programming::STATUS_PROGRAMMED, Programming::STATUS_RESCHEDULED], true)
+                ? Programming::STATUS_STARTED : $row->status,
             'group_id' => $row->staff_group_id, 'parent_programming_id' => $row->parent_programming_id,
             'child_programming_id' => $row->childProgrammings()->value('id'), ...$row->snapshot, 'notes' => $row->notes,
             'started_at' => $row->started_at?->timezone('America/Lima')->format('d/m/Y H:i'),
