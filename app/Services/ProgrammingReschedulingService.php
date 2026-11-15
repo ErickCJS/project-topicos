@@ -238,7 +238,7 @@ class ProgrammingReschedulingService
     { return ['id' => $programming->id, 'date' => $programming->date->toDateString(), 'status' => $programming->status, 'parent_programming_id' => $programming->parent_programming_id, 'child_programming_id' => $programming->childProgrammings()->value('id'), 'group' => $programming->snapshot['group'] ?? null, 'zone' => $programming->snapshot['zone'] ?? null, 'notes' => $programming->notes]; }
 
     private function assertOrigin(Programming $programming): void
-    { if ($programming->status !== Programming::STATUS_PROGRAMMED) $this->reject('Solo se puede reprogramar un recorrido programado.'); }
+    { if ($programming->started_at !== null || $programming->status !== Programming::STATUS_PROGRAMMED) $this->reject('Solo se puede reprogramar un recorrido pendiente que no haya sido iniciado.'); }
 
     private function reject(string $message): never
     { throw ValidationException::withMessages(['rescheduling' => $message]); }
