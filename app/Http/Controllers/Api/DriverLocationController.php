@@ -71,6 +71,23 @@ class DriverLocationController extends Controller
                     ->timezone(self::TIMEZONE)
                     ->toIso8601String(),
             ])
+            ->values()
+            // Purga también las posiciones antiguas repetidas para que la API
+            // histórica nunca vuelva a entregar tramos con puntos casi iguales.
+            ->reduce(function ($accepted, $location) {
+                $last = $accepted->last();
+                if ($last && $this->distanceInMeters(
+                    $last['latitude'],
+                    $last['longitude'],
+                    $location['latitude'],
+                    $location['longitude']
+                ) <= self::DUPLICATE_RADIUS_METERS) {
+                    return $accepted;
+                }
+
+                $accepted->push($location);
+                return $accepted;
+            }, collect())
             ->values();
 
         return response()->json([
