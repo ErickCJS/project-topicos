@@ -44,8 +44,8 @@
 
             <div class="rsu-institutional-header">
                 <i class="fas fa-landmark"></i>
-                <span>Municipalidad Distrital de Jos&eacute; Leonardo Ortiz</span>
-                <span class="rsu-institutional-tag">GESTI&Oacute;N RSU</span>
+                <span>Municipalidad Distrital de José; Leonardo Ortiz</span>
+                <span class="rsu-institutional-tag">GESTIÓN RSU</span>
             </div>
 
             <div class="rsu-institutional-body">
@@ -57,13 +57,13 @@
                     @else
                         <div class="rsu-photo-placeholder">
                             <i class="fas fa-city"></i>
-                            <span>Jos&eacute; Leonardo Ortiz</span>
+                            <span>José Leonardo Ortiz</span>
                         </div>
                     @endif
 
                     <div class="rsu-photo-caption">
                         <i class="fas fa-leaf"></i>
-                        Por un distrito m&aacute;s limpio
+                        Por un distrito más limpio
                     </div>
                 </div>
 
@@ -74,13 +74,13 @@
                         <p>
                             Plataforma para administrar los recursos,
                             el personal y las operaciones relacionadas
-                            con la gesti&oacute;n de residuos s&oacute;lidos urbanos.
+                            con la gestión de residuos sólidos urbanos.
                         </p>
                     </div>
 
                     <h4 class="rsu-module-title">
                         <i class="fas fa-th-large"></i>
-                        M&oacute;dulos del sistema
+                        Módulos del sistema
                     </h4>
 
                     <div class="rsu-module-list">

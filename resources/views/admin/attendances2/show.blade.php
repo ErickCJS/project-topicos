@@ -46,7 +46,7 @@
         <div class="col-6">
             <div class="attendance-detail-card">
                 <small class="attendance-detail-label">Estado</small>
-                <span class="badge {{ $attendance->status === 'Presente' ? 'bg-success' : 'bg-secondary' }}">{{ $attendance->status }}</span>
+                <span class="badge {{ $attendance->status === 'Presente' ? 'bg-success' : ($attendance->status === 'Tardanza' ? 'bg-warning text-dark' : 'bg-secondary') }}">{{ $attendance->status }}</span>
             </div>
         </div>
         <div class="col-12">

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\admin\Contract;
 use App\Models\admin\Employee;
+use App\Models\admin\Programming;
 use App\Models\admin\Vacation;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,9 @@ class VacationService
             $this->assertCurrentEligibility($employee, $start, $end);
             $this->assertNotPast($start);
             $this->lockAnnualRecords($employee->id, (int) $data['year']);
+            $this->assertNoProgrammingConflict($employee->id, $start, $end);
+
+            $this->assertAvailable($employee->id, (int) $data['year'], $start, $end, $days);
 
             $vacation = Vacation::create([
                 'employee_id' => $employee->id,
@@ -74,9 +78,8 @@ class VacationService
             if ($newYear !== $oldYear) {
                 $this->lockAnnualRecords($employee->id, $newYear);
             }
-            if ($vacation->isApproved()) {
-                $this->assertAvailable($employee->id, $newYear, $start, $end, $days, $vacation->id);
-            }
+            $this->assertNoProgrammingConflict($employee->id, $start, $end);
+            $this->assertAvailable($employee->id, $newYear, $start, $end, $days, $vacation->id);
 
             $vacation->update([
                 'year' => $newYear,
@@ -124,6 +127,7 @@ class VacationService
             }
 
             $this->lockAnnualRecords($employee->id, $vacation->year);
+            $this->assertNoProgrammingConflict($employee->id, $start, $end);
             $this->assertAvailable($employee->id, $vacation->year, $start, $end, $days, $vacation->id);
 
             $vacation->update([
@@ -135,6 +139,35 @@ class VacationService
 
             return $vacation->fresh();
         }, 5);
+    }
+
+    // The caller holds the employee lock and the contract cancellation transaction.
+    public function closeForContractCancellation(int $employeeId, string $date, string $affectedFrom): void
+    {
+        $affected = Vacation::query()
+            ->where('employee_id', $employeeId)
+            ->whereIn('status', ['Pendiente', 'Aprobada'])
+            ->whereNotNull('start_date')
+            ->whereDate('end_date', '>=', $affectedFrom)
+            ->lockForUpdate()
+            ->get();
+
+        if ($affected->contains(fn (Vacation $vacation) => $vacation->isApproved()
+            && $vacation->start_date->toDateString() <= $date)) {
+            $this->reject('contract', 'No se puede anular el contrato mientras el trabajador esté de vacaciones aprobadas.');
+        }
+
+        foreach ($affected as $vacation) {
+            $vacation->update([
+                'status' => $vacation->isApproved() ? 'Anulada' : 'Rechazada',
+                'rejection_reason' => 'Anulación del contrato del trabajador.',
+                'reviewed_at' => now(),
+            ]);
+        }
+
+        foreach ($affected->pluck('year')->unique() as $year) {
+            $this->syncAnnualBalance($employeeId, $year);
+        }
     }
 
     public function rejectRequest(Vacation $original, string $reason): Vacation
@@ -195,6 +228,19 @@ class VacationService
         return max(0, Vacation::ANNUAL_DAYS - (int) $query->sum('scheduled_days'));
     }
 
+    public function requestableBalance(int $employeeId, int $year, ?int $excludingId = null): int
+    {
+        $query = Vacation::query()
+            ->where('employee_id', $employeeId)
+            ->where('year', $year)
+            ->whereIn('status', ['Aprobada', 'Pendiente']);
+
+        if ($excludingId !== null) {
+            $query->where('id', '!=', $excludingId);
+        }
+
+        return max(0, Vacation::ANNUAL_DAYS - (int) $query->sum('scheduled_days'));
+    }
     private function period(array $data): array
     {
         $start = CarbonImmutable::createFromFormat('!Y-m-d', $data['start_date']);
@@ -281,7 +327,7 @@ class VacationService
     ): void {
         $annual = Vacation::query()->where('employee_id', $employeeId)
             ->where('year', $year)
-            ->where('status', 'Aprobada');
+            ->whereIn('status', ['Aprobada', 'Pendiente']);
         if ($excludingId !== null) {
             $annual->where('id', '!=', $excludingId);
         }
@@ -302,6 +348,28 @@ class VacationService
 
         if ($overlap) {
             $this->reject('start_date', 'El período se superpone con otra vacación registrada para el empleado.');
+        }
+    }
+
+    private function assertNoProgrammingConflict(int $employeeId, CarbonImmutable $start, CarbonImmutable $end): void
+    {
+        $conflict = Programming::query()
+            ->where('status', '!=', 'Anulado')
+            ->whereNull('programmings.deleted_at')
+            ->whereHas('employees', function ($query) use ($employeeId, $start, $end) {
+                $query->whereKey($employeeId)
+                    ->whereBetween('programming_employees.date', [
+                        $start->toDateString(),
+                        $end->toDateString(),
+                    ]);
+            })
+            ->exists();
+
+        if ($conflict) {
+            $this->reject(
+                'start_date',
+                'El período solicitado se superpone con una programación existente del trabajador.'
+            );
         }
     }
 

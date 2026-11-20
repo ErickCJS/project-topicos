@@ -28,6 +28,7 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
+            'last_name' => fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
@@ -36,6 +37,8 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'profile_photo_path' => null,
             'current_team_id' => null,
+            'is_admin' => true,
+            'is_active' => true,
         ];
     }
 
@@ -47,6 +50,11 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    public function regular(): static
+    {
+        return $this->state(fn (array $attributes) => ['is_admin' => false]);
     }
 
     /**

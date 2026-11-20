@@ -4,12 +4,13 @@
 
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
+<link rel="stylesheet" href="{{ asset('css/shifts.css') }}">
 @stop
 
 @section('content')
 <div class="shifts-module">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
-        <h4 class="mb-0">Listado de Turnos</h4>
+        <h4 class="mb-0"><i class="bi bi-clock me-2" aria-hidden="true"></i>Listado de Turnos</h4>
         <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
             <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo turno
         </button>
@@ -22,8 +23,9 @@
                     <thead>
                         <tr>
                             <th>Nombre</th>
-                            <th>Inicio</th>
-                            <th>Fin</th>
+                            <th>Descripción</th>
+                            <th>Hora de inicio</th>
+                            <th>Hora de término</th>
                             <th>Creación</th>
                             <th>Actualización</th>
                             <th class="text-center">Acciones</th>
@@ -40,7 +42,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="shiftFormModalLabel">Turno</h5>
+                    <div class="shift-modal-heading"><span class="shift-modal-icon"><i class="bi bi-clock" aria-hidden="true"></i></span><h5 class="modal-title" id="shiftFormModalLabel">Turno</h5></div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body" id="shiftFormContent"></div>
@@ -105,8 +107,14 @@ $(function () {
         ajax: @json(route('shifts.index')),
         columns: [
             { data: 'name', name: 'name' },
-            { data: 'start_time', name: 'start_time' },
-            { data: 'end_time', name: 'end_time' },
+            { data: 'description', name: 'description', className: 'shift-description' },
+            { data: 'start_time', name: 'start_time', render: function (value, type) {
+                return type === 'display' ? '<span class="shift-time text-success-emphasis bg-success-subtle"><i class="bi bi-clock me-1" aria-hidden="true"></i>' + value + '</span>' : value;
+            } },
+            { data: 'end_time', name: 'end_time', render: function (value, type, row) {
+                if (type !== 'display') return value;
+                return '<span class="shift-time text-secondary-emphasis bg-secondary-subtle">' + value + '</span>' + (value < row.start_time ? '<small class="shift-next-day">Día siguiente</small>' : '');
+            } },
             { data: 'created_at', name: 'created_at' },
             { data: 'updated_at', name: 'updated_at' },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }

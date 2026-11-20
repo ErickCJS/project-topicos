@@ -12,14 +12,21 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            DefaultAdminUserSeeder::class,
+            DevelopmentTestUserSeeder::class,
+        ]);
+        $this->call([
             EmployeeTypeSeeder::class,
             ShiftSeeder::class,
             EmployeeSeeder::class,
             ContractSeeder::class,
+            BulkProgrammingStaffSeeder::class,
+            OperationalStaffSeeder::class,
             VacationSeeder::class,
             HolidaySeeder::class,
             AttendanceSeeder::class,
             CatalogSeeder::class,
+            ReasonSeeder::class,
         ]);
     }
 }
