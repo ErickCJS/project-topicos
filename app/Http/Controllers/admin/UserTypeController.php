@@ -16,15 +16,16 @@ class UserTypeController extends Controller
             $types = UserType::query();
 
             return DataTables::of($types)
-                ->editColumn('created_at', function ($type) {
+                ->editColumn('created_at', function (UserType $type) {
                     return $type->created_at?->format('d/m/Y H:i:s');
                 })
-                ->editColumn('updated_at', function ($type) {
+                ->editColumn('updated_at', function (UserType $type) {
                     return $type->updated_at?->format('d/m/Y H:i:s');
                 })
                 ->addColumn('actions', function (UserType $type) {
                     return '<div class="user-type-actions">
-                                <button type="button"
+                                <button
+                                    type="button"
                                     class="btn btn-outline-warning btn-sm user-type-action-btn btnEditarTipo"
                                     data-id="'.$type->id.'"
                                     data-url="'.e(route('user-types.edit', $type->id)).'"
@@ -38,12 +39,12 @@ class UserTypeController extends Controller
                 ->make(true);
         }
 
-        return view('admin.user_types.partials.index-modal');
+        return view('admin.user-types.partials.index-modal');
     }
 
     public function create()
     {
-        return view('admin.user_types.partials.form-modal');
+        return view('admin.user-types.partials.form-modal');
     }
 
     public function store(Request $request)
@@ -73,7 +74,10 @@ class UserTypeController extends Controller
     {
         $type = UserType::findOrFail($id);
 
-        return view('admin.user_types.partials.form-modal', compact('type'));
+        return view(
+            'admin.user-types.partials.form-modal',
+            compact('type')
+        );
     }
 
     public function update(Request $request, string $id)

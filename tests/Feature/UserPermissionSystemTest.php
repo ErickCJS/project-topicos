@@ -31,9 +31,152 @@ class UserPermissionSystemTest extends TestCase
         ]);
     }
 
-    public function test_new_migration_restores_descriptive_types_without_affecting_individual_permissions(): void
+    public function test_transition_migration_copies_individual_permissions_before_dropping_legacy_tables(): void
     {
         $connection = 'permission_migration_test';
+
+        config([
+            'database.connections.'.$connection => array_merge(
+                config('database.connections.sqlite'),
+                ['database' => ':memory:']
+            ),
+        ]);
+
+        DB::purge($connection);
+
+        $originalDefault = config('database.default');
+
+        config(['database.default' => $connection]);
+
+        try {
+            Schema::create('user_types', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('slug');
+                $table->boolean('is_admin');
+                $table->boolean('is_system')->default(false);
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+
+            Schema::create('users', function (Blueprint $table) {
+                $table->id();
+                $table->string('email');
+                $table->foreignId('user_type_id')
+                    ->nullable()
+                    ->constrained('user_types');
+            });
+
+            Schema::create('permissions', function (Blueprint $table) {
+                $table->id();
+            });
+
+            Schema::create('user_type_permissions', function (Blueprint $table) {
+                $table->foreignId('user_type_id')
+                    ->constrained('user_types')
+                    ->cascadeOnDelete();
+
+                $table->foreignId('permission_id')
+                    ->constrained('permissions')
+                    ->cascadeOnDelete();
+
+                $table->primary(['user_type_id', 'permission_id']);
+            });
+
+            DB::table('user_types')->insert([
+                [
+                    'id' => 1,
+                    'name' => 'Administrador',
+                    'slug' => 'admin',
+                    'is_admin' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'id' => 2,
+                    'name' => 'Operaciones',
+                    'slug' => 'ops',
+                    'is_admin' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ]);
+
+            DB::table('users')->insert([
+                [
+                    'id' => 1,
+                    'email' => 'admin@example.test',
+                    'user_type_id' => 1,
+                ],
+                [
+                    'id' => 2,
+                    'email' => 'one@example.test',
+                    'user_type_id' => 2,
+                ],
+                [
+                    'id' => 3,
+                    'email' => 'user@gmail.com',
+                    'user_type_id' => 2,
+                ],
+            ]);
+
+            DB::table('permissions')->insert([
+                ['id' => 10],
+                ['id' => 11],
+            ]);
+
+            DB::table('user_type_permissions')->insert([
+                ['user_type_id' => 1, 'permission_id' => 10],
+                ['user_type_id' => 1, 'permission_id' => 11],
+                ['user_type_id' => 2, 'permission_id' => 10],
+            ]);
+
+            $migration = require base_path(
+                'database/migrations/2026_11_14_000001_convert_user_types_to_individual_permissions.php'
+            );
+
+            $migration->up();
+
+            $this->assertDatabaseHas('users', [
+                'id' => 1,
+                'is_admin' => true,
+                'user_type_label' => 'Administrador',
+            ]);
+
+            $this->assertDatabaseHas('users', [
+                'id' => 3,
+                'is_admin' => false,
+                'user_type_label' => 'Operaciones',
+            ]);
+
+            $this->assertDatabaseHas('user_permissions', [
+                'user_id' => 1,
+                'permission_id' => 11,
+            ]);
+
+            $this->assertDatabaseHas('user_permissions', [
+                'user_id' => 2,
+                'permission_id' => 10,
+            ]);
+
+            $this->assertDatabaseHas('user_permissions', [
+                'user_id' => 3,
+                'permission_id' => 10,
+            ]);
+
+            $this->assertFalse(Schema::hasTable('user_types'));
+            $this->assertFalse(Schema::hasTable('user_type_permissions'));
+            $this->assertFalse(Schema::hasColumn('users', 'user_type_id'));
+
+        } finally {
+            config(['database.default' => $originalDefault]);
+            DB::purge($connection);
+        }
+    }
+
+    public function test_new_migration_restores_descriptive_types_without_affecting_individual_permissions(): void
+    {
+        $connection = 'descriptive_type_migration_test';
 
         config([
             'database.connections.'.$connection => array_merge(
@@ -84,14 +227,8 @@ class UserPermissionSystemTest extends TestCase
             ]);
 
             DB::table('user_permissions')->insert([
-                [
-                    'user_id' => 1,
-                    'permission_id' => 10,
-                ],
-                [
-                    'user_id' => 2,
-                    'permission_id' => 11,
-                ],
+                ['user_id' => 1, 'permission_id' => 10],
+                ['user_id' => 2, 'permission_id' => 11],
             ]);
 
             $migration = require base_path(
@@ -157,11 +294,6 @@ class UserPermissionSystemTest extends TestCase
                 'is_admin' => true,
             ]);
 
-            $this->assertDatabaseHas('user_permissions', [
-                'user_id' => 1,
-                'permission_id' => 10,
-            ]);
-
         } finally {
             config(['database.default' => $originalDefault]);
             DB::purge($connection);
@@ -192,18 +324,10 @@ class UserPermissionSystemTest extends TestCase
         $service = app(\App\Services\UserPermissionService::class);
 
         $this->assertTrue($service->allows($first, 'vehiculos.view'));
-
         $this->assertFalse($service->allows($second, 'vehiculos.view'));
 
-        $this->assertSame(
-            $type->id,
-            $first->fresh()->user_type_id
-        );
-
-        $this->assertSame(
-            $type->id,
-            $second->fresh()->user_type_id
-        );
+        $this->assertSame($type->id, $first->fresh()->user_type_id);
+        $this->assertSame($type->id, $second->fresh()->user_type_id);
 
         $newUser = User::factory()->regular()->create();
 
@@ -211,6 +335,11 @@ class UserPermissionSystemTest extends TestCase
             [],
             $newUser->permissions()->pluck('slug')->all()
         );
+
+        $admin = User::factory()->create();
+
+        $this->assertTrue($service->isAdministrator($admin));
+        $this->assertTrue($service->allows($admin, 'cualquier.permiso'));
     }
 
     public function test_administrator_can_create_and_edit_descriptive_user_types(): void
@@ -267,7 +396,7 @@ class UserPermissionSystemTest extends TestCase
         $this->assertDatabaseCount('user_types', 1);
     }
 
-    public function test_user_type_listing_can_be_loaded_as_a_modal_and_datatable(): void
+    public function test_user_type_listing_can_be_loaded_as_modal_and_datatable(): void
     {
         $this->catalog();
 
@@ -295,7 +424,7 @@ class UserPermissionSystemTest extends TestCase
             ]);
     }
 
-    public function test_user_creation_and_edit_forms_include_the_descriptive_type_selector(): void
+    public function test_user_creation_and_edit_forms_include_descriptive_type_selector(): void
     {
         $this->catalog();
 
@@ -322,7 +451,7 @@ class UserPermissionSystemTest extends TestCase
             ->assertSee('Operador');
     }
 
-    public function test_changing_a_user_type_does_not_modify_individual_permissions(): void
+    public function test_changing_user_type_does_not_modify_individual_permissions(): void
     {
         $this->catalog();
 
@@ -357,10 +486,7 @@ class UserPermissionSystemTest extends TestCase
 
         $user->refresh();
 
-        $this->assertSame(
-            $secondType->id,
-            $user->user_type_id
-        );
+        $this->assertSame($secondType->id, $user->user_type_id);
 
         $this->assertSame(
             [$permission->id],
@@ -373,7 +499,7 @@ class UserPermissionSystemTest extends TestCase
         );
     }
 
-    public function test_renaming_a_type_updates_its_users_without_changing_permissions(): void
+    public function test_renaming_type_updates_associated_users_without_changing_permissions(): void
     {
         $this->catalog();
 
@@ -401,10 +527,7 @@ class UserPermissionSystemTest extends TestCase
 
         $user->refresh();
 
-        $this->assertSame(
-            'Operador General',
-            $user->user_type_label
-        );
+        $this->assertSame('Operador General', $user->user_type_label);
 
         $this->assertSame(
             [$permission->id],
@@ -528,15 +651,8 @@ class UserPermissionSystemTest extends TestCase
         $this->assertTrue($admin->is_admin);
         $this->assertTrue($admin->is_active);
 
-        $this->assertSame(
-            $type->id,
-            $admin->user_type_id
-        );
-
-        $this->assertSame(
-            'Administrador',
-            $admin->user_type_label
-        );
+        $this->assertSame($type->id, $admin->user_type_id);
+        $this->assertSame('Administrador', $admin->user_type_label);
     }
 
     public function test_test_user_seeder_assigns_individual_permissions_without_changing_existing_data(): void
@@ -577,6 +693,11 @@ class UserPermissionSystemTest extends TestCase
                 ->pluck('slug')
                 ->all()
         );
+
+        $this->assertSame(
+            'Usuario de prueba',
+            $user->user_type_label
+        );
     }
 
     public function test_last_active_administrator_cannot_be_disabled_demoted_or_deleted(): void
@@ -611,5 +732,41 @@ class UserPermissionSystemTest extends TestCase
             'is_active' => true,
             'is_admin' => true,
         ]);
+    }
+
+    public function test_administrators_cannot_be_deleted_and_regular_users_can_authenticate_and_logout(): void
+    {
+        $this->catalog();
+
+        $admin = User::factory()->create();
+        $otherAdmin = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->deleteJson(route('users.destroy', $otherAdmin))
+            ->assertUnprocessable();
+
+        $this->post(route('logout'));
+
+        $this->assertGuest();
+
+        $user = User::factory()->regular()->create();
+
+        $user->permissions()->sync(
+            Permission::whereIn('slug', [
+                'dashboard.view',
+                'vehiculos.view',
+            ])->pluck('id')
+        );
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])->assertRedirect(route('vehicles.index'));
+
+        $this->assertAuthenticatedAs($user);
+
+        $this->post(route('logout'))->assertRedirect('/');
+
+        $this->assertGuest();
     }
 }

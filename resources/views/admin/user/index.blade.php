@@ -113,6 +113,10 @@ $(function () {
             return 'No tiene autorización para realizar esta operación.';
         }
 
+        if (xhr.status === 401) {
+            return 'Su sesión no está activa. Inicie sesión nuevamente.';
+        }
+
         return response.message || response.mensaje || predeterminado;
     }
 
@@ -185,6 +189,85 @@ $(function () {
         }
     });
 
+    function actualizarMatrizPermisos(form) {
+        if (!form) return;
+
+        const options = [...form.querySelectorAll('.permission-option')];
+        const selectors = [...form.querySelectorAll('.permission-select-all')];
+
+        const contar = items => items.filter(item => item.checked).length;
+
+        selectors.forEach(control => {
+            const scope = control.dataset.scope;
+
+            const scoped = scope === 'all'
+                ? options
+                : [...form.querySelectorAll('.' + CSS.escape(scope))];
+
+            const selected = contar(scoped);
+
+            control.checked = scoped.length > 0 && selected === scoped.length;
+            control.indeterminate = selected > 0 && selected < scoped.length;
+        });
+
+        form.querySelectorAll('[data-module-card]').forEach(card => {
+            const moduleOptions = [...card.querySelectorAll('.permission-option')];
+            const selected = contar(moduleOptions);
+            const counter = card.querySelector('[data-module-selected]');
+
+            if (counter) {
+                counter.textContent = selected;
+            }
+
+            card.dataset.configured = selected > 0 ? '1' : '0';
+        });
+
+        form.querySelectorAll('[data-submodule-card]').forEach(card => {
+            const counter = card.querySelector('[data-submodule-selected]');
+
+            if (counter) {
+                counter.textContent = contar(
+                    [...card.querySelectorAll('.permission-option')]
+                );
+            }
+        });
+
+        const selected = contar(options);
+
+        const percentage = options.length
+            ? Math.round(selected * 100 / options.length)
+            : 0;
+
+        const selectedCounter = form.querySelector('[data-permission-selected]');
+        const stickyCounter = form.querySelector('[data-sticky-count]');
+        const moduleCounter = form.querySelector('[data-module-count]');
+        const percentageCounter = form.querySelector('[data-permission-percent]');
+        const progress = form.querySelector('[data-permission-progress]');
+
+        if (selectedCounter) {
+            selectedCounter.textContent = selected;
+        }
+
+        if (stickyCounter) {
+            stickyCounter.textContent = selected;
+        }
+
+        if (moduleCounter) {
+            moduleCounter.textContent = form.querySelectorAll(
+                '[data-module-card][data-configured="1"]'
+            ).length;
+        }
+
+        if (percentageCounter) {
+            percentageCounter.textContent = percentage + '%';
+        }
+
+        if (progress) {
+            progress.style.width = percentage + '%';
+            progress.setAttribute('aria-valuenow', percentage);
+        }
+    }
+
     function abrirModalUsuario(url) {
         if (!usersModalElement || !usersModal) {
             mostrarError('No se pudo inicializar el formulario de usuario.');
@@ -196,14 +279,26 @@ $(function () {
             type: 'GET',
             headers: {
                 'X-Modal-Request': '1',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
             },
             success: function (response) {
                 usersModalElement.querySelector('.modal-content').innerHTML = response;
+
+                const permissionForm = usersModalElement.querySelector(
+                    '#permissionMatrixForm'
+                );
+
+                if (permissionForm) {
+                    actualizarMatrizPermisos(permissionForm);
+                }
+
                 usersModal.show();
             },
             error: function (xhr) {
-                mostrarError(mensajeError(xhr, 'No se pudo cargar el formulario de usuario.'));
+                mostrarError(
+                    mensajeError(xhr, 'No se pudo cargar el formulario de usuario.')
+                );
             }
         });
     }
@@ -264,7 +359,7 @@ $(function () {
         });
     });
 
-    $('#usersModal').on('change', '#user_change_password', function () {
+    $(document).on('change', '#usersModal #user_change_password', function () {
         const password = document.getElementById('user_password');
 
         if (!password) return;
@@ -276,81 +371,9 @@ $(function () {
         }
     });
 
-    function actualizarMatrizPermisos(form) {
-        if (!form) return;
-
-        const options = [...form.querySelectorAll('.permission-option')];
-        const selectors = [...form.querySelectorAll('.permission-select-all')];
-
-        const contar = items => items.filter(item => item.checked).length;
-
-        selectors.forEach(control => {
-            const scope = control.dataset.scope;
-
-            const scoped = scope === 'all'
-                ? options
-                : [...form.querySelectorAll('.' + CSS.escape(scope))];
-
-            const selected = contar(scoped);
-
-            control.checked = scoped.length > 0 && selected === scoped.length;
-            control.indeterminate = selected > 0 && selected < scoped.length;
-        });
-
-        form.querySelectorAll('[data-module-card]').forEach(card => {
-            const moduleOptions = [...card.querySelectorAll('.permission-option')];
-            const selected = contar(moduleOptions);
-            const counter = card.querySelector('[data-module-selected]');
-
-            if (counter) {
-                counter.textContent = selected;
-            }
-
-            card.dataset.configured = selected > 0 ? '1' : '0';
-        });
-
-        form.querySelectorAll('[data-submodule-card]').forEach(card => {
-            const counter = card.querySelector('[data-submodule-selected]');
-
-            if (counter) {
-                counter.textContent = contar(
-                    [...card.querySelectorAll('.permission-option')]
-                );
-            }
-        });
-
-        const selected = contar(options);
-        const percentage = options.length
-            ? Math.round(selected * 100 / options.length)
-            : 0;
-
-        const selectedCounter = form.querySelector('[data-permission-selected]');
-        const stickyCounter = form.querySelector('[data-sticky-count]');
-        const moduleCounter = form.querySelector('[data-module-count]');
-        const percentageCounter = form.querySelector('[data-permission-percent]');
-        const progress = form.querySelector('[data-permission-progress]');
-
-        if (selectedCounter) selectedCounter.textContent = selected;
-        if (stickyCounter) stickyCounter.textContent = selected;
-
-        if (moduleCounter) {
-            moduleCounter.textContent = form.querySelectorAll(
-                '[data-module-card][data-configured="1"]'
-            ).length;
-        }
-
-        if (percentageCounter) {
-            percentageCounter.textContent = percentage + '%';
-        }
-
-        if (progress) {
-            progress.style.width = percentage + '%';
-            progress.setAttribute('aria-valuenow', percentage);
-        }
-    }
-
     $(document).on('change', '#permissionMatrixForm .permission-select-all', function () {
         const form = this.closest('form');
+
         if (!form) return;
 
         const scope = this.dataset.scope;
@@ -453,9 +476,7 @@ $(function () {
     });
 
     function destruirTablaTipos() {
-        if (
-            $.fn.DataTable.isDataTable('#userTypesTable')
-        ) {
+        if ($.fn.DataTable.isDataTable('#userTypesTable')) {
             $('#userTypesTable').DataTable().destroy();
         }
 
@@ -529,7 +550,8 @@ $(function () {
             type: 'GET',
             headers: {
                 'X-Modal-Request': '1',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
             },
             success: function (response) {
                 destruirTablaTipos();
@@ -567,7 +589,8 @@ $(function () {
             type: 'GET',
             headers: {
                 'X-Modal-Request': '1',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
             },
             success: function (response) {
                 destruirTablaTipos();
@@ -630,6 +653,8 @@ $(function () {
             },
             success: function (response) {
                 if (editingTypeFromList) {
+                    refrescarUsuarios();
+
                     mostrarExito(
                         response.message || 'Tipo de usuario actualizado correctamente.'
                     ).then(function () {
@@ -663,7 +688,9 @@ $(function () {
 
     userTypesModalElement?.addEventListener('hidden.bs.modal', function () {
         destruirTablaTipos();
+
         userTypesModalElement.querySelector('.modal-content').innerHTML = '';
+
         editingTypeFromList = false;
     });
 
