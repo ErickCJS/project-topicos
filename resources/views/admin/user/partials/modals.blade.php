@@ -1,3 +1,25 @@
-<div class="modal fade" id="usersModal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl"><div class="modal-content"></div></div></div>
-<div class="modal fade" id="classificationLabelModal" tabindex="-1" aria-labelledby="classificationLabelTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form id="classificationLabelForm"><div class="modal-header"><h5 class="modal-title" id="classificationLabelTitle">Cambiar clasificación</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div><div class="modal-body"><label class="form-label" for="classificationLabelInput">Clasificación descriptiva</label><input class="form-control" id="classificationLabelInput" name="user_type_label" maxlength="100"><small class="text-muted">Esta clasificación no concede permisos.</small></div><div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-success">Guardar</button></div></form></div></div></div>
-<div class="modal fade" id="usersDeleteModal" tabindex="-1" aria-labelledby="usersDeleteTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header users-modal-header"><h5 class="modal-title" id="usersDeleteTitle">Eliminar usuario</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div><div class="modal-body">¿Desea eliminar este usuario? Esta acción no se puede deshacer.</div><div class="modal-footer"><button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button><button type="button" class="btn btn-danger" id="confirmUserDelete">Eliminar</button></div></div></div></div>
+<div
+    class="modal fade"
+    id="usersModal"
+    tabindex="-1"
+    aria-hidden="true"
+    aria-label="Gestión de usuarios"
+>
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+        <div class="modal-content">
+        </div>
+    </div>
+</div>
+
+<div
+    class="modal fade"
+    id="userTypesModal"
+    tabindex="-1"
+    aria-hidden="true"
+    aria-label="Gestión de tipos de usuario"
+>
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+        </div>
+    </div>
+</div>

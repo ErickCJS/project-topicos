@@ -2,16 +2,46 @@
     'use strict';
 
     const labels = {
-        email: 'Correo electrónico', name: 'Nombre', password: 'Contraseña',
-        code: 'Código', description: 'Descripción', photo: 'Foto', photos: 'Fotografías',
-        current_password: 'Contraseña actual', password_confirmation: 'Confirmación de contraseña',
-        tipo_personal_id: 'Tipo de personal', fecha_nacimiento: 'Fecha de nacimiento',
-        dni: 'DNI', nombres: 'Nombres', apellidos: 'Apellidos', direccion: 'Dirección',
-        telefono: 'Teléfono', licencia: 'Licencia', estado: 'Estado',
-        employee_id: 'Empleado', employee_display: 'Empleado', brand_id: 'Marca',
-        model_id: 'Modelo', type_id: 'Tipo', color_id: 'Color', load_capacity: 'Capacidad de carga',
-        compact_capacity: 'Capacidad compactadora', fuel_capacity: 'Capacidad de combustible',
-        occupats_capacity: 'Capacidad de ocupantes', profile_photo_path: 'Foto de perfil',
+        email: 'Correo electrónico',
+        name: 'Nombre',
+        last_name: 'Apellidos',
+        password: 'Contraseña',
+        code: 'Código',
+        description: 'Descripción',
+        photo: 'Foto',
+        photos: 'Fotografías',
+        current_password: 'Contraseña actual',
+        password_confirmation: 'Confirmación de contraseña',
+        tipo_personal_id: 'Tipo de personal',
+        user_type_id: 'Tipo de usuario',
+        user_type_label: 'Tipo de usuario',
+        fecha_nacimiento: 'Fecha de nacimiento',
+        birthdate: 'Fecha de nacimiento',
+        dni: 'DNI',
+        nombres: 'Nombres',
+        apellidos: 'Apellidos',
+        direccion: 'Dirección',
+        address: 'Dirección',
+        telefono: 'Teléfono',
+        phone: 'Teléfono',
+        licencia: 'Licencia',
+        license: 'Licencia',
+        estado: 'Estado',
+        is_active: 'Estado de la cuenta',
+        is_admin: 'Acceso administrativo total',
+        change_password: 'Cambio de contraseña',
+        employee_id: 'Empleado',
+        employee_display: 'Empleado',
+        brand_id: 'Marca',
+        model_id: 'Modelo',
+        type_id: 'Tipo',
+        color_id: 'Color',
+        load_capacity: 'Capacidad de carga',
+        compact_capacity: 'Capacidad compactadora',
+        fuel_capacity: 'Capacidad de combustible',
+        occupats_capacity: 'Capacidad de ocupantes',
+        profile_photo_path: 'Foto de perfil',
+        profile_photo: 'Fotografía de perfil',
     };
 
     function labelFor(field) {
@@ -32,11 +62,13 @@
 
             messages.filter(Boolean).forEach(function (message) {
                 const item = document.createElement('li');
+
                 if (field !== 'general') {
                     const label = document.createElement('strong');
                     label.textContent = labelFor(field) + ': ';
                     item.appendChild(label);
                 }
+
                 item.appendChild(document.createTextNode(String(message)));
                 list.appendChild(item);
             });
@@ -55,9 +87,14 @@
 
     window.RSUValidation = {
         show: show,
+
         error: function (message, title) {
-            return show({ general: [message] }, title || 'Ocurrió un error');
+            return show(
+                { general: [message] },
+                title || 'Ocurrió un error'
+            );
         },
+
         success: function (message, title) {
             if (!window.Swal || !message) return;
 
@@ -73,18 +110,29 @@
 
     function disableNativeValidation(root) {
         const forms = [];
-        if (root.matches && root.matches('form')) forms.push(root);
-        forms.push.apply(forms, root.querySelectorAll ? root.querySelectorAll('form') : []);
+
+        if (root.matches && root.matches('form')) {
+            forms.push(root);
+        }
+
+        forms.push.apply(
+            forms,
+            root.querySelectorAll ? root.querySelectorAll('form') : []
+        );
+
         forms.forEach(function (form) {
             form.noValidate = true;
         });
     }
 
     disableNativeValidation(document);
+
     new MutationObserver(function (records) {
         records.forEach(function (record) {
             record.addedNodes.forEach(function (node) {
-                if (node.nodeType === Node.ELEMENT_NODE) disableNativeValidation(node);
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    disableNativeValidation(node);
+                }
             });
         });
     }).observe(document.documentElement, {
@@ -94,26 +142,51 @@
 
     new MutationObserver(function (records) {
         const errors = {};
+
         records.forEach(function (record) {
             const candidates = [];
-            if (record.target.nodeType === Node.ELEMENT_NODE && record.target.matches('.rsu-livewire-validation-error')) {
+
+            if (
+                record.target.nodeType === Node.ELEMENT_NODE &&
+                record.target.matches('.rsu-livewire-validation-error')
+            ) {
                 candidates.push(record.target);
             } else if (record.target.parentElement) {
-                const marker = record.target.parentElement.closest('.rsu-livewire-validation-error');
-                if (marker) candidates.push(marker);
+                const marker = record.target.parentElement.closest(
+                    '.rsu-livewire-validation-error'
+                );
+
+                if (marker) {
+                    candidates.push(marker);
+                }
             }
+
             record.addedNodes.forEach(function (node) {
                 if (node.nodeType !== Node.ELEMENT_NODE) return;
-                if (node.matches('.rsu-livewire-validation-error')) candidates.push(node);
-                candidates.push.apply(candidates, node.querySelectorAll('.rsu-livewire-validation-error'));
+
+                if (node.matches('.rsu-livewire-validation-error')) {
+                    candidates.push(node);
+                }
+
+                candidates.push.apply(
+                    candidates,
+                    node.querySelectorAll('.rsu-livewire-validation-error')
+                );
             });
+
             candidates.forEach(function (marker) {
                 const field = marker.dataset.validationField;
                 const message = marker.textContent.trim();
-                if (field && message) (errors[field] = errors[field] || []).push(message);
+
+                if (field && message) {
+                    (errors[field] = errors[field] || []).push(message);
+                }
             });
         });
-        if (Object.keys(errors).length) show(errors);
+
+        if (Object.keys(errors).length) {
+            show(errors);
+        }
     }).observe(document.documentElement, {
         childList: true,
         characterData: true,
@@ -124,4 +197,5 @@
         show(window.RSUInitialValidationErrors);
         window.RSUInitialValidationErrors = null;
     }
+
 })(window, document);

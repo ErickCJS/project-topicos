@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\UserType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -13,7 +14,17 @@ class DefaultAdminUserSeeder extends Seeder
 
     public function run(): void
     {
-        $user = User::firstOrNew(['email' => self::EMAIL]);
+        $administratorType = UserType::firstOrCreate(
+            ['name' => 'Administrador'],
+            [
+                'description' => 'Usuario con acceso administrativo total al sistema.',
+            ]
+        );
+
+        $user = User::firstOrNew([
+            'email' => self::EMAIL,
+        ]);
+
         if (!$user->exists) {
             $user->forceFill([
                 'name' => 'Administrador',
@@ -23,8 +34,13 @@ class DefaultAdminUserSeeder extends Seeder
                 'email_verified_at' => now(),
             ]);
         }
+
         if (!$user->email_verified_at) {
             $user->email_verified_at = now();
+        }
+
+        if (!$user->user_type_id) {
+            $user->user_type_id = $administratorType->id;
         }
 
         $user->forceFill([
