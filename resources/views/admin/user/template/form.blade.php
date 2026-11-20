@@ -1,3 +1,4 @@
+
 @csrf
 
 @if(isset($user))
@@ -76,6 +77,7 @@
                 class="form-control @error('birthdate') is-invalid @enderror"
                 id="user_birthdate"
                 name="birthdate"
+                max="{{ now()->format('Y-m-d') }}"
                 value="{{ old('birthdate', isset($user) ? $user->birthdate?->format('Y-m-d') : '') }}"
             >
             @error('birthdate')
@@ -143,6 +145,7 @@
                 id="user_address"
                 name="address"
                 rows="2"
+                maxlength="1000"
             >{{ old('address', $user->address ?? '') }}</textarea>
             @error('address')
                 <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -158,6 +161,7 @@
 
         <div class="col-12">
             <label class="form-label" for="user_type_id">Tipo de usuario</label>
+
             <select
                 class="form-select @error('user_type_id') is-invalid @enderror"
                 id="user_type_id"

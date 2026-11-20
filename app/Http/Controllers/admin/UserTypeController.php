@@ -13,9 +13,7 @@ class UserTypeController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax() && !$request->header('X-Modal-Request')) {
-            $types = UserType::query();
-
-            return DataTables::of($types)
+            return DataTables::of(UserType::query())
                 ->editColumn('created_at', function (UserType $type) {
                     return $type->created_at?->format('d/m/Y H:i:s');
                 })
@@ -24,16 +22,16 @@ class UserTypeController extends Controller
                 })
                 ->addColumn('actions', function (UserType $type) {
                     return '<div class="user-type-actions">
-                                <button
-                                    type="button"
-                                    class="btn btn-outline-warning btn-sm user-type-action-btn btnEditarTipo"
-                                    data-id="'.$type->id.'"
-                                    data-url="'.e(route('user-types.edit', $type->id)).'"
-                                    title="Editar"
-                                    aria-label="Editar tipo de usuario">
-                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                </button>
-                            </div>';
+                        <button
+                            type="button"
+                            class="btn btn-outline-warning btn-sm user-type-action-btn btnEditarTipo"
+                            data-id="'.$type->id.'"
+                            data-url="'.e(route('user-types.edit', $type->id)).'"
+                            title="Editar"
+                            aria-label="Editar tipo de usuario">
+                            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                        </button>
+                    </div>';
                 })
                 ->rawColumns(['actions'])
                 ->make(true);

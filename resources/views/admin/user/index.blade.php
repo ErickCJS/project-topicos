@@ -694,6 +694,10 @@ $(function () {
         editingTypeFromList = false;
     });
 
+    @if(session('success'))
+        mostrarExito(@json(session('success')));
+    @endif
+
 });
 </script>
 @stop

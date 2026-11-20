@@ -57,18 +57,52 @@
 
 @section('js')
 <script>
-document.addEventListener('click', function (event) {
-    const cancelButton = event.target.closest(
-        '.users-page-form [data-bs-dismiss="modal"]'
-    );
+document.addEventListener('DOMContentLoaded', function () {
 
-    if (!cancelButton) {
-        return;
+    const form = document.querySelector('.users-page-form');
+
+    if (!form) return;
+
+    const passwordCheckbox = form.querySelector('#user_change_password');
+    const passwordInput = form.querySelector('#user_password');
+
+    function actualizarCampoPassword() {
+        if (!passwordCheckbox || !passwordInput) return;
+
+        const enabled = passwordCheckbox.checked;
+
+        passwordInput.disabled = !enabled;
+        passwordInput.required = enabled;
+
+        if (!enabled) {
+            passwordInput.value = '';
+        }
     }
 
-    event.preventDefault();
+    if (passwordCheckbox && passwordInput) {
+        actualizarCampoPassword();
 
-    window.location.href = @json(route('users.index'));
+        passwordCheckbox.addEventListener('change', function () {
+            actualizarCampoPassword();
+
+            if (this.checked) {
+                passwordInput.focus();
+            }
+        });
+    }
+
+    form.addEventListener('click', function (event) {
+        const cancelButton = event.target.closest(
+            '[data-bs-dismiss="modal"]'
+        );
+
+        if (!cancelButton) return;
+
+        event.preventDefault();
+
+        window.location.href = @json(route('users.index'));
+    });
+
 });
 </script>
 @stop
