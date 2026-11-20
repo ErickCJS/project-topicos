@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class UserController extends Controller
 {
@@ -71,7 +72,7 @@ class UserController extends Controller
             ->take($length)
             ->get();
 
-        $data = $users->map(function (User $user) {
+        $data = $users->map(function ($user) {
             $type = e($user->userType?->name ?: '—');
 
             $adminBadge = $user->is_admin
@@ -145,7 +146,7 @@ class UserController extends Controller
 
         User::create($data);
 
-        return $request->ajax()
+        return $this->wantsJsonResponse($request)
             ? response()->json([
                 'message' => 'El usuario se registró correctamente.',
             ], 201)
@@ -224,43 +225,64 @@ class UserController extends Controller
 
         unset($data['change_password']);
 
+        $previousPhotoPath = $user->profile_photo_path;
+        $newPhotoPath = null;
+
         if ($request->hasFile('profile_photo')) {
-            if ($user->profile_photo_path) {
-                Storage::disk('public')->delete($user->profile_photo_path);
+            $newPhotoPath = $request->file('profile_photo')
+                ->store('profile-photos', 'public');
+
+            if (!$newPhotoPath) {
+                return $this->validationError(
+                    $request,
+                    'profile_photo',
+                    'No se pudo guardar la fotografía. Inténtelo nuevamente.'
+                );
             }
 
-            $data['profile_photo_path'] = $request->file('profile_photo')
-                ->store('profile-photos', 'public');
+            $data['profile_photo_path'] = $newPhotoPath;
         }
 
         unset($data['profile_photo']);
 
-        $updated = DB::transaction(function () use ($user, $data) {
-            $lockedUser = User::whereKey($user->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $becomesNonAdmin = $lockedUser->is_admin && (
-                (array_key_exists('is_admin', $data) && !$data['is_admin'])
-                || (array_key_exists('is_active', $data) && !$data['is_active'])
-            );
-
-            if (
-                $becomesNonAdmin
-                && User::where('is_admin', true)
-                    ->where('is_active', true)
+        try {
+            $updated = DB::transaction(function () use ($user, $data) {
+                $lockedUser = User::whereKey($user->id)
                     ->lockForUpdate()
-                    ->count() <= 1
-            ) {
-                return false;
+                    ->firstOrFail();
+
+                $becomesNonAdmin = $lockedUser->is_admin && (
+                    (array_key_exists('is_admin', $data) && !$data['is_admin'])
+                    || (array_key_exists('is_active', $data) && !$data['is_active'])
+                );
+
+                if (
+                    $becomesNonAdmin
+                    && User::where('is_admin', true)
+                        ->where('is_active', true)
+                        ->lockForUpdate()
+                        ->count() <= 1
+                ) {
+                    return false;
+                }
+
+                $lockedUser->update($data);
+
+                return true;
+            });
+        } catch (Throwable $exception) {
+            if ($newPhotoPath) {
+                Storage::disk('public')->delete($newPhotoPath);
             }
 
-            $lockedUser->update($data);
-
-            return true;
-        });
+            throw $exception;
+        }
 
         if (!$updated) {
+            if ($newPhotoPath) {
+                Storage::disk('public')->delete($newPhotoPath);
+            }
+
             return $this->validationError(
                 $request,
                 'is_admin',
@@ -268,7 +290,11 @@ class UserController extends Controller
             );
         }
 
-        return $request->ajax()
+        if ($newPhotoPath && $previousPhotoPath) {
+            Storage::disk('public')->delete($previousPhotoPath);
+        }
+
+        return $this->wantsJsonResponse($request)
             ? response()->json([
                 'message' => 'Los datos del usuario se actualizaron correctamente.',
             ])
@@ -296,7 +322,7 @@ class UserController extends Controller
 
         $user->delete();
 
-        return $request->ajax()
+        return $this->wantsJsonResponse($request)
             ? response()->json([
                 'message' => 'El usuario se eliminó correctamente.',
             ])
@@ -384,12 +410,17 @@ class UserController extends Controller
         ]);
     }
 
+    private function wantsJsonResponse(Request $request): bool
+    {
+        return $request->expectsJson() || $request->ajax();
+    }
+
     private function validationError(
         Request $request,
         string $field,
         string $message
     ) {
-        return $request->ajax()
+        return $this->wantsJsonResponse($request)
             ? response()->json([
                 'message' => $message,
                 'errors' => [

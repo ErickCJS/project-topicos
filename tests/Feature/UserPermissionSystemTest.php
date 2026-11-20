@@ -412,16 +412,18 @@ class UserPermissionSystemTest extends TestCase
             ->get(route('user-types.index'))
             ->assertOk()
             ->assertSee('userTypesTable');
-
+            
         $this->actingAs($admin)
             ->withHeaders([
                 'X-Requested-With' => 'XMLHttpRequest',
+                'X-Modal-Request' => '',
             ])
             ->get(route('user-types.index'))
             ->assertOk()
             ->assertJsonFragment([
                 'name' => 'Operador',
             ]);
+        
     }
 
     public function test_user_creation_and_edit_forms_include_descriptive_type_selector(): void
