@@ -777,7 +777,7 @@ return [
         [
             'text' => 'Gestión de vehículos',
             'icon' => 'fas fa-truck',
-            'can' => 'module', 'model' => ['vehiculos-colores', 'vehiculos-marcas', 'vehiculos-modelos', 'vehiculos-tipos', 'vehiculos'],
+            'can' => 'module', 'model' => ['vehiculos-colores', 'vehiculos-marcas', 'vehiculos-modelos', 'vehiculos-tipos', 'vehiculos', 'mantenimientos'],
             'submenu' => [
                 [
                     'text' => 'Vehículos',
@@ -808,6 +808,12 @@ return [
                     'route' => 'vehiclestype.index',
                     'icon' => 'fas fa-list',
                     'can' => 'permission', 'model' => ['vehiculos-tipos.view'],
+                ],
+                [
+                    'text' => 'Mantenimiento',
+                    'route' => 'maintenances.index',
+                    'icon' => 'fas fa-screwdriver-wrench',
+                    'can' => 'permission', 'model' => ['mantenimientos.view'],
                 ],
             ],
         ],

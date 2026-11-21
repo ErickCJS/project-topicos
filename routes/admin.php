@@ -22,6 +22,7 @@ use App\Http\Controllers\admin\VacationController;
 use App\Http\Controllers\admin\ZoneController;
 use App\Http\Controllers\admin\VehiclesController;
 use App\Http\Controllers\admin\VehicletypeController;
+use App\Http\Controllers\admin\MaintenanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
@@ -78,6 +79,15 @@ Route::post('vacations/{vacation}/reject', [VacationController::class, 'reject']
 Route::resource('vacations', VacationController::class)->names('vacations');
 Route::resource('brands', BrandController::class)->names('brands');
 Route::resource('vehicles', VehiclesController::class)->names('vehicles');
+Route::resource('maintenances', MaintenanceController::class)
+    ->only(['index', 'store', 'update', 'destroy'])
+    ->names('maintenances');
+Route::get('maintenances/{maintenance}/schedules', [MaintenanceController::class, 'schedules'])->name('maintenances.schedules.index');
+Route::post('maintenances/{maintenance}/schedules', [MaintenanceController::class, 'storeSchedule'])->name('maintenances.schedules.store');
+Route::put('maintenances/{maintenance}/schedules/{maintenanceSchedule}', [MaintenanceController::class, 'updateSchedule'])->name('maintenances.schedules.update');
+Route::delete('maintenances/{maintenance}/schedules/{maintenanceSchedule}', [MaintenanceController::class, 'destroySchedule'])->name('maintenances.schedules.destroy');
+Route::get('maintenances/{maintenance}/schedules/{maintenanceSchedule}/details', [MaintenanceController::class, 'details'])->name('maintenances.schedules.details');
+Route::put('maintenances/{maintenance}/schedules/{maintenanceSchedule}/details/{maintenanceDetail}', [MaintenanceController::class, 'updateDetail'])->name('maintenances.schedules.details.update');
 
 Route::get('vehicles/retonar_models/{id_brand}', [VehiclesController::class, 'retonar_models'])->name('vehicles.retonar_models');
 

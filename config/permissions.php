@@ -8,6 +8,7 @@ return [
             'vehiculos-modelos' => ['Modelos', 'brandsmodel', ['view', 'details', 'create', 'edit', 'delete']],
             'vehiculos-tipos' => ['Tipos de vehículos', 'vehiclestype', ['view', 'details', 'create', 'edit', 'delete']],
             'vehiculos' => ['Vehículos', 'vehicles', ['view', 'details', 'create', 'edit', 'delete', 'images']],
+            'mantenimientos' => ['Mantenimiento', 'maintenances', ['view', 'create', 'edit', 'delete']],
         ],
         'Gestión de personal' => [
             'personal-tipos' => ['Tipos de personal', 'employee-types', ['view', 'details', 'create', 'edit', 'delete']],
@@ -66,6 +67,12 @@ return [
     ],
 
     'route_map' => [
+        'maintenances.schedules.index' => 'mantenimientos.view',
+        'maintenances.schedules.store' => 'mantenimientos.create',
+        'maintenances.schedules.update' => 'mantenimientos.edit',
+        'maintenances.schedules.destroy' => 'mantenimientos.delete',
+        'maintenances.schedules.details' => 'mantenimientos.view',
+        'maintenances.schedules.details.update' => 'mantenimientos.edit',
         'admin.home' => 'dashboard.view',
         'programming.index' => 'programacion.view',
         'programming.holidays' => 'programacion.view',
