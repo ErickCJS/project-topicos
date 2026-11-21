@@ -5,6 +5,7 @@ namespace App\Models\admin;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\admin\Vehicle;
 
@@ -44,6 +45,16 @@ class Programming extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(ProgrammingLocation::class);
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(\App\Models\CitizenRating::class);
     }
 
     public function changes()

@@ -3,7 +3,10 @@
 namespace App\Providers;
 
 use App\Services\UserPermissionService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,5 +26,9 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define('permission', fn ($user, string $permission) => app(UserPermissionService::class)->allows($user, $permission));
         Gate::define('module', fn ($user, ...$modules) => app(UserPermissionService::class)->allowsAnyModule($user, $modules));
+
+        RateLimiter::for('citizen-tracking', function (Request $request): Limit {
+            return Limit::perMinute(10)->by('citizen-tracking:'.($request->user()?->getAuthIdentifier() ?? $request->ip()));
+        });
     }
 }

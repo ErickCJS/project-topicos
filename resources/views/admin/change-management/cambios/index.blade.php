@@ -6,10 +6,10 @@
 @section('css')
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 <link rel="stylesheet" href="{{ asset('css/programming.css') }}">
-@include('admin.programming.partials.bulk-modifications-modal', ['embedded' => true])
 @stop
 
 @section('content')
+@include('admin.programming.partials.bulk-modifications-modal', ['embedded' => true])
 <div class="change-management-module">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
         <h4 class="mb-0"><i class="bi bi-arrow-left-right me-2" aria-hidden="true"></i>Cambios</h4>

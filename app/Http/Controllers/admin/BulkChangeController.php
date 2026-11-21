@@ -36,8 +36,16 @@ class BulkChangeController extends Controller
             'type' => ['required', 'in:shift,driver,helper,vehicle'],
         ], ['end_date.after_or_equal' => 'La fecha final no puede ser anterior a la fecha inicial.']);
 
-        $rows = Programming::with('employees')->where('status', 'Programado')->where('zone_id', $data['zone_id'])
-            ->whereDate('date', '>=', $data['start_date'])->whereDate('date', '<=', $data['end_date'])->get();
+        $rows = Programming::with('employees')
+            ->whereIn('status', [
+                Programming::STATUS_PROGRAMMED,
+                Programming::STATUS_RESCHEDULED,
+            ])
+            ->whereNull('started_at')
+            ->where('zone_id', $data['zone_id'])
+            ->whereDate('date', '>=', $data['start_date'])
+            ->whereDate('date', '<=', $data['end_date'])
+            ->get();
         $helperIds = $rows->flatMap(fn (Programming $row) => $row->employees->where('pivot.role', 'helper')->pluck('id'))->unique()->values();
         $people = Employee::where('status', 'Activo')
             ->when($data['type'] === 'driver', fn ($q) => $q->where('employee_type_id', 1))
