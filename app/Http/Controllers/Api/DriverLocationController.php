@@ -72,12 +72,9 @@ class DriverLocationController extends Controller
             // Purga únicamente coordenadas consecutivas exactamente repetidas en el histórico.
             ->reduce(function ($accepted, $location) {
                 $last = $accepted->last();
-                if ($last && $this->distanceInMeters(
-                    $last['latitude'],
-                    $last['longitude'],
-                    $location['latitude'],
-                    $location['longitude']
-                ) === 0.0) {
+                if ($last
+                    && $last['latitude'] === $location['latitude']
+                    && $last['longitude'] === $location['longitude']) {
                     return $accepted;
                 }
 
