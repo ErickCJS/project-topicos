@@ -34,11 +34,22 @@ COPY tailwind.config.js postcss.config.js ./
 COPY --from=composer-deps /var/www/html/vendor ./vendor
 RUN npm run build
 
-# Final Apache runtime
+# Final Apache runtime: explicitly configure Laravel public directory
 FROM php-base
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri 's!DocumentRoot /var/www/html!DocumentRoot /var/www/html/public!g' /etc/apache2/sites-available/000-default.conf \
-    && printf '\n<Directory /var/www/html/public>\n    AllowOverride All\n    Require all granted\n</Directory>\n' >> /etc/apache2/apache2.conf \
+RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
+<VirtualHost *:10000>
+    ServerName localhost
+    DocumentRoot /var/www/html/public
+    DirectoryIndex index.php
+    <Directory /var/www/html/public>
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    ErrorLog \${APACHE_LOG_DIR}/error.log
+    CustomLog \${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+APACHE
     && sed -ri 's/^Listen 80$/Listen 10000/' /etc/apache2/ports.conf
 
 WORKDIR /var/www/html
