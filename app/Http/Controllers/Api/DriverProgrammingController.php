@@ -337,7 +337,13 @@ class DriverProgrammingController extends Controller
             return $error;
         }
 
-        return DB::transaction(function () use ($employee, $programmingId) {
+        $validated = $request->validate([
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
+            'accuracy' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+        ]);
+
+        return DB::transaction(function () use ($employee, $programmingId, $validated) {
             $programming = Programming::query()
                 ->where('driver_id', $employee->id)
                 ->whereKey($programmingId)
@@ -371,8 +377,6 @@ class DriverProgrammingController extends Controller
                 ], 409);
             }
 
-            // La compatibilidad de estados pendientes solo cubre recorridos antiguos
-            // cuyo started_at se guardó antes de persistir el estado Iniciado.
             if ($programming->status !== Programming::STATUS_STARTED && !in_array($programming->status, [
                 Programming::STATUS_PROGRAMMED,
                 Programming::STATUS_RESCHEDULED,
@@ -392,6 +396,36 @@ class DriverProgrammingController extends Controller
                 ], 422);
             }
 
+            // Guarda el último GPS en la misma transacción del cierre, si Flutter lo obtuvo.
+            $finalLocationId = null;
+            if (isset($validated['latitude'], $validated['longitude'])) {
+                $latitude = (float) $validated['latitude'];
+                $longitude = (float) $validated['longitude'];
+
+                $lastLocation = DB::table('programming_locations')
+                    ->where('programming_id', $programming->id)
+                    ->where('employee_id', $employee->id)
+                    ->orderByDesc('id')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$lastLocation ||
+                    (float) $lastLocation->latitude !== $latitude ||
+                    (float) $lastLocation->longitude !== $longitude) {
+                    $recordedAt = CarbonImmutable::now('UTC');
+                    $finalLocationId = DB::table('programming_locations')->insertGetId([
+                        'programming_id' => $programming->id,
+                        'employee_id' => $employee->id,
+                        'latitude' => $latitude,
+                        'longitude' => $longitude,
+                        'accuracy' => $validated['accuracy'] ?? null,
+                        'recorded_at' => $recordedAt->toDateTimeString(),
+                        'created_at' => $recordedAt->toDateTimeString(),
+                        'updated_at' => $recordedAt->toDateTimeString(),
+                    ]);
+                }
+            }
+
             $programming->forceFill([
                 'status' => Programming::STATUS_FINISHED,
                 'ended_by' => $employee->id,
@@ -405,6 +439,8 @@ class DriverProgrammingController extends Controller
                     'id' => $programming->id,
                     'route_started' => true,
                     'route_finished' => true,
+                    'final_location_id' => $finalLocationId,
+                    'final_location_saved' => $finalLocationId !== null,
                     'started_at' => $programming->started_at
                         ->timezone(self::TIMEZONE)
                         ->format('H:i'),
