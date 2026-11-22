@@ -1,16 +1,16 @@
 <?php
 
-use App\Http\Controllers\Api\DriverAuthController;
-use App\Http\Controllers\Api\DriverProgrammingController;
-use App\Http\Controllers\Api\DriverLocationController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
+use App\\Http\\Controllers\\Api\\DriverAuthController;
+use App\\Http\\Controllers\\Api\\DriverProgrammingController;
+use App\\Http\\Controllers\\Api\\DriverLocationController;
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\Route;
+use Illuminate\\Support\\Facades\\DB;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class]);
-
-Route::middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class])->get('/me/access', function (Request $request, App\Services\UserPermissionService $service) {
+})->middleware(['auth:sanctum', App\\Http\\Middleware\\EnsureActiveUser::class]);
+Route::middleware(['auth:sanctum', App\\Http\\Middleware\\EnsureActiveUser::class])->get('/me/access', function (Request $request, App\\Services\\UserPermissionService $service) {
     $user = $request->user();
     return response()->json([
         'is_admin' => (bool) $user->is_admin,
@@ -22,6 +22,21 @@ Route::middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class])
         'permisos' => collect($service->permissions($user))->pluck('slug')->values(),
     ]);
 })->name('api.me.access');
+// Endpoint temporal de diagnóstico: ejecuta SELECT * FROM contracts y devuelve tiempos, sin exponer los registros.
+Route::get('/test-db-contracts', function () {
+    $start = microtime(true);
+
+    $contracts = DB::select('SELECT * FROM contracts');
+
+    $queryTime = (microtime(true) - $start) * 1000;
+
+    return response()->json([
+        'status' => 'ok',
+        'query' => 'SELECT * FROM contracts',
+        'records' => count($contracts),
+        'query_time_ms' => round($queryTime, 2),
+    ]);
+})->middleware('throttle:3,1');
 
 // API para aplicación móvil Flutter
 Route::post('/conductor/login', [DriverAuthController::class, 'login'])
@@ -30,41 +45,41 @@ Route::post('/conductor/login', [DriverAuthController::class, 'login'])
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/conductor/programaciones', [
-        DriverAuthController::class,
+        DriverAuthController,
         'programaciones'
     ]);
     // Solamente las programaciones de hoy
     Route::get('/conductor/programaciones/hoy', [
-        DriverAuthController::class,
+        DriverAuthController,
         'programacionesHoy'
     ]);
     // Iniciar recorrido únicamente dentro del horario configurado del turno.
     Route::post('/conductor/programaciones/{programming}/iniciar', [
-        DriverProgrammingController::class,
+        DriverProgrammingController,
         'start'
     ]);
 
     // Finalizar un recorrido que ya fue iniciado, sin límite de horario.
     Route::post('/conductor/programaciones/{programming}/finalizar', [
-        DriverProgrammingController::class,
+        DriverProgrammingController,
         'finish'
     ]);
 
     // Consultar todos los puntos GPS aceptados de un recorrido (activo o finalizado).
     Route::get('/conductor/programaciones/{programming}/ubicaciones', [
-        DriverLocationController::class,
+        DriverLocationController,
         'index'
     ]);
 
     // Registrar ubicaciones GPS del conductor mientras el recorrido esté abierto.
     Route::post('/conductor/programaciones/{programming}/ubicacion', [
-        DriverLocationController::class,
+        DriverLocationController,
         'store'
     ])->middleware('throttle:30,1');
 
     // Detalle de una programación específica del conductor autenticado.
     Route::get('/conductor/programaciones/{programming}', [
-        DriverProgrammingController::class,
+        DriverProgrammingController,
         'show'
     ]);
 });
