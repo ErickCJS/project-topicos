@@ -46,12 +46,13 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
         AllowOverride All
         Require all granted
     </Directory>
-    ErrorLog /var/log/apache2/error.log
-    CustomLog /var/log/apache2/access.log combined
+    ErrorLog /dev/stderr
+    CustomLog /dev/stdout combined
 </VirtualHost>
 APACHE
 
-RUN sed -ri 's/^Listen 80$/Listen 10000/' /etc/apache2/ports.conf
+RUN echo 'ServerName localhost' >> /etc/apache2/apache2.conf \
+    && sed -ri 's/^Listen 80$/Listen 10000/' /etc/apache2/ports.conf
 
 WORKDIR /var/www/html
 COPY --from=composer-deps /var/www/html ./
