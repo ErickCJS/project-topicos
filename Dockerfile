@@ -67,4 +67,4 @@ RUN chmod +x /usr/local/bin/laravel-entrypoint
 
 EXPOSE 10000
 ENTRYPOINT ["laravel-entrypoint"]
-CMD ["apache2-foreground"]
+CMD ["sh", "-c", "true"]
