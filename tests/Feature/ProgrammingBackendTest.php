@@ -1865,7 +1865,7 @@ class ProgrammingBackendTest extends TestCase
         $this->get(route('admin.home', ['fecha' => '2026-11-02']))->assertOk()->assertSee('Reprogramado');
     }
 
-    public function test_driver_location_discards_exact_and_nearby_consecutive_points(): void
+    public function test_driver_location_discards_only_exact_consecutive_coordinates_and_saves_final_location(): void
     {
         $this->generate(['end_date' => '2026-11-02']);
         $programming = Programming::firstOrFail();
@@ -1885,25 +1885,23 @@ class ProgrammingBackendTest extends TestCase
             ->assertJsonPath('stored', true)
             ->assertJsonPath('duplicate', false);
 
-        // Repetición exacta: no debe crear un segundo registro.
+        // Solo una repetición exacta consecutiva se descarta.
         $this->postJson($endpoint, $origin)
             ->assertOk()
             ->assertJsonPath('stored', false)
             ->assertJsonPath('duplicate', true);
 
-        // Desplazamiento GPS de aproximadamente 11 m: debe registrarse con el umbral de 5 m.
+        // Cualquier cambio de coordenadas se guarda, incluso desplazamientos pequeños.
         $this->postJson($endpoint, [
             ...$origin,
-            'latitude' => -6.7799000,
+            'latitude' => -6.7799900,
         ])->assertCreated()
             ->assertJsonPath('stored', true)
             ->assertJsonPath('duplicate', false);
 
-        // El desplazamiento se calcula desde el último punto GUARDADO,
-        // no desde una lectura repetida que el servidor descartó.
         $this->postJson($endpoint, [
             ...$origin,
-            'latitude' => -6.7798000,
+            'latitude' => -6.7799800,
         ])->assertCreated()
             ->assertJsonPath('stored', true)
             ->assertJsonPath('duplicate', false);
@@ -1917,15 +1915,15 @@ class ProgrammingBackendTest extends TestCase
 
         $this->assertCount(3, $storedLatitudes);
         $this->assertEqualsWithDelta(-6.7800000, $storedLatitudes[0], 0.0000001);
-        $this->assertEqualsWithDelta(-6.7799000, $storedLatitudes[1], 0.0000001);
-        $this->assertEqualsWithDelta(-6.7798000, $storedLatitudes[2], 0.0000001);
+        $this->assertEqualsWithDelta(-6.7799900, $storedLatitudes[1], 0.0000001);
+        $this->assertEqualsWithDelta(-6.7799800, $storedLatitudes[2], 0.0000001);
 
-        // Simula una fila antigua repetida, creada antes de aplicar el umbral.
+        // Una fila histórica exactamente repetida se oculta en la consulta del recorrido.
         $timestamp = now()->utc()->toDateTimeString();
         DB::table('programming_locations')->insert([
             'programming_id' => $programming->id,
             'employee_id' => $this->driver->id,
-            'latitude' => -6.7797900,
+            'latitude' => -6.7799800,
             'longitude' => -79.8300000,
             'accuracy' => 4,
             'recorded_at' => $timestamp,
@@ -1935,8 +1933,26 @@ class ProgrammingBackendTest extends TestCase
 
         $this->getJson('/api/conductor/programaciones/'.$programming->id.'/ubicaciones')
             ->assertOk()
-            ->assertJsonPath('data.total_points', 2)
-            ->assertJsonCount(2, 'data.locations');
+            ->assertJsonPath('data.total_points', 3)
+            ->assertJsonCount(3, 'data.locations');
+
+        // El punto final se guarda dentro de la transacción que cierra el recorrido.
+        $finalLatitude = -6.7799700;
+        $finalLongitude = -79.8300000;
+        $this->postJson('/api/conductor/programaciones/'.$programming->id.'/finalizar', [
+            'latitude' => $finalLatitude,
+            'longitude' => $finalLongitude,
+            'accuracy' => 4,
+        ])->assertOk()
+            ->assertJsonPath('data.route_finished', true)
+            ->assertJsonPath('data.final_location_saved', true);
+
+        $this->assertDatabaseHas('programming_locations', [
+            'programming_id' => $programming->id,
+            'employee_id' => $this->driver->id,
+            'latitude' => $finalLatitude,
+            'longitude' => $finalLongitude,
+        ]);
     }
 
 }
