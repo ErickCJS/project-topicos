@@ -9,12 +9,12 @@ if [[ ! -f "$REPO_DIR/artisan" || ! -f "$REPO_DIR/composer.json" ]]; then
   exit 1
 fi
 
+mkdir -p "$APP_DIR"
 if [[ ! -f "$APP_DIR/.env" ]]; then
-  echo "ERROR: Falta el archivo .env en $APP_DIR. Créalo antes del primer despliegue."
+  echo "ERROR: Falta $APP_DIR/.env. Créalo con los datos de producción antes del despliegue."
   exit 1
 fi
 
-mkdir -p "$APP_DIR"
 if ! command -v rsync >/dev/null 2>&1; then
   echo "ERROR: Este hosting debe tener rsync disponible."
   exit 1
@@ -34,8 +34,13 @@ rsync -a --delete \
   "$REPO_DIR/" "$APP_DIR/"
 
 cd "$APP_DIR"
+mkdir -p storage/app/private storage/app/public storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
 
 composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+if grep -Eq '^APP_KEY=$' .env; then
+  php artisan key:generate --force
+fi
 
 if [[ -f package.json ]]; then
   if ! command -v npm >/dev/null 2>&1; then
@@ -46,7 +51,6 @@ if [[ -f package.json ]]; then
   npm run build
 fi
 
-mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache
 chmod -R ug+rwx storage bootstrap/cache
 
 php artisan storage:link || true
