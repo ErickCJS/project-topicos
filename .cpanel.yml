@@ -1,0 +1,4 @@
+---
+deployment:
+  tasks:
+    - /bin/bash $HOME/repositories/project-topicos/deployment/cpanel-deploy.sh
