@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\DB;
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class]);
-
 Route::middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class])->get('/me/access', function (Request $request, App\Services\UserPermissionService $service) {
     $user = $request->user();
     return response()->json([
@@ -24,26 +23,32 @@ Route::middleware(['auth:sanctum', App\Http\Middleware\EnsureActiveUser::class])
     ]);
 })->name('api.me.access');
 
-// Endpoint temporal de diagnóstico: ejecuta SELECT * FROM contracts y devuelve tiempos, sin exponer los registros.
+// Endpoint temporal de diagnóstico: mide conexión y SELECT * FROM contracts sin exponer registros.
 Route::get('/test-db-contracts', function () {
-    $start = microtime(true);
+    $totalStart = microtime(true);
 
+    $connectionStart = microtime(true);
+    DB::connection()->getPdo();
+    $connectionMs = (microtime(true) - $connectionStart) * 1000;
+
+    $queryStart = microtime(true);
     $contracts = DB::select('SELECT * FROM contracts');
+    $queryMs = (microtime(true) - $queryStart) * 1000;
 
-    $queryTime = (microtime(true) - $start) * 1000;
+    $totalMs = (microtime(true) - $totalStart) * 1000;
 
     return response()->json([
         'status' => 'ok',
-        'query' => 'SELECT * FROM contracts',
         'records' => count($contracts),
-        'query_time_ms' => round($queryTime, 2),
+        'connection_ms' => round($connectionMs, 2),
+        'query_ms' => round($queryMs, 2),
+        'total_ms' => round($totalMs, 2),
     ]);
-})->middleware('throttle:3,1');
+})->middleware('throttle:10,1');
 
 // API para aplicación móvil Flutter
 Route::post('/conductor/login', [DriverAuthController::class, 'login'])
     ->middleware('throttle:5,1');
-
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/conductor/programaciones', [DriverAuthController::class, 'programaciones']);
     Route::get('/conductor/programaciones/hoy', [DriverAuthController::class, 'programacionesHoy']);
