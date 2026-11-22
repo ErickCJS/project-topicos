@@ -8,11 +8,15 @@ services:
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
-        value: false
+        value: "false"
       - key: APP_KEY
         sync: false
       - key: APP_URL
         sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
       - key: DB_CONNECTION
         value: mysql
       - key: DB_HOST
@@ -31,5 +35,5 @@ services:
         value: file
       - key: QUEUE_CONNECTION
         value: sync
-      - key: LOG_LEVEL
-        value: warning
+      - key: FILESYSTEM_DISK
+        value: public
