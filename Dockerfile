@@ -1,17 +1,7 @@
-# Stage 1: compile Tailwind assets
-FROM node:20-alpine AS assets
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY resources ./resources
-COPY tailwind.config.js postcss.config.js ./
-RUN npm run build
-
-# Stage 2: Laravel + Apache
 FROM php:8.3-apache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git unzip libzip-dev libonig-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+    git unzip libzip-dev libonig-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev nodejs npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo_mysql mbstring bcmath exif gd zip \
     && a2enmod rewrite headers \
@@ -25,9 +15,11 @@ RUN sed -ri 's!/var/www/html!\${APACHE_DOCUMENT_ROOT}!g' \
 WORKDIR /var/www/html
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY . .
-COPY --from=assets /app/public/css/app.css ./public/css/app.css
 
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
+    && npm ci --no-audit --no-fund \
+    && npm run build \
+    && rm -rf node_modules \
     && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
