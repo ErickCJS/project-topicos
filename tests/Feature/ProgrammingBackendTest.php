@@ -1891,14 +1891,13 @@ class ProgrammingBackendTest extends TestCase
             ->assertJsonPath('stored', false)
             ->assertJsonPath('duplicate', true);
 
-        // Oscilación GPS de aproximadamente 11 m: sigue siendo el mismo punto.
+        // Desplazamiento GPS de aproximadamente 11 m: debe registrarse con el umbral de 5 m.
         $this->postJson($endpoint, [
             ...$origin,
             'latitude' => -6.7799000,
-        ])->assertOk()
-            ->assertJsonPath('stored', false)
-            ->assertJsonPath('duplicate', true)
-            ->assertJsonPath('minimum_distance_meters', 15);
+        ])->assertCreated()
+            ->assertJsonPath('stored', true)
+            ->assertJsonPath('duplicate', false);
 
         // El desplazamiento se calcula desde el último punto GUARDADO,
         // no desde una lectura repetida que el servidor descartó.
@@ -1916,9 +1915,10 @@ class ProgrammingBackendTest extends TestCase
             ->map(fn ($latitude) => (float) $latitude)
             ->all();
 
-        $this->assertCount(2, $storedLatitudes);
+        $this->assertCount(3, $storedLatitudes);
         $this->assertEqualsWithDelta(-6.7800000, $storedLatitudes[0], 0.0000001);
-        $this->assertEqualsWithDelta(-6.7798000, $storedLatitudes[1], 0.0000001);
+        $this->assertEqualsWithDelta(-6.7799000, $storedLatitudes[1], 0.0000001);
+        $this->assertEqualsWithDelta(-6.7798000, $storedLatitudes[2], 0.0000001);
 
         // Simula una fila antigua repetida, creada antes de aplicar el umbral.
         $timestamp = now()->utc()->toDateTimeString();
