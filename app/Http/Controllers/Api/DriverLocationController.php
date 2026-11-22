@@ -14,10 +14,7 @@ class DriverLocationController extends Controller
 {
     private const TIMEZONE = 'America/Lima';
 
-    // El GPS puede oscilar varios metros aunque el vehículo permanezca quieto.
-    // Se exige un desplazamiento real de 5 m desde el último punto ACEPTADO.
-    private const DUPLICATE_RADIUS_METERS = 5.0;
-
+    // Se descartan únicamente coordenadas consecutivas exactamente iguales.
     /**
      * Devuelve el recorrido histórico completo de una programación del conductor.
      * Este endpoint también permite consultar recorridos finalizados.
@@ -72,8 +69,7 @@ class DriverLocationController extends Controller
                     ->toIso8601String(),
             ])
             ->values()
-            // Purga también las posiciones antiguas repetidas para que la API
-            // histórica nunca vuelva a entregar tramos con puntos casi iguales.
+            // Purga únicamente coordenadas consecutivas exactamente repetidas en el histórico.
             ->reduce(function ($accepted, $location) {
                 $last = $accepted->last();
                 if ($last && $this->distanceInMeters(
@@ -81,7 +77,7 @@ class DriverLocationController extends Controller
                     $last['longitude'],
                     $location['latitude'],
                     $location['longitude']
-                ) <= self::DUPLICATE_RADIUS_METERS) {
+                ) === 0.0) {
                     return $accepted;
                 }
 
@@ -105,7 +101,7 @@ class DriverLocationController extends Controller
 
     /**
      * Guarda una posición GPS de un recorrido abierto.
-     * Los puntos consecutivos dentro de un radio de 5 m se reciben, pero no se duplican en BD.
+     * Solo se descartan coordenadas consecutivas exactamente iguales.
      */
     public function store(Request $request, int $programmingId): JsonResponse
     {
@@ -173,7 +169,8 @@ class DriverLocationController extends Controller
                     $longitude
                 );
 
-                if ($distanceFromLast <= self::DUPLICATE_RADIUS_METERS) {
+                if ((float) $lastLocation->latitude === $latitude
+                    && (float) $lastLocation->longitude === $longitude) {
                     return response()->json([
                         'success' => true,
                         'stored' => false,
@@ -181,7 +178,7 @@ class DriverLocationController extends Controller
                         'message' => 'Ubicación repetida. No se guardó un punto duplicado.',
                         'location_id' => $lastLocation->id,
                         'distance_from_last_meters' => round($distanceFromLast, 2),
-                        'minimum_distance_meters' => self::DUPLICATE_RADIUS_METERS,
+                        'duplicate_rule' => 'exact_consecutive_coordinates',
                     ]);
                 }
             }
