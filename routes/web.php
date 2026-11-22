@@ -9,6 +9,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Endpoint ligero para los health checks de Render; no consulta la base de datos.
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok'], 200);
+})->name('health');
+
 Route::get('/access-restricted', fn () => view('auth.access-restricted'))
     ->middleware('auth')
     ->name('access.restricted');
