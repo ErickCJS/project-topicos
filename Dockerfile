@@ -50,7 +50,8 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
     CustomLog \${APACHE_LOG_DIR}/access.log combined
 </VirtualHost>
 APACHE
-    && sed -ri 's/^Listen 80$/Listen 10000/' /etc/apache2/ports.conf
+
+RUN sed -ri 's/^Listen 80$/Listen 10000/' /etc/apache2/ports.conf
 
 WORKDIR /var/www/html
 COPY --from=composer-deps /var/www/html ./
