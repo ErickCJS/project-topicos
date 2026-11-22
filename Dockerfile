@@ -46,8 +46,8 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
         AllowOverride All
         Require all granted
     </Directory>
-    ErrorLog \${APACHE_LOG_DIR}/error.log
-    CustomLog \${APACHE_LOG_DIR}/access.log combined
+    ErrorLog /var/log/apache2/error.log
+    CustomLog /var/log/apache2/access.log combined
 </VirtualHost>
 APACHE
 
