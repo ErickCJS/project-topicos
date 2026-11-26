@@ -125,8 +125,56 @@ class VehiclesController extends Controller
 
     public function destroy(string $id)
     {
-        $imagePaths = DB::transaction(function () use ($id) {
+        $result = DB::transaction(function () use ($id) {
             $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($id);
+
+            // Estas relaciones tienen claves foráneas con RESTRICT ON DELETE.
+            // Se consultan dentro de la misma transacción para evitar condiciones de carrera.
+            $staffGroups = DB::table('staff_groups')
+                ->where('vehicle_id', $vehicle->id)
+                ->lockForUpdate()
+                ->get(['id', 'name']);
+
+            // Se incluyen también las programaciones con soft delete: siguen existiendo
+            // físicamente y su FK continúa impidiendo eliminar el vehículo.
+            $programmings = DB::table('programmings')
+                ->where('vehicle_id', $vehicle->id)
+                ->lockForUpdate()
+                ->get(['id', 'date', 'status', 'deleted_at']);
+
+            $reasons = [];
+
+            if ($staffGroups->isNotEmpty()) {
+                $names = $staffGroups->take(5)->pluck('name')->map(fn ($name) => '«'.$name.'»')->implode(', ');
+                $remaining = $staffGroups->count() - 5;
+                if ($remaining > 0) $names .= ' y '.$remaining.' grupo(s) más';
+
+                $reasons[] = 'Está asignado a '.$staffGroups->count().' grupo(s) de personal: '.$names.'.';
+            }
+
+            if ($programmings->isNotEmpty()) {
+                $details = $programmings->take(5)->map(function ($programming) {
+                    $date = $programming->date
+                        ? \Carbon\Carbon::parse($programming->date)->format('d/m/Y')
+                        : 'fecha no disponible';
+                    $status = $programming->status ?: 'sin estado';
+                    $archived = $programming->deleted_at ? ' (registro eliminado lógicamente)' : '';
+
+                    return $date.' — '.$status.$archived;
+                })->implode('; ');
+                $remaining = $programmings->count() - 5;
+                if ($remaining > 0) $details .= '; y '.$remaining.' programación(es) más';
+
+                $reasons[] = 'Tiene '.$programmings->count().' programación(es) asociada(s): '.$details.'.';
+            }
+
+            if ($reasons) {
+                return [
+                    'blocked' => true,
+                    'mensaje' => "No se puede eliminar este vehículo porque todavía está siendo utilizado:\n\n".implode("\n\n", $reasons)."\n\nPrimero reasigna o elimina esos registros y vuelve a intentarlo.",
+                ];
+            }
+
             $imagePaths = $vehicle->images()
                 ->pluck('imagen')
                 ->filter(fn ($path) => filled($path))
@@ -135,11 +183,15 @@ class VehiclesController extends Controller
             $vehicle->images()->delete();
             $vehicle->delete();
 
-            return $imagePaths;
+            return ['blocked' => false, 'imagePaths' => $imagePaths];
         });
 
-        if ($imagePaths) {
-            Storage::disk('public')->delete($imagePaths);
+        if ($result['blocked']) {
+            return response()->json(['mensaje' => $result['mensaje']], 409);
+        }
+
+        if ($result['imagePaths']) {
+            Storage::disk('public')->delete($result['imagePaths']);
         }
 
         return response()->json(['mensaje' => 'Vehículo y todas sus imágenes eliminados correctamente']);
