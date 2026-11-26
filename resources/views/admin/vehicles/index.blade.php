@@ -269,7 +269,20 @@ $(function () {
                 url: url, type: 'DELETE',
                 headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}", Accept: 'application/json' },
                 success: function (response) { window.refresTable(); mostrarAlerta(true, response.mensaje); },
-                error: function (error) { mostrarAlerta(false, mensajeError(error, 'No se pudo eliminar el vehículo.')); }
+                error: function (error) {
+                    var respuesta = error.responseJSON || {};
+                    if (error.status === 409 && respuesta.mensaje) {
+                        Swal.fire({
+                            title: 'No se puede eliminar este vehículo',
+                            text: respuesta.mensaje,
+                            icon: 'warning',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#b54747'
+                        });
+                        return;
+                    }
+                    mostrarAlerta(false, mensajeError(error, 'No se pudo eliminar el vehículo.'));
+                }
             });
         });
     });
