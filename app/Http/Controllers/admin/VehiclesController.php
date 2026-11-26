@@ -155,7 +155,7 @@ class VehiclesController extends Controller
             if ($programmings->isNotEmpty()) {
                 $details = $programmings->take(5)->map(function ($programming) {
                     $date = $programming->date
-                        ? \\Carbon\\Carbon::parse($programming->date)->format('d/m/Y')
+                        ? Carbon::parse($programming->date)->format('d/m/Y')
                         : 'fecha no disponible';
                     $status = $programming->status ?: 'sin estado';
                     $archived = $programming->deleted_at ? ' (registro eliminado lógicamente)' : '';
@@ -171,7 +171,7 @@ class VehiclesController extends Controller
             if ($reasons) {
                 return [
                     'blocked' => true,
-                    'mensaje' => "No se puede eliminar este vehículo porque todavía está siendo utilizado:\\n\\n".implode("\\n\\n", $reasons)."\\n\\nPrimero reasigna o elimina esos registros y vuelve a intentarlo.",
+                    'mensaje' => "No se puede eliminar este vehículo porque todavía está siendo utilizado:\n\n".implode("\n\n", $reasons)."\n\nPrimero reasigna o elimina esos registros y vuelve a intentarlo.",
                 ];
             }
 
