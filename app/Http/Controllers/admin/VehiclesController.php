@@ -145,11 +145,11 @@ class VehiclesController extends Controller
             $reasons = [];
 
             if ($staffGroups->isNotEmpty()) {
-                $reasons[] = 'Está siendo utilizado en grupos de personal.';
+                $reasons[] = 'está siendo utilizado en grupos de personal.';
             }
 
             if ($programmings->isNotEmpty()) {
-                $reasons[] = 'Tiene historial de programaciones.';
+                $reasons[] = 'tiene historial de programaciones.';
             }
 
             if ($reasons) {
