@@ -155,7 +155,7 @@ class VehiclesController extends Controller
             if ($programmings->isNotEmpty()) {
                 $details = $programmings->take(5)->map(function ($programming) {
                     $date = $programming->date
-                        ? Carbon::parse($programming->date)->format('d/m/Y')
+                        ? \\Carbon\\Carbon::parse($programming->date)->format('d/m/Y')
                         : 'fecha no disponible';
                     $status = $programming->status ?: 'sin estado';
                     $archived = $programming->deleted_at ? ' (registro eliminado lógicamente)' : '';
