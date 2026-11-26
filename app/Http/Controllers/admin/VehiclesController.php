@@ -145,33 +145,17 @@ class VehiclesController extends Controller
             $reasons = [];
 
             if ($staffGroups->isNotEmpty()) {
-                $names = $staffGroups->take(5)->pluck('name')->map(fn ($name) => '«'.$name.'»')->implode(', ');
-                $remaining = $staffGroups->count() - 5;
-                if ($remaining > 0) $names .= ' y '.$remaining.' grupo(s) más';
-
-                $reasons[] = 'Está asignado a '.$staffGroups->count().' grupo(s) de personal: '.$names.'.';
+                $reasons[] = 'Está siendo utilizado en grupos de personal.';
             }
 
             if ($programmings->isNotEmpty()) {
-                $details = $programmings->take(5)->map(function ($programming) {
-                    $date = $programming->date
-                        ? \Carbon\Carbon::parse($programming->date)->format('d/m/Y')
-                        : 'fecha no disponible';
-                    $status = $programming->status ?: 'sin estado';
-                    $archived = $programming->deleted_at ? ' (registro eliminado lógicamente)' : '';
-
-                    return $date.' — '.$status.$archived;
-                })->implode('; ');
-                $remaining = $programmings->count() - 5;
-                if ($remaining > 0) $details .= '; y '.$remaining.' programación(es) más';
-
-                $reasons[] = 'Tiene '.$programmings->count().' programación(es) asociada(s): '.$details.'.';
+                $reasons[] = 'Tiene historial de programaciones.';
             }
 
             if ($reasons) {
                 return [
                     'blocked' => true,
-                    'mensaje' => "No se puede eliminar este vehículo porque todavía está siendo utilizado:\n\n".implode("\n\n", $reasons)."\n\nPrimero reasigna o elimina esos registros y vuelve a intentarlo.",
+                    'mensaje' => 'No se puede eliminar este vehículo porque '.implode(' Además, ', $reasons).' Primero debes desvincularlo o eliminar los registros relacionados.',
                 ];
             }
 
