@@ -47,7 +47,8 @@ class ProgrammingInterfaceTest extends TestCase
         $this->get(route('admin.home'))
             ->assertOk()
             ->assertSee('BIENVENIDO AL SISTEMA')
-            ->assertSee('No tienes módulos asignados');
+            ->assertSee('No tienes módulos asignados')
+            ->assertDontSee('dashboardReschedulingModal');
     }
 
     public function test_dashboard_exposes_rescheduling_controls_and_related_navigation(): void
