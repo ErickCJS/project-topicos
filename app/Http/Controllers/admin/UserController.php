@@ -144,7 +144,19 @@ class UserController extends Controller
 
         unset($data['profile_photo']);
 
-        User::create($data);
+        DB::transaction(function () use ($data) {
+            $user = User::create($data);
+
+            // El tipo funciona como plantilla inicial: copia sus permisos al crear la cuenta.
+            if ($user->user_type_id) {
+                $permissionIds = UserType::find($user->user_type_id)
+                    ?->permissions()
+                    ->pluck('permissions.id')
+                    ->all() ?? [];
+
+                $user->permissions()->sync($permissionIds);
+            }
+        });
 
         return $this->wantsJsonResponse($request)
             ? response()->json([
@@ -266,7 +278,24 @@ class UserController extends Controller
                     return false;
                 }
 
+                $previousTypeId = $lockedUser->user_type_id;
+                $newTypeId = array_key_exists('user_type_id', $data)
+                    ? ($data['user_type_id'] !== null ? (int) $data['user_type_id'] : null)
+                    : $previousTypeId;
+
                 $lockedUser->update($data);
+
+                // Al cambiar de tipo se aplica la nueva plantilla.
+                // Si el tipo no cambia, se conservan los permisos personalizados del usuario.
+                if ($previousTypeId !== $newTypeId) {
+                    $permissionIds = $newTypeId
+                        ? (UserType::find($newTypeId)?->permissions()
+                            ->pluck('permissions.id')
+                            ->all() ?? [])
+                        : [];
+
+                    $lockedUser->permissions()->sync($permissionIds);
+                }
 
                 return true;
             });
