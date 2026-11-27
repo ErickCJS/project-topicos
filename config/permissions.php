@@ -22,7 +22,7 @@ return [
             'feriados' => ['Feriados', 'holidays', ['view', 'details', 'create', 'edit', 'delete', 'summary', 'load']],
             'grupos-personal' => ['Grupos de personal', 'staffgroups', ['view', 'details', 'create', 'edit', 'delete', 'helpers']],
             'programacion' => ['Programación', 'programming', ['view', 'details', 'create', 'edit', 'delete', 'history', 'finish', 'annul', 'reschedule', 'bulk-context', 'bulk-check', 'bulk-generate', 'bulk-undo', 'bulk-modifications-view', 'bulk-modifications-check', 'bulk-modifications-apply']],
-            'dashboard' => ['Dashboard', 'admin.home', ['view']],
+            'dashboard' => ['Dashboard', 'admin.dashboard', ['view']],
         ],
         'Gestión de cambios' => [
             'motivos' => ['Motivos', 'reason', ['view', 'details', 'create', 'edit', 'delete']],
@@ -66,7 +66,7 @@ return [
     ],
 
     'route_map' => [
-        'admin.home' => 'dashboard.view',
+        'admin.dashboard' => 'dashboard.view',
         'programming.index' => 'programacion.view',
         'programming.holidays' => 'programacion.view',
         'programming.people' => 'programacion.view',

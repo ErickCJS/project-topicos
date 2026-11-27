@@ -15,7 +15,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
         <h4 class="mb-0"><i class="bi bi-calendar-week me-2" aria-hidden="true"></i>Lista de Programaciones</h4>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{{ route('admin.home') }}" class="btn btn-outline-secondary"><i class="bi bi-grid me-1"></i>Ir al Dashboard</a>
+            <a href="{{ route('admin.dashboard') }}" class="btn btn-outline-secondary"><i class="bi bi-grid me-1"></i>Ir al Dashboard</a>
             <button type="button" class="btn btn-success" id="newProgramming"><i class="bi bi-plus-circle me-1"></i>Nueva programación</button>
             <button type="button" class="btn btn-outline-secondary" id="bulkProgramming"><i class="bi bi-stack me-1"></i>Programación masiva</button>
         </div>

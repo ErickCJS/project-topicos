@@ -107,6 +107,7 @@
 @section('adminlte_css')
     @stack('css')
     @yield('css')
+    <link rel="stylesheet" href="{{ asset('css/dark-mode.css') }}">
 @stop
 
 @section('adminlte_js')

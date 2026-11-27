@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 class ProgrammingInterfaceTest extends TestCase
@@ -40,11 +41,58 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertSee('css/programming.css');
     }
 
+    public function test_authenticated_users_can_open_the_welcome_page_without_dashboard_permission(): void
+    {
+        $this->actingAs(User::factory()->make(['id' => 1, 'is_admin' => false]));
+
+        $this->get(route('admin.home'))
+            ->assertOk()
+            ->assertSee('Una gestión más eficiente')
+            ->assertSee('Módulos disponibles')
+            ->assertSee('css/welcome.css')
+            ->assertSee('css/dark-mode.css')
+            ->assertSee('No tienes módulos asignados')
+            ->assertDontSee('dashboardReschedulingModal');
+    }
+
+    public function test_welcome_page_only_displays_modules_allowed_for_the_user(): void
+    {
+        $this->actingAs(User::factory()->regular()->make(['id' => 1]));
+
+        Gate::define('permission', fn (User $user, string $permission) => $permission === 'personal.view');
+
+        $this->get(route('admin.home'))
+            ->assertOk()
+            ->assertSee('Gestión de personal')
+            ->assertSee(route('personal.employees.index'), false)
+            ->assertDontSee('Control de vehículos')
+            ->assertDontSee(route('vehicles.index'), false)
+            ->assertDontSee('Programación')
+            ->assertDontSee(route('programming.index'), false)
+            ->assertDontSee('No tienes módulos asignados');
+    }
+
+
+    public function test_welcome_page_can_show_one_authorized_submodule_without_other_sibling_access(): void
+    {
+        $this->actingAs(User::factory()->regular()->make(['id' => 1]));
+
+        Gate::define('permission', fn (User $user, string $permission) => $permission === 'vehiculos-colores.view');
+
+        $this->get(route('admin.home'))
+            ->assertOk()
+            ->assertSee('Colores')
+            ->assertSee(route('vehiclescolor.index'), false)
+            ->assertDontSee(route('vehicles.index'), false)
+            ->assertDontSee('Marcas')
+            ->assertDontSee(route('brands.index'), false);
+    }
+
     public function test_dashboard_exposes_rescheduling_controls_and_related_navigation(): void
     {
         $this->actingAs(User::factory()->make(['id' => 1]));
 
-        $this->get(route('admin.home'))
+        $this->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('dashboardReschedulingModal')
             ->assertSee('dashboardRescheduleDate')
