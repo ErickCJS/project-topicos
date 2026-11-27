@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\\Unit;
+namespace Tests\Unit;
 
-use App\\Support\\GeoJsonPerimeter;
-use PHPUnit\\Framework\\TestCase;
+use App\Support\GeoJsonPerimeter;
+use PHPUnit\Framework\TestCase;
 
 class GeoJsonPerimeterTest extends TestCase
 {
