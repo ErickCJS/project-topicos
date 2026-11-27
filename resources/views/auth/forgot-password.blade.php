@@ -1,47 +1,42 @@
 <x-guest-layout>
-    <main class="flex min-h-screen w-full flex-col md:flex-row">
-        <section class="relative hidden min-h-screen flex-col justify-end bg-cover bg-center p-8 text-white md:flex md:w-1/2 md:p-12"
-            style="background-image: url('/storage/logos/91a3d343-e34e-41bc-97fb-f8c5d6790e23.jpg');">
-            <div class="absolute inset-0 bg-black/40"></div>
-            <div class="relative z-10 mt-auto max-w-2xl">
-                <h1 class="mb-5 text-4xl font-bold leading-tight lg:text-5xl">Gestionando residuos para un JLO más limpio.</h1>
-                <p class="max-w-xl text-base leading-relaxed text-white/90 lg:text-lg">Plataforma para la gestión, planificación y supervisión de las operaciones de recolección de residuos en José Leonardo Ortiz.</p>
-                <footer class="mt-10 border-t border-white/30 pt-5 text-xs font-medium tracking-wide text-white/80 sm:text-sm">© 2026 USAT - UNIVERSIDAD CATÓLICA SANTO TORIBIO DE MOGROVEJO</footer>
-            </div>
-        </section>
-
-        <section class="flex min-h-screen w-full items-center justify-center bg-white px-5 py-10 sm:px-8 md:w-1/2 md:px-10 lg:px-16">
-            <div class="w-full max-w-md">
-                <img src="https://jloenlinea.munijlo.gob.pe/assets/modern-logo-EliRhkgI.png" alt="Municipalidad José Leonardo Ortiz" class="mx-auto mb-4 w-48 max-w-full">
-                <p class="text-center text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">ACCESO AL SISTEMA</p>
-                <h2 class="mb-2 mt-2 text-center text-3xl font-bold tracking-tight text-blue-700 sm:text-4xl">Recuperar Contraseña</h2>
-                <p class="mb-7 text-center text-sm leading-relaxed text-gray-600">¿Olvidó su contraseña? No hay problema. Simplemente indíquenos su dirección de correo electrónico y le enviaremos un enlace para restablecerla.</p>
-
-                <form method="POST" action="{{ route('password.email') }}" novalidate>
-                    @csrf
-                    <div class="mb-5">
-                        <label for="email" class="mb-1.5 block text-sm font-medium text-gray-800">Correo</label>
-                        <input id="email" type="email" name="email" value="{{ old('email') }}" placeholder="Ingrese su correo electrónico" autocomplete="username" required autofocus class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring focus:ring-blue-200">
+    <link rel="stylesheet" href="{{ asset('css/auth-pages.css') }}">
+    <main class="auth-page">
+        <div class="auth-container">
+            <section class="auth-banner">
+                <div class="auth-banner-content">
+                    <div>
+                        <h1>Gestionando residuos<br>para un JLO más limpio.</h1>
+                        <p>Plataforma para la gestión, planificación y supervisión de las operaciones de recolección de residuos en José Leonardo Ortiz.</p>
                     </div>
-                    <button type="submit" class="w-full rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Enviar enlace de recuperación</button>
-                </form>
-
-                <nav class="mt-6 grid grid-cols-1 gap-3 border-t border-gray-200 pt-5 sm:grid-cols-2" aria-label="Navegación de acceso">
-                    @if (Route::has('login'))
-                        <a href="{{ route('login') }}" class="flex min-h-11 items-center justify-center rounded-lg border border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Volver al inicio de sesión
-                        </a>
-                    @endif
-                    @if (Route::has('register'))
-                        <a href="{{ route('register') }}" class="flex min-h-11 items-center justify-center rounded-lg border border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Crear una cuenta
-                        </a>
-                    @endif
-                </nav>
-            </div>
-        </section>
+                    <footer>© {{ date('Y') }} USAT - UNIVERSIDAD CATÓLICA SANTO TORIBIO DE MOGROVEJO</footer>
+                </div>
+            </section>
+            <section class="auth-form-section">
+                <div class="auth-form-container">
+                    <img src="{{ asset('storage/logos/lg.png') }}" class="auth-logo" alt="Logo del sistema">
+                    <p class="auth-kicker">Acceso al sistema</p>
+                    <h2 class="auth-title">Recuperar contraseña</h2>
+                    <p class="auth-description">¿Olvidó su contraseña? No hay problema. Simplemente indíquenos su dirección de correo electrónico y le enviaremos un enlace para restablecerla.</p>
+                    <form method="POST" action="{{ route('password.email') }}" novalidate>
+                        @csrf
+                        <div class="auth-field auth-field-last">
+                            <label for="email">Correo electrónico</label>
+                            <input id="email" type="email" name="email" value="{{ old('email') }}" placeholder="Ingrese su correo electrónico" autocomplete="username" required autofocus>
+                        </div>
+                        <button type="submit" class="auth-button">Enviar enlace de recuperación</button>
+                    </form>
+                    <nav class="auth-links" aria-label="Navegación de acceso">
+                        @if (Route::has('login'))
+                            <a href="{{ route('login') }}">Volver al inicio de sesión</a>
+                        @endif
+                        @if (Route::has('register'))
+                            <a href="{{ route('register') }}">Crear una cuenta</a>
+                        @endif
+                    </nav>
+                </div>
+            </section>
+        </div>
     </main>
-
     @if (session('status'))
         <script>
             document.addEventListener('DOMContentLoaded', function () {

@@ -14,9 +14,9 @@
     <div class="vehicles-module">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-2 border-bottom">
             <h4 class="mb-0">Listado de Vehículos</h4>
-            <button type="button" class="btn btn-success ms-auto" id="btnNuevo">
+            @can('permission', 'vehiculos.create')<button type="button" class="btn btn-success ms-auto" id="btnNuevo">
                 <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Nuevo Vehículo
-            </button>
+            </button>@endcan
         </div>
         <div class="card">
             <div class="card-body">
@@ -269,7 +269,20 @@ $(function () {
                 url: url, type: 'DELETE',
                 headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}", Accept: 'application/json' },
                 success: function (response) { window.refresTable(); mostrarAlerta(true, response.mensaje); },
-                error: function (error) { mostrarAlerta(false, mensajeError(error, 'No se pudo eliminar el vehículo.')); }
+                error: function (error) {
+                    var respuesta = error.responseJSON || {};
+                    if (error.status === 409 && respuesta.mensaje) {
+                        Swal.fire({
+                            title: 'No se puede eliminar este vehículo',
+                            text: respuesta.mensaje,
+                            icon: 'warning',
+                            confirmButtonText: 'Entendido',
+                            confirmButtonColor: '#b54747'
+                        });
+                        return;
+                    }
+                    mostrarAlerta(false, mensajeError(error, 'No se pudo eliminar el vehículo.'));
+                }
             });
         });
     });

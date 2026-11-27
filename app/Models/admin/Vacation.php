@@ -10,7 +10,7 @@ class Vacation extends Model
 {
     public const ANNUAL_DAYS = 30;
 
-    public const STATUSES = ['Pendiente', 'Aprobada', 'Rechazada'];
+    public const STATUSES = ['Pendiente', 'Aprobada', 'Rechazada', 'Anulada'];
 
     protected $fillable = [
         'employee_id', 'year', 'start_date', 'end_date', 'scheduled_days', 'pending_days',

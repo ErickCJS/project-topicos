@@ -135,7 +135,7 @@
             <div class="col-12 col-lg-4 employee-photo-column">
                 <div class="employee-photo-panel">
                     <label class="form-label fw-semibold" for="employeeProfilePhoto">
-                        Foto de perfil @unless($editing)<span class="text-danger">*</span>@endunless
+                        Foto de perfil (opcional)
                     </label>
                     <label for="employeeProfilePhoto" class="employee-photo-picker">
                         <i class="bi bi-card-image employee-photo-placeholder {{ $editing && $employee->profile_photo_path ? 'd-none' : '' }}"
@@ -146,7 +146,7 @@
                             onerror="this.classList.add('d-none');document.getElementById('employeePhotoPlaceholder').classList.remove('d-none')">
                     </label>
                     <input class="form-control d-none" type="file" id="employeeProfilePhoto" name="foto"
-                        accept="image/*" {{ $editing ? '' : 'required' }}>
+                        accept="image/*" >
                     <div class="form-text text-center mt-2">Haga clic para seleccionar una imagen.</div>
                 </div>
             </div>

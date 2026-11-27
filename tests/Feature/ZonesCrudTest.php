@@ -198,9 +198,12 @@ class ZonesCrudTest extends TestCase
             ->assertSee('polygon_geojson=1', false)
             ->assertSee('AbortController', false)
             ->assertSee('fitBounds', false)
+            ->assertSee('map.fitBounds(defaultJloBounds', false)
+            ->assertSee("moveTo('district', !isEditingZone || !hasZonePerimeter)", false)
             ->assertSee("element.data('zone-sync-perimeter', sync)", false)
             ->assertSee('let confirmedPerimeter = parseGeoJson(input.val())', false)
             ->assertSee('element.data(\'zone-fit-perimeter\', fitPerimeter)', false)
+            ->assertDontSee('hasExistingPerimeter', false)
             ->assertSee('L.Draw.Event.EDITSTART', false)
             ->assertSee('L.Draw.Event.EDITVERTEX', false)
             ->assertSee('L.Draw.Event.EDITSTOP', false);

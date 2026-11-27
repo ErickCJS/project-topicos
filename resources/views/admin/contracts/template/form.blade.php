@@ -24,25 +24,32 @@
 
     <div class="col-12 col-md-6">
         {!! Form::label('contract_type', 'Tipo de contrato *', ['class' => 'form-label fw-semibold']) !!}
-        {!! Form::select('type', $types, null, [
-            'class' => 'form-select',
-            'id' => 'contract_type',
-            'placeholder' => 'Seleccione un tipo',
-            'required',
-        ]) !!}
+        @if(isset($contract) && $contract->type === 'Temporal')
+            {!! Form::hidden('type', $contract->type) !!}
+            {!! Form::select('type_display', $types, $contract->type, [
+                'class' => 'form-select', 'id' => 'contract_type', 'disabled',
+            ]) !!}
+        @else
+            {!! Form::select('type', $types, null, [
+                'class' => 'form-select',
+                'id' => 'contract_type',
+                'placeholder' => 'Seleccione un tipo',
+                'required',
+            ]) !!}
+        @endif
     </div>
 
     <div class="col-12 col-md-6">
         {!! Form::label('salary', 'Sueldo (S/) *', ['class' => 'form-label fw-semibold']) !!}
         {!! Form::number('salary', null, [
             'class' => 'form-control',
-            'min' => '1350',
+            'min' => '0',
             'max' => '999999.99',
             'step' => '0.01',
-            'placeholder' => '1350.00',
+            'placeholder' => '0.00',
             'required',
         ]) !!}
-        <div class="form-text">Sueldo mínimo: S/ 1,350.00.</div>
+        <div class="form-text">Se admite un sueldo desde S/ 0.00.</div>
     </div>
 
     <div class="col-12 col-md-6">

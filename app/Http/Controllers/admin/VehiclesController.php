@@ -12,6 +12,7 @@ use App\Models\admin\Vehicletype;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -61,20 +62,12 @@ class VehiclesController extends Controller
                     return '<span class="vehicle-color-swatch" style="background-color:'.e($vehicle->color).'" title="'.e($vehicle->color).'" aria-label="Color '.e($vehicle->color).'"></span>';
                 })
                 ->addColumn('actions', function ($vehicle) {
-                    return '<div class="vehicle-actions">
-                                <button type="button" class="btn btn-outline-primary btn-sm vehicle-action-btn btnVer" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.show', $vehicle->id)).'" title="Ver" aria-label="Ver vehículo">
-                                    <i class="bi bi-eye" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm vehicle-action-btn btnImagen" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.photo.retornar_vista_imagenes', $vehicle->id)).'" title="Imágenes" aria-label="Imágenes del vehículo">
-                                    <i class="bi bi-images" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-warning btn-sm vehicle-action-btn btnEditar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.edit', $vehicle->id)).'" title="Editar" aria-label="Editar vehículo">
-                                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline-danger btn-sm vehicle-action-btn btnEliminar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.destroy', $vehicle->id)).'" title="Eliminar" aria-label="Eliminar vehículo">
-                                    <i class="bi bi-trash" aria-hidden="true"></i>
-                                </button>
-                            </div>';
+                    $actions = '<div class="vehicle-actions">';
+                    if (Gate::allows('permission', 'vehiculos.details')) $actions .= '<button type="button" class="btn btn-outline-primary btn-sm vehicle-action-btn btnVer" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.show', $vehicle->id)).'" title="Ver" aria-label="Ver vehículo"><i class="bi bi-eye" aria-hidden="true"></i></button>';
+                    if (Gate::allows('permission', 'vehiculos.images')) $actions .= '<button type="button" class="btn btn-outline-secondary btn-sm vehicle-action-btn btnImagen" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.photo.retornar_vista_imagenes', $vehicle->id)).'" title="Imágenes" aria-label="Imágenes del vehículo"><i class="bi bi-images" aria-hidden="true"></i></button>';
+                    if (Gate::allows('permission', 'vehiculos.edit')) $actions .= '<button type="button" class="btn btn-outline-warning btn-sm vehicle-action-btn btnEditar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.edit', $vehicle->id)).'" title="Editar" aria-label="Editar vehículo"><i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+                    if (Gate::allows('permission', 'vehiculos.delete')) $actions .= '<button type="button" class="btn btn-outline-danger btn-sm vehicle-action-btn btnEliminar" data-id="'.$vehicle->id.'" data-url="'.e(route('vehicles.destroy', $vehicle->id)).'" title="Eliminar" aria-label="Eliminar vehículo"><i class="bi bi-trash" aria-hidden="true"></i></button>';
+                    return $actions.'</div>';
                 })
                 ->rawColumns(['logo', 'color', 'actions'])
                 ->toJson();
@@ -132,8 +125,40 @@ class VehiclesController extends Controller
 
     public function destroy(string $id)
     {
-        $imagePaths = DB::transaction(function () use ($id) {
+        $result = DB::transaction(function () use ($id) {
             $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($id);
+
+            // Estas relaciones tienen claves foráneas con RESTRICT ON DELETE.
+            // Se consultan dentro de la misma transacción para evitar condiciones de carrera.
+            $staffGroups = DB::table('staff_groups')
+                ->where('vehicle_id', $vehicle->id)
+                ->lockForUpdate()
+                ->get(['id', 'name']);
+
+            // Se incluyen también las programaciones con soft delete: siguen existiendo
+            // físicamente y su FK continúa impidiendo eliminar el vehículo.
+            $programmings = DB::table('programmings')
+                ->where('vehicle_id', $vehicle->id)
+                ->lockForUpdate()
+                ->get(['id', 'date', 'status', 'deleted_at']);
+
+            $reasons = [];
+
+            if ($staffGroups->isNotEmpty()) {
+                $reasons[] = 'está siendo utilizado en grupos de personal.';
+            }
+
+            if ($programmings->isNotEmpty()) {
+                $reasons[] = 'tiene historial de programaciones.';
+            }
+
+            if ($reasons) {
+                return [
+                    'blocked' => true,
+                    'mensaje' => 'No se puede eliminar este vehículo porque '.implode(' Además, ', $reasons).' Primero debes desvincularlo o eliminar los registros relacionados.',
+                ];
+            }
+
             $imagePaths = $vehicle->images()
                 ->pluck('imagen')
                 ->filter(fn ($path) => filled($path))
@@ -142,11 +167,15 @@ class VehiclesController extends Controller
             $vehicle->images()->delete();
             $vehicle->delete();
 
-            return $imagePaths;
+            return ['blocked' => false, 'imagePaths' => $imagePaths];
         });
 
-        if ($imagePaths) {
-            Storage::disk('public')->delete($imagePaths);
+        if ($result['blocked']) {
+            return response()->json(['mensaje' => $result['mensaje']], 409);
+        }
+
+        if ($result['imagePaths']) {
+            Storage::disk('public')->delete($result['imagePaths']);
         }
 
         return response()->json(['mensaje' => 'Vehículo y todas sus imágenes eliminados correctamente']);
@@ -205,6 +234,7 @@ class VehiclesController extends Controller
             });
 
             return response()->json([
+                'codigo' => 1,
                 'mensaje' => 'Imágenes subidas correctamente',
             ]);
         } catch (ModelNotFoundException $exception) {
@@ -275,6 +305,7 @@ class VehiclesController extends Controller
             });
 
             return response()->json([
+                'codigo' => 1,
                 'mensaje' => 'Imagen principal actualizada correctamente',
             ]);
         } catch (ModelNotFoundException $exception) {

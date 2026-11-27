@@ -308,17 +308,17 @@ class BrandsCrudTest extends TestCase
         $response->assertOk();
         $actions = (string) $response->json('data.0.actions');
 
-        $this->assertStringContainsString('btn btn-info btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-primary btn-sm', $actions);
         $this->assertStringContainsString('bi bi-eye', $actions);
         $this->assertStringContainsString('title="Ver"', $actions);
         $this->assertStringContainsString('aria-label="Ver marca"', $actions);
         $this->assertStringContainsString(route('brands.show', $brand), $actions);
-        $this->assertStringContainsString('btn btn-warning btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-warning btn-sm', $actions);
         $this->assertStringContainsString('bi bi-pencil-square', $actions);
         $this->assertStringContainsString('title="Editar"', $actions);
         $this->assertStringContainsString('aria-label="Editar marca"', $actions);
         $this->assertStringContainsString(route('brands.edit', $brand), $actions);
-        $this->assertStringContainsString('btn btn-danger btn-sm', $actions);
+        $this->assertStringContainsString('btn btn-outline-danger btn-sm', $actions);
         $this->assertStringContainsString('bi bi-trash', $actions);
         $this->assertStringContainsString('title="Eliminar"', $actions);
         $this->assertStringContainsString('aria-label="Eliminar marca"', $actions);

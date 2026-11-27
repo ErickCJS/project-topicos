@@ -9,6 +9,7 @@
 </div>
 
 <div class="modal-body brand-modal-body">
+    <p class="small text-muted mb-3">Información de solo lectura</p>
     <div class="row g-3">
         <div class="col-12 col-lg-5">
             <div class="brand-detail-card">

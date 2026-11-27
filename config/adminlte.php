@@ -774,65 +774,83 @@ return [
             'icon' => 'fas fa-house',
         ],
         [
+            'text' => 'Dashboard',
+            'route' => 'admin.dashboard',
+            'icon' => 'fas fa-chart-line',
+            'can' => 'permission', 'model' => ['dashboard.view'],
+        ],
+        [
             'text' => 'Gestión de vehículos',
             'icon' => 'fas fa-truck',
+            'can' => 'module', 'model' => ['vehiculos-colores', 'vehiculos-marcas', 'vehiculos-modelos', 'vehiculos-tipos', 'vehiculos'],
             'submenu' => [
                 [
                     'text' => 'Vehículos',
                     'route' => 'vehicles.index',
                     'icon' => 'fas fa-truck',
+                    'can' => 'permission', 'model' => ['vehiculos.view'],
                 ],
                 [
                     'text' => 'Marcas',
                     'route' => 'brands.index',
                     'icon' => 'fas fa-tag',
+                    'can' => 'permission', 'model' => ['vehiculos-marcas.view'],
                 ],
                 [
                     'text' => 'Modelos',
                     'route' => 'brandsmodel.index',
                     'icon' => 'fas fa-cubes',
+                    'can' => 'permission', 'model' => ['vehiculos-modelos.view'],
                 ],
                 [
                     'text' => 'Colores',
                     'route' => 'vehiclescolor.index',
                     'icon' => 'fas fa-palette',
+                    'can' => 'permission', 'model' => ['vehiculos-colores.view'],
                 ],
                 [
                     'text' => 'Tipos de vehículo',
                     'route' => 'vehiclestype.index',
                     'icon' => 'fas fa-list',
+                    'can' => 'permission', 'model' => ['vehiculos-tipos.view'],
                 ],
             ],
         ],
         [
             'text' => 'Gestión de personal',
             'icon' => 'fas fa-users',
+            'can' => 'module', 'model' => ['personal-tipos', 'personal', 'contratos', 'asistencias', 'vacaciones'],
             'submenu' => [
                 [
                     'text' => 'Personal',
                     'route' => 'personal.employees.index',
                     'icon' => 'bi bi-person-vcard',
+                    'can' => 'permission', 'model' => ['personal.view'],
                 ],
                 [
                     'text' => 'Tipos de personal',
                     'route' => 'employee-types.index',
                     'icon' => 'fas fa-users',
+                    'can' => 'permission', 'model' => ['personal-tipos.view'],
                 ],
                 [
                     'text' => 'Contratos',
                     'route' => 'contracts.index',
                     'icon' => 'bi bi-file-earmark-text',
+                    'can' => 'permission', 'model' => ['contratos.view'],
                 ],
                 [
                     'text' => 'Vacaciones',
                     'route' => 'vacations.index',
                     'icon' => 'bi bi-calendar2-week',
+                    'can' => 'permission', 'model' => ['vacaciones.view'],
                 ],
 
                 [
                     'text' => 'Asistencias',
                     'route' => 'attendances.index',
                     'icon' => 'fas fa-clipboard-check',
+                    'can' => 'permission', 'model' => ['asistencias.view'],
                 ],
 
             ],
@@ -840,34 +858,72 @@ return [
         [
             'text' => 'Programación',
             'icon' => 'bi bi-calendar2-week',
+            'can' => 'module', 'model' => ['turnos', 'zonas', 'feriados', 'grupos-personal', 'programacion'],
             'submenu' => [
                 [
                     'text' => 'Turnos',
                     'route' => 'shifts.index',
                     'icon' => 'bi bi-clock',
+                    'can' => 'permission', 'model' => ['turnos.view'],
                 ],
                 [
                     'text' => 'Zonas',
                     'route' => 'zones.index',
                     'icon' => 'bi bi-geo-alt',
+                    'can' => 'permission', 'model' => ['zonas.view'],
                 ],
                 [
                     'text' => 'Feriados',
                     'route' => 'holidays.index',
                     'icon' => 'bi bi-calendar2-check',
+                    'can' => 'permission', 'model' => ['feriados.view'],
                 ],
                 [
                     'text' => 'Grupo de personal',
                     'route' => 'staffgroups.index',
                     'icon' => 'bi bi-people',
+                    'can' => 'permission', 'model' => ['grupos-personal.view'],
                 ],
                 [
                     'text' => 'Programación',
                     'route' => 'programming.index',
                     'icon' => 'bi bi-calendar-week',
+                    'can' => 'permission', 'model' => ['programacion.view'],
                 ],
             ],
-        ]
+        ],
+        [
+            'text' => 'Gestión de cambios',
+            'icon' => 'bi bi-arrow-repeat',
+            'can' => 'module', 'model' => ['motivos', 'cambios', 'cambios-masivos'],
+            'submenu' => [
+                [
+                    'text' => 'Motivos',
+                    'route' => 'reason.index',
+                    'icon' => 'bi bi-list-check',
+                    'can' => 'permission', 'model' => ['motivos.view'],
+                ],
+                [
+                    'text' => 'Cambios',
+                    'route' => 'cambios.index',
+                    'icon' => 'bi bi-arrow-left-right',
+                    'can' => 'permission', 'model' => ['cambios.view'],
+                ]
+            ],
+        ],
+        [
+            'text' => 'Gestión de usuarios',
+            'icon' => 'bi bi-people',
+            'can' => 'module', 'model' => ['usuarios'],
+            'submenu' => [
+                [
+                    'text' => 'Usuarios',
+                    'route' => 'users.index',
+                    'icon' => 'bi bi-list-ul',
+                    'can' => 'permission', 'model' => ['usuarios.view'],
+                ],
+            ],
+        ],
     ],
     /*
     |--------------------------------------------------------------------------
@@ -948,22 +1004,22 @@ return [
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdn.datatables.net/buttons/4.0.2/js/dataTables.buttons.min.js',
+                    'location' => '//cdn.datatables.net/buttons/3.2.0/js/dataTables.buttons.min.js',
                 ],
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdn.datatables.net/buttons/4.0.2/js/buttons.bootstrap5.min.js',
+                    'location' => '//cdn.datatables.net/buttons/3.2.0/js/buttons.bootstrap5.min.js',
                 ],
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdn.datatables.net/buttons/4.0.2/js/buttons.html5.min.js',
+                    'location' => '//cdn.datatables.net/buttons/3.2.0/js/buttons.html5.min.js',
                 ],
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdn.datatables.net/buttons/4.0.2/js/buttons.print.min.js',
+                    'location' => '//cdn.datatables.net/buttons/3.2.0/js/buttons.print.min.js',
                 ],
                 [
                     'type' => 'js',
@@ -973,22 +1029,22 @@ return [
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.3.3/pdfmake.min.js',
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.12/pdfmake.min.js',
                 ],
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.3.3/vfs_fonts.js',
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.12/vfs_fonts.js',
                 ],
                 [
                     'type' => 'css',
                     'asset' => false,
-                    'location' => '//cdn.datatables.net/buttons/4.0.2/css/buttons.bootstrap5.min.css',
+                    'location' => '//cdn.datatables.net/buttons/3.2.0/css/buttons.bootstrap5.min.css',
                 ],
             ],
         ],
         'Select2' => [
-            'active' => false,
+            'active' => true,
             'files' => [
                 [
                     'type' => 'js',
