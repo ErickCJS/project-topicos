@@ -132,7 +132,7 @@ class ZoneController extends Controller
 
     private function formatPerimeterLength(Zone $zone): string
     {
-        $meters = \\App\\Support\\GeoJsonPerimeter::meters($zone->perimeter);
+        $meters = \App\Support\GeoJsonPerimeter::meters($zone->perimeter);
 
         if ($meters === null) {
             return '—';
