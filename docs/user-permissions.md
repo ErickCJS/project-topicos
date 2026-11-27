@@ -17,7 +17,7 @@ Cada tipo tiene un nombre, una descripción y una matriz de permisos organizada 
 
 Ejemplos:
 
-- Administrativo: plantilla inicial con todos los permisos del catálogo.
+- Administrador: plantilla inicial con todos los permisos del catálogo.
 - Supervisor: puede consultar y gestionar los módulos que se habiliten.
 - Operador: recibe únicamente las acciones operativas seleccionadas.
 
@@ -55,7 +55,7 @@ El campo \`users.is_admin\` es independiente de la plantilla.
 
 Una cuenta activa con \`is_admin = true\` tiene acceso administrativo total mediante \`UserPermissionService\`, aunque su tipo sea otro.
 
-El tipo \`Administrativo\` se crea inicialmente con todos los permisos granulares del catálogo, pero no convierte automáticamente a sus usuarios en administradores globales. Su acceso sigue limitado a los permisos de la plantilla y a las reglas de rutas reservadas al administrador del sistema.
+El tipo \`Administrador\` se crea inicialmente con todos los permisos granulares del catálogo, pero no convierte automáticamente a sus usuarios en administradores globales. Su acceso sigue limitado a los permisos de la plantilla y a las reglas de rutas reservadas al administrador del sistema.
 
 ## 5. Permisos individuales
 
@@ -84,7 +84,7 @@ El comando:
 php artisan permissions:sync-routes
 \`\`\`
 
-sincroniza módulos, permisos y rutas con esa configuración. Debe ejecutarse antes de inicializar la plantilla Administrativo para que el catálogo esté completo.
+sincroniza módulos, permisos y rutas con esa configuración. Debe ejecutarse antes de inicializar la plantilla Administrador para que el catálogo esté completo.
 
 Las rutas de gestión de usuarios y tipos continúan reservadas al administrador del sistema, independientemente de los permisos de una plantilla.
 
@@ -120,7 +120,7 @@ Crea o recupera la cuenta inicial de administración y le asigna el tipo descrip
 
 ### UserTypePermissionSeeder
 
-Crea el tipo \`Administrativo\` con todos los permisos granulares disponibles en el momento de su creación. La inicialización es idempotente y no vuelve a sobrescribir una plantilla que ya fue personalizada.
+Crea el tipo \`Administrador\` con todos los permisos granulares disponibles en el momento de su creación. La inicialización es idempotente y no vuelve a sobrescribir una plantilla que ya fue personalizada.
 
 ### DatabaseSeeder
 
