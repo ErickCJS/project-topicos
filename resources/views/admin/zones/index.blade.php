@@ -337,7 +337,7 @@ function parseGeoJson(value) {
             style: zoneStyle(index, 0.25)
         });
         const safeName = $('<div>').text(zone.name || 'Zona sin nombre').html();
-        const shortName = $('<div>').text((zone.name || 'Zona').replace(/^JLO\\s*-\\s*/i, '')).html();
+        const shortName = $('<div>').text((zone.name || 'Zona').replace('JLO - ', '')).html();
 
         polygon.bindPopup('<strong>' + safeName + '</strong><br><small>Sector operativo referencial</small>');
         polygon.bindTooltip(shortName, {
