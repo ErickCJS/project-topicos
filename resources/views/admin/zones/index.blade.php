@@ -6,6 +6,20 @@
 <link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<style>
+    .zones-module .zone-map-label {
+        border: 1px solid rgba(255, 255, 255, .9);
+        border-radius: 6px;
+        padding: 3px 7px;
+        color: #172033;
+        background: rgba(255, 255, 255, .92);
+        box-shadow: 0 1px 5px rgba(15, 23, 42, .22);
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .zones-module .zone-map-label::before { display: none; }
+</style>
 @stop
 
 @section('content')
@@ -27,7 +41,7 @@
                 <span class="badge bg-light text-dark border">16 sectores propuestos</span>
             </div>
             <div id="zonesOverviewMap" class="zone-map zone-map-readonly" style="height: 460px;"
-                role="img" aria-label="Mapa de los sectores operativos referenciales de José Leonardo Ortiz"></div>
+                role="region" aria-label="Mapa interactivo de los sectores operativos referenciales de José Leonardo Ortiz"></div>
             <p class="text-muted small mt-2 mb-0">
                 Los perímetros son aproximados y sirven para planificación operativa. Deben validarse en campo;
                 no representan límites catastrales oficiales.
