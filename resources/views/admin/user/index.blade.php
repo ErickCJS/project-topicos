@@ -506,6 +506,12 @@ $(function () {
                     defaultContent: ''
                 },
                 {
+                    data: 'permissions_count',
+                    name: 'permissions_count',
+                    orderable: false,
+                    searchable: false
+                },
+                {
                     data: 'created_at',
                     name: 'created_at'
                 },
@@ -597,6 +603,7 @@ $(function () {
 
                 userTypesModalElement.querySelector('.modal-content').innerHTML = response;
 
+                actualizarPermisosTipo(userTypesModalElement.querySelector('#userTypeForm'));
                 editingTypeFromList = desdeListado;
 
                 if (!userTypesModalElement.classList.contains('show')) {
@@ -631,6 +638,71 @@ $(function () {
 
     $(document).on('click', '#userTypesModal [data-user-type-back]', function () {
         abrirListaTipos();
+    });
+
+    function actualizarPermisosTipo(form) {
+        if (!form) return;
+
+        const options = [...form.querySelectorAll('[data-type-permission]')];
+        const selected = options.filter(option => option.checked).length;
+        const counter = form.querySelector('[data-type-selected]');
+        const master = form.querySelector('[data-type-select-all]');
+
+        if (counter) counter.textContent = selected;
+
+        if (master) {
+            master.checked = options.length > 0 && selected === options.length;
+            master.indeterminate = selected > 0 && selected < options.length;
+        }
+    }
+
+    $(document).on('click', '#userTypesModal [data-type-preset]', function () {
+        const form = this.closest('form');
+        if (!form) return;
+
+        const checked = this.dataset.typePreset === 'all';
+        form.querySelectorAll('[data-type-permission]').forEach(function (option) {
+            option.checked = checked;
+        });
+
+        actualizarPermisosTipo(form);
+    });
+
+    $(document).on('change', '#userTypesModal [data-type-select-all]', function () {
+        const form = this.closest('form');
+        if (!form) return;
+
+        form.querySelectorAll('[data-type-permission]').forEach(option => {
+            option.checked = this.checked;
+        });
+
+        actualizarPermisosTipo(form);
+    });
+
+    $(document).on('click', '#userTypesModal [data-type-module-toggle]', function () {
+        const form = this.closest('form');
+        const moduleId = this.dataset.typeModule;
+        if (!form || !moduleId) return;
+
+        const options = [...form.querySelectorAll('[data-type-permission][data-type-module-id="' + moduleId + '"]')];
+        const shouldCheck = options.some(option => !option.checked);
+        options.forEach(option => { option.checked = shouldCheck; });
+        actualizarPermisosTipo(form);
+    });
+
+    $(document).on('click', '#userTypesModal [data-type-submodule-toggle]', function () {
+        const form = this.closest('form');
+        const submoduleId = this.dataset.typeSubmodule;
+        if (!form || !submoduleId) return;
+
+        const options = [...form.querySelectorAll('[data-type-permission][data-type-submodule-id="' + submoduleId + '"]')];
+        const shouldCheck = options.some(option => !option.checked);
+        options.forEach(option => { option.checked = shouldCheck; });
+        actualizarPermisosTipo(form);
+    });
+
+    $(document).on('change', '#userTypesModal [data-type-permission]', function () {
+        actualizarPermisosTipo(this.closest('form'));
     });
 
     $(document).on('submit', '#userTypesModal #userTypeForm', function (event) {
