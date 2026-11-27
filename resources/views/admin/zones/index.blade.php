@@ -343,12 +343,12 @@ function parseGeoJson(value) {
         };
     }
 
-    function addZoneLayer(layerGroup, zone, index, permanentLabel) {
+    function addZoneLayer(layerGroup, zone, index, permanentLabel, styleOverride) {
         const geometry = parseGeoJson(zone.perimeter);
         if (!geometry || geometry.type !== 'Polygon') return;
 
         const polygon = L.geoJSON(geometry, {
-            style: zoneStyle(index, 0.25)
+            style: styleOverride || zoneStyle(index, 0.25)
         });
         const safeName = $('<div>').text(zone.name || 'Zona sin nombre').html();
         const shortName = $('<div>').text((zone.name || 'Zona').replace('JLO - ', '')).html();
@@ -405,9 +405,20 @@ function parseGeoJson(value) {
 
                 layerGroup.clearLayers();
 
+                // Durante la edición, las demás zonas son referencias neutras:
+                // se mantienen visibles, pero no compiten con el perímetro activo.
+                const referenceStyle = {
+                    color: '#9ca3af',
+                    weight: 1.5,
+                    opacity: 0.75,
+                    fillColor: '#9ca3af',
+                    fillOpacity: 0.12,
+                    lineJoin: 'round'
+                };
+
                 zones.forEach(function (zone, index) {
                     if (String(zone.id) === String(currentZoneId)) return;
-                    addZoneLayer(layerGroup, zone, index, false);
+                    addZoneLayer(layerGroup, zone, index, false, referenceStyle);
                 });
             })
             .fail(function () {
@@ -435,9 +446,24 @@ function parseGeoJson(value) {
         const layers = new L.FeatureGroup().addTo(map);
 
         loadExistingZones(map, existingZonesLayer, currentZoneId);
+        const activeZoneStyle = {
+            color: '#16a34a',
+            weight: 3,
+            opacity: 1,
+            fillColor: '#16a34a',
+            fillOpacity: 0.28,
+            lineJoin: 'round'
+        };
         const controls = new L.Control.Draw({
             edit: { featureGroup: layers },
-            draw: { polyline: false, rectangle: false, circle: false, circlemarker: false, marker: false }
+            draw: {
+                polygon: { allowIntersection: false, showArea: true, shapeOptions: activeZoneStyle },
+                polyline: false,
+                rectangle: false,
+                circle: false,
+                circlemarker: false,
+                marker: false
+            }
         });
         map.addControl(controls);
 
@@ -462,17 +488,21 @@ function parseGeoJson(value) {
 
         const existing = confirmedPerimeter;
         if (existing && existing.type === 'Polygon') {
-            L.geoJSON(existing, { style: { color: '#198754' } }).eachLayer(function (layer) {
+            L.geoJSON(existing, { style: activeZoneStyle }).eachLayer(function (layer) {
                 layers.addLayer(layer);
             });
             fitPerimeter();
         }
         map.on(L.Draw.Event.CREATED, function (event) {
             layers.clearLayers();
+            if (typeof event.layer.setStyle === 'function') event.layer.setStyle(activeZoneStyle);
             layers.addLayer(event.layer);
             confirmLayer(event.layer);
         });
-        map.on(L.Draw.Event.EDITED, function () {
+        map.on(L.Draw.Event.EDITED, function (event) {
+            event.layers.eachLayer(function (layer) {
+                if (typeof layer.setStyle === 'function') layer.setStyle(activeZoneStyle);
+            });
             confirmLayer(layers.getLayers()[0]);
         });
         map.on(L.Draw.Event.DELETED, function () {
