@@ -17,6 +17,24 @@
         </button>
     </div>
 
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                <div>
+                    <h5 class="mb-1">Cobertura operativa de JLO</h5>
+                    <p class="text-muted small mb-0">Sectores de referencia para organizar recorridos de recolección</p>
+                </div>
+                <span class="badge bg-light text-dark border">16 sectores propuestos</span>
+            </div>
+            <div id="zonesOverviewMap" class="zone-map zone-map-readonly" style="height: 460px;"
+                role="img" aria-label="Mapa de los sectores operativos referenciales de José Leonardo Ortiz"></div>
+            <p class="text-muted small mt-2 mb-0">
+                Los perímetros son aproximados y sirven para planificación operativa. Deben validarse en campo;
+                no representan límites catastrales oficiales.
+            </p>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
@@ -70,7 +88,14 @@ $(function () {
     // Nominatim (OpenStreetMap) is used without credentials. Requests are cached,
     // serialized and kept below the public service's recommended rate.
     const geocoderUrl = 'https://nominatim.openstreetmap.org/search';
-    const defaultJloBounds = [[-6.7636192, -79.8854297], [-6.7177597, -79.7864530]];
+    const jloDistrictId = @json($jloDistrictId);
+    const defaultJloBounds = [[-6.766, -79.860], [-6.728, -79.818]];
+    const zonePalette = [
+        '#2563eb', '#0891b2', '#0f766e', '#16a34a',
+        '#65a30d', '#ca8a04', '#d97706', '#ea580c',
+        '#dc2626', '#e11d48', '#c026d3', '#9333ea',
+        '#6d28d9', '#4f46e5', '#0284c7', '#0d9488'
+    ];
     const geocodeCache = new Map();
     let geocodeSequence = 0;
     let activeGeocodeRequest = null;
@@ -291,6 +316,74 @@ function parseGeoJson(value) {
     }
 }
 
+    function zoneStyle(index, fillOpacity) {
+        const color = zonePalette[index % zonePalette.length];
+
+        return {
+            color: color,
+            weight: 2.2,
+            opacity: 0.95,
+            fillColor: color,
+            fillOpacity: fillOpacity || 0.24,
+            lineJoin: 'round'
+        };
+    }
+
+    function addZoneLayer(layerGroup, zone, index, permanentLabel) {
+        const geometry = parseGeoJson(zone.perimeter);
+        if (!geometry || geometry.type !== 'Polygon') return;
+
+        const polygon = L.geoJSON(geometry, {
+            style: zoneStyle(index, 0.25)
+        });
+        const safeName = $('<div>').text(zone.name || 'Zona sin nombre').html();
+        const shortName = $('<div>').text((zone.name || 'Zona').replace(/^JLO\\s*-\\s*/i, '')).html();
+
+        polygon.bindPopup('<strong>' + safeName + '</strong><br><small>Sector operativo referencial</small>');
+        polygon.bindTooltip(shortName, {
+            permanent: Boolean(permanentLabel),
+            direction: 'center',
+            className: 'zone-map-label',
+            opacity: 0.95
+        });
+        polygon.addTo(layerGroup);
+    }
+
+    function initializeZonesOverviewMap() {
+        const element = document.getElementById('zonesOverviewMap');
+        if (!element || typeof L === 'undefined') return;
+
+        const map = L.map(element, { scrollWheelZoom: false });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const zonesLayer = L.featureGroup().addTo(map);
+        $.getJSON(perimetersUrl)
+            .done(function (zones) {
+                const jloZones = (zones || []).filter(function (zone) {
+                    return jloDistrictId !== null && jloDistrictId !== undefined
+                        && Number(zone.district_id) === Number(jloDistrictId);
+                });
+
+                jloZones.forEach(function (zone, index) {
+                    addZoneLayer(zonesLayer, zone, index, true);
+                });
+
+                const bounds = zonesLayer.getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [28, 28], maxZoom: 15 });
+                } else {
+                    map.setView([-6.74985, -79.83913], 13);
+                }
+            })
+            .fail(function () {
+                map.setView([-6.74985, -79.83913], 13);
+                console.error('No se pudieron cargar los sectores operativos de JLO.');
+            });
+    }
+
     function loadExistingZones(map, layerGroup, currentZoneId) {
         $.getJSON(perimetersUrl)
             .done(function (zones) {
@@ -298,26 +391,9 @@ function parseGeoJson(value) {
 
                 layerGroup.clearLayers();
 
-                zones.forEach(function (zone) {
+                zones.forEach(function (zone, index) {
                     if (String(zone.id) === String(currentZoneId)) return;
-
-                    const geometry = parseGeoJson(zone.perimeter);
-                    if (!geometry || geometry.type !== 'Polygon') return;
-
-                    const polygon = L.geoJSON(geometry, {
-                        style: {
-                            color: '#dc3545',
-                            weight: 2,
-                            fillColor: '#dc3545',
-                            fillOpacity: 0.22
-                        }
-                    });
-
-                    polygon.bindPopup(
-                        $('<div>').text(zone.name).html()
-                    );
-
-                    polygon.addTo(layerGroup);
+                    addZoneLayer(layerGroup, zone, index, false);
                 });
             })
             .fail(function () {
@@ -443,6 +519,8 @@ function parseGeoJson(value) {
             element.removeData('leaflet-map zone-geolocate zone-sync-perimeter zone-fit-perimeter zone-edit-state');
         });
     }
+
+    initializeZonesOverviewMap();
 
     const table = $('#zonesTable').DataTable({
         processing: true,
