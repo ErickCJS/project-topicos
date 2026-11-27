@@ -3530,4 +3530,3 @@ html[data-bs-theme="dark"] :is(.attendances-module, .brands-module, .colors-modu
 .user-types-page .user-type-delete-hint { display:inline-flex; }
 .user-types-page .user-types-empty { padding:2rem 1rem !important; color:var(--bs-secondary-color); text-align:center; }
 @media(max-width:767.98px) { .user-types-page .user-types-heading h1 { font-size:1.4rem; } .user-types-page .user-type-description { min-width:150px; } .user-types-page .user-types-table { min-width:880px; } }
-
