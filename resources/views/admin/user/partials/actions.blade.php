@@ -8,13 +8,14 @@
         <i class="bi bi-eye"></i>
     </button>
 
-    <a
+    <button
         class="btn btn-sm btn-outline-warning"
-        href="{{ route('users.edit', $user) }}"
+        type="button"
+        data-user-modal="{{ route('users.edit', $user) }}"
         aria-label="Editar usuario"
         title="Editar usuario">
         <i class="bi bi-pencil"></i>
-    </a>
+    </button>
 
     @if(!$user->is_admin && auth()->id() !== $user->id)
         <button
