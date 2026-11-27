@@ -62,7 +62,7 @@ class UserTypeController extends Controller
         return response()->json([
             'message' => 'Tipo de usuario registrado correctamente.',
             'id' => $type->id,
-        ], 201);
+        ]);
     }
 
     public function edit(string $id)
@@ -88,7 +88,7 @@ class UserTypeController extends Controller
         });
 
         return response()->json([
-            'message' => 'Tipo de usuario y sus permisos predeterminados actualizados correctamente.',
+            'message' => 'Tipo de usuario actualizado correctamente.',
         ]);
     }
 
