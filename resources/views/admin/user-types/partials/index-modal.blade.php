@@ -8,7 +8,7 @@
         <div>
             <h5 class="modal-title mb-0">Tipos de usuario</h5>
             <small class="text-muted">
-                Consulta y edita las clasificaciones registradas.
+Consulta, edita las clasificaciones y configura sus permisos predeterminados.
             </small>
         </div>
     </div>
