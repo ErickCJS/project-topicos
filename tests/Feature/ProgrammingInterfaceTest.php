@@ -72,6 +72,23 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertDontSee('No tienes módulos asignados');
     }
 
+
+    public function test_welcome_page_can_show_one_authorized_submodule_without_other_sibling_access(): void
+    {
+        $this->actingAs(User::factory()->regular()->make(['id' => 1]));
+
+        Gate::define('permission', fn (User $user, string $permission) => $permission === 'vehiculos-colores.view');
+
+        $this->get(route('admin.home'))
+            ->assertOk()
+            ->assertSee('Colores')
+            ->assertSee(route('vehiclescolor.index'), false)
+            ->assertDontSee('Vehículos')
+            ->assertDontSee(route('vehicles.index'), false)
+            ->assertDontSee('Marcas')
+            ->assertDontSee(route('brands.index'), false);
+    }
+
     public function test_dashboard_exposes_rescheduling_controls_and_related_navigation(): void
     {
         $this->actingAs(User::factory()->make(['id' => 1]));
