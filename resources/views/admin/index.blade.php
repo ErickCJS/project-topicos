@@ -31,12 +31,6 @@
 </div>
     </section>
 
-    <section class="rsu-metrics" aria-label="Resumen operativo">
-        <article class="rsu-metric-card"><span class="rsu-icon blue"><i class="fas fa-truck"></i></span><div><strong>12</strong><p>Vehículos operativos</p><small><i class="fas fa-arrow-up"></i> 2 disponibles hoy</small></div></article>
-        <article class="rsu-metric-card"><span class="rsu-icon green"><i class="fas fa-route"></i></span><div><strong>28</strong><p>Rutas programadas</p><small><i class="fas fa-arrow-up"></i> 4 esta semana</small></div></article>
-        <article class="rsu-metric-card"><span class="rsu-icon amber"><i class="fas fa-users"></i></span><div><strong>85</strong><p>Personal asignado</p><small><i class="fas fa-check"></i> Turnos cubiertos</small></div></article>
-        <article class="rsu-metric-card"><span class="rsu-icon violet"><i class="fas fa-clipboard-check"></i></span><div><strong>1,254</strong><p>Servicios ejecutados</p><small><i class="fas fa-arrow-up"></i> 12% este mes</small></div></article>
-    </section>
 
     <!-- RSU-INSTITUCIONAL-V1 -->
     <section class="rsu-main-grid">
@@ -44,7 +38,7 @@
 
             <div class="rsu-institutional-header">
                 <i class="fas fa-landmark"></i>
-                <span>Municipalidad Distrital de José; Leonardo Ortiz</span>
+                <span>Municipalidad Distrital de José Leonardo Ortiz</span>
                 <span class="rsu-institutional-tag">GESTIÓN RSU</span>
             </div>
 
@@ -55,8 +49,11 @@
                         <img src="{{ asset('images/dashboard/brigada-rsu.png') }}"
                              alt="Equipo de limpieza publica">
                     @else
-                        <div class="rsu-photo-placeholder">
-                            <i class="fas fa-city"></i>
+                        <div class="rsu-photo-placeholder rsu-municipal-emblem">
+                            <img src="https://jloenlinea.munijlo.gob.pe/denuncia-consumidor/assets/logo-DBHCGE0v.jpeg"
+                                 alt="Escudo de la Municipalidad Distrital de José Leonardo Ortiz"
+                                 loading="lazy"
+                                 referrerpolicy="no-referrer">
                             <span>José Leonardo Ortiz</span>
                         </div>
                     @endif
@@ -84,12 +81,19 @@
                     </h4>
 
                     <div class="rsu-module-list">
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-users"></i>
-                            <span>Gesti&oacute;n de personal</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
+                        @forelse($quickModules as $module)
+                            <a href="{{ route($module['route']) }}" class="rsu-module-link">
+                                <i class="{{ $module['icon'] }}" aria-hidden="true"></i>
+                                <span>{{ $module['title'] }}</span>
+                                <i class="fas fa-arrow-right rsu-module-arrow" aria-hidden="true"></i>
+                            </a>
+                        @empty
+                            <div class="rsu-module-link rsu-module-pending">
+                                <i class="fas fa-lock" aria-hidden="true"></i>
+                                <span>No tienes módulos asignados</span>
+                            </div>
+                        @endforelse
+                    </div>
 
                         <a href="{{ route('vehicles.index') }}" class="rsu-module-link">
                             <i class="fas fa-truck"></i>
