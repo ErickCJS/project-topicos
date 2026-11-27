@@ -15,6 +15,13 @@ class UserType extends Model
         'description',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'permissions_configured' => 'boolean',
+        ];
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class, 'user_type_id');
