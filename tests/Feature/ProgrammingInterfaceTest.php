@@ -48,6 +48,7 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertOk()
             ->assertSee('Una gestión más eficiente')
             ->assertSee('Módulos disponibles')
+            ->assertSee('css/welcome.css')
             ->assertSee('No tienes módulos asignados')
             ->assertDontSee('dashboardReschedulingModal');
     }
