@@ -68,7 +68,7 @@ class UserPermissionService
                 if ($routeName && Route::has($routeName) && $routeName !== 'admin.home') return route($routeName);
             }
         }
-        return $this->allows($user, 'dashboard.view') && Route::has('admin.home') ? route('admin.home') : null;
+        return $this->allows($user, 'dashboard.view') && Route::has('admin.dashboard') ? route('admin.dashboard') : null;
     }
 
     public function permissions(User $user): array
