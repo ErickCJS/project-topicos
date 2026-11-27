@@ -15,63 +15,59 @@ class AdminController extends Controller
 {
     public function index()
     {
-        $modules = [
-            [
-                'title' => 'Gestión de personal',
-                'description' => 'Consulta y administra el personal municipal.',
-                'icon' => 'fas fa-users',
-                'route' => 'personal.employees.index',
-                'permission' => 'personal.view',
-            ],
-            [
-                'title' => 'Control de vehículos',
-                'description' => 'Administra la flota de vehículos municipales.',
-                'icon' => 'fas fa-truck',
-                'route' => 'vehicles.index',
-                'permission' => 'vehiculos.view',
-            ],
-            [
-                'title' => 'Programación',
-                'description' => 'Organiza turnos, zonas y recorridos.',
-                'icon' => 'fas fa-route',
-                'route' => 'programming.index',
-                'permission' => 'programacion.view',
-            ],
-            [
-                'title' => 'Gestión de contratos',
-                'description' => 'Consulta los contratos del personal.',
-                'icon' => 'fas fa-file-contract',
-                'route' => 'contracts.index',
-                'permission' => 'contratos.view',
-            ],
-            [
-                'title' => 'Asistencia',
-                'description' => 'Registra y consulta la asistencia.',
-                'icon' => 'fas fa-user-check',
-                'route' => 'attendances.index',
-                'permission' => 'asistencias.view',
-            ],
-            [
-                'title' => 'Zonas operativas',
-                'description' => 'Consulta y administra las zonas del distrito.',
-                'icon' => 'fas fa-map-marked-alt',
-                'route' => 'zones.index',
-                'permission' => 'zonas.view',
-            ],
-            [
-                'title' => 'Dashboard',
-                'description' => 'Revisa el estado de la operación diaria.',
-                'icon' => 'fas fa-chart-line',
-                'route' => 'admin.dashboard',
-                'permission' => 'dashboard.view',
-            ],
+        $modulePresentation = [
+            'vehiculos-colores' => ['icon' => 'fas fa-palette', 'description' => 'Configura los colores de identificación de la flota.'],
+            'vehiculos-marcas' => ['icon' => 'fas fa-tags', 'description' => 'Consulta y administra las marcas de los vehículos.'],
+            'vehiculos-modelos' => ['icon' => 'fas fa-cubes', 'description' => 'Organiza los modelos registrados en el sistema.'],
+            'vehiculos-tipos' => ['icon' => 'fas fa-list', 'description' => 'Mantén los tipos de vehículos municipales.'],
+            'vehiculos' => ['icon' => 'fas fa-truck', 'description' => 'Consulta y administra la flota municipal.'],
+            'personal-tipos' => ['icon' => 'fas fa-id-badge', 'description' => 'Administra los tipos de personal del sistema.'],
+            'personal' => ['icon' => 'fas fa-users', 'description' => 'Consulta y administra el personal municipal.'],
+            'contratos' => ['icon' => 'fas fa-file-contract', 'description' => 'Revisa los contratos y su vigencia.'],
+            'asistencias' => ['icon' => 'fas fa-user-check', 'description' => 'Registra y consulta la asistencia del personal.'],
+            'vacaciones' => ['icon' => 'fas fa-umbrella-beach', 'description' => 'Consulta y gestiona las solicitudes de vacaciones.'],
+            'turnos' => ['icon' => 'fas fa-clock', 'description' => 'Configura y consulta los turnos operativos.'],
+            'zonas' => ['icon' => 'fas fa-map-marked-alt', 'description' => 'Consulta y administra las zonas de trabajo.'],
+            'feriados' => ['icon' => 'fas fa-calendar-alt', 'description' => 'Administra el calendario de feriados.'],
+            'grupos-personal' => ['icon' => 'fas fa-users-cog', 'description' => 'Organiza los grupos de trabajo.'],
+            'programacion' => ['icon' => 'fas fa-route', 'description' => 'Organiza turnos, zonas y recorridos.'],
+            'dashboard' => ['icon' => 'fas fa-chart-line', 'description' => 'Revisa el estado diario de la operación.'],
+            'motivos' => ['icon' => 'fas fa-clipboard-list', 'description' => 'Administra los motivos de cambio de programación.'],
+            'cambios' => ['icon' => 'fas fa-exchange-alt', 'description' => 'Consulta los cambios de programación.'],
+            'cambios-masivos' => ['icon' => 'fas fa-layer-group', 'description' => 'Valida y aplica cambios de programación en bloque.'],
+            'usuarios' => ['icon' => 'fas fa-user-cog', 'description' => 'Consulta y administra los usuarios del sistema.'],
         ];
 
-        $quickModules = array_values(array_filter(
-            $modules,
-            fn (array $module) => Gate::allows('permission', $module['permission'])
-                && Route::has($module['route'])
-        ));
+        $quickModules = [];
+
+        // Build the home shortcuts from the permission catalog, not from a
+        // fixed list. A user who only has access to one submodule sees only
+        // that submodule and is sent directly to its authorized listing.
+        foreach (config('permissions.catalog', []) as $group => $catalogModules) {
+            foreach ($catalogModules as $slug => [$title, $routePrefix, $actions]) {
+                if (!in_array('view', $actions, true)) {
+                    continue;
+                }
+
+                $routeName = $slug === 'dashboard' ? $routePrefix : $routePrefix.'.index';
+                $permission = $slug.'.view';
+
+                if (!Route::has($routeName) || !Gate::allows('permission', $permission)) {
+                    continue;
+                }
+
+                $presentation = $modulePresentation[$slug] ?? [];
+
+                $quickModules[] = [
+                    'group' => $group,
+                    'title' => $title,
+                    'description' => $presentation['description'] ?? 'Consulta y gestiona esta sección del sistema.',
+                    'icon' => $presentation['icon'] ?? 'fas fa-folder-open',
+                    'route' => $routeName,
+                    'permission' => $permission,
+                ];
+            }
+        }
 
         return view('admin.index', compact('quickModules'));
     }
