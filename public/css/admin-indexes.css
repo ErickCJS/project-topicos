@@ -3531,22 +3531,3 @@ html[data-bs-theme="dark"] :is(.attendances-module, .brands-module, .colors-modu
 .user-types-page .user-types-empty { padding:2rem 1rem !important; color:var(--bs-secondary-color); text-align:center; }
 @media(max-width:767.98px) { .user-types-page .user-types-heading h1 { font-size:1.4rem; } .user-types-page .user-type-description { min-width:150px; } .user-types-page .user-types-table { min-width:880px; } }
 
-/* Municipal coat of arms shown on the welcome screen when no brigade photo is installed. */
-.rsu-dashboard .rsu-municipal-emblem {
-    min-height: 295px;
-    padding: 24px;
-    background: #fff;
-}
-
-.rsu-dashboard .rsu-municipal-emblem img {
-    display: block;
-    width: min(100%, 220px);
-    height: 220px;
-    object-fit: contain;
-}
-
-.rsu-dashboard .rsu-municipal-emblem > span {
-    color: #26714b;
-    font-size: 13px;
-    font-weight: 700;
-}
