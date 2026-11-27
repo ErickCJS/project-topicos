@@ -12,5 +12,5 @@ class Permission extends Model
     protected $fillable = ['module_id', 'name', 'slug', 'description'];
     public function module(): BelongsTo { return $this->belongsTo(Module::class); }
     public function routes(): HasMany { return $this->hasMany(PermissionRoute::class); }
-    public function users(): BelongsToMany { return $this->belongsToMany(User::class, 'user_permissions'); }
+    public function users(): BelongsToMany { return $this->belongsToMany(User::class, 'user_permissions'); }\n    public function userTypes(): BelongsToMany { return $this->belongsToMany(UserType::class, 'user_type_permissions'); }
 }
