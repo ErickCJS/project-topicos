@@ -9,6 +9,7 @@ use App\Models\admin\Shift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 
 class AdminController extends Controller
 {
@@ -69,7 +70,7 @@ class AdminController extends Controller
         $quickModules = array_values(array_filter(
             $modules,
             fn (array $module) => Gate::allows('permission', $module['permission'])
-                && \\Illuminate\\Support\\Facades\\Route::has($module['route'])
+                && Route::has($module['route'])
         ));
 
         return view('admin.index', compact('quickModules'));
