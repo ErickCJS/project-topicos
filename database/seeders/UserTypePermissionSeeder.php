@@ -20,10 +20,12 @@ class UserTypePermissionSeeder extends Seeder
 
         // Initialize the template only when it has not been configured yet.
         // Existing customizations are preserved on subsequent seeder executions.
-        if (! $administratorType->permissions_configured) {
-            $administratorType->permissions()->sync(
-                Permission::query()->pluck('id')->all()
-            );
+        $permissionIds = Permission::query()->pluck('id')->all();
+
+        // If the permission catalog has not been synchronized yet, leave the
+        // template pending so this seeder can safely be run again afterwards.
+        if (! $administratorType->permissions_configured && $permissionIds !== []) {
+            $administratorType->permissions()->sync($permissionIds);
 
             $administratorType->forceFill([
                 'permissions_configured' => true,
