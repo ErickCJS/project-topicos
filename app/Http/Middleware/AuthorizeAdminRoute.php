@@ -51,7 +51,9 @@ class AuthorizeAdminRoute
             return redirect()->route('access.restricted');
         }
 
-        if ($routeName && str_starts_with($routeName, 'users.')) {
+        // User listing is permission-based; account and permission
+        // administration routes remain restricted below.
+        if ($routeName && str_starts_with($routeName, 'users.') && $routeName !== 'users.index') {
             abort(403);
         }
 
