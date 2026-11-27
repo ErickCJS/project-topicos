@@ -705,7 +705,7 @@ class UserPermissionSystemTest extends TestCase
 
         $this->seed(\Database\Seeders\UserTypePermissionSeeder::class);
 
-        $type = UserType::where('name', 'Administrativo')->firstOrFail();
+        $type = UserType::where('name', 'Administrador)->firstOrFail();
 
         $this->assertGreaterThan(0, Permission::count());
         $this->assertSame(
