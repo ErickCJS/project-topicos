@@ -94,38 +94,6 @@
                             </div>
                         @endforelse
                     </div>
-
-                        <a href="{{ route('vehicles.index') }}" class="rsu-module-link">
-                            <i class="fas fa-truck"></i>
-                            <span>Control de veh&iacute;culos</span>
-                            <i class="fas fa-arrow-right rsu-module-arrow"></i>
-                        </a>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-route"></i>
-                            <span>Planificaci&oacute;n de rutas</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-file-contract"></i>
-                            <span>Gesti&oacute;n de contratos</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-user-check"></i>
-                            <span>Asistencia</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-chart-bar"></i>
-                            <span>Reportes</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                    </div>
                 </div>
 
             </div>
