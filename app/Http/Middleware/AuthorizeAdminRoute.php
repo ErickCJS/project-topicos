@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Middleware;
+namespace App\\Http\\Middleware;
 
-use App\Models\PermissionRoute;
-use App\Services\UserPermissionService;
+use App\\Models\\PermissionRoute;
+use App\\Services\\UserPermissionService;
 use Closure;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\\Http\\Request;
+use Symfony\\Component\\HttpFoundation\\Response;
 
 class AuthorizeAdminRoute
 {
@@ -61,7 +61,13 @@ class AuthorizeAdminRoute
                 ->first()?->permission
             : null;
 
-        if (!$permission || !$permissions->allows($user, $permission->slug)) {
+        // Prefer the synchronized database mapping, but fall back to the
+        // permission catalog so a newly added route is still protected.
+        $authorized = $permission
+            ? $permissions->allows($user, $permission->slug)
+            : ($routeName !== null && $permissions->allowsRoute($user, $routeName));
+
+        if (!$authorized) {
             abort(403);
         }
 
