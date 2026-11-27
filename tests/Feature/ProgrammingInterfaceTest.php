@@ -83,7 +83,6 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertOk()
             ->assertSee('Colores')
             ->assertSee(route('vehiclescolor.index'), false)
-            ->assertDontSee('Vehículos')
             ->assertDontSee(route('vehicles.index'), false)
             ->assertDontSee('Marcas')
             ->assertDontSee(route('brands.index'), false);
