@@ -576,7 +576,7 @@ function parseGeoJson(value) {
             { data: 'department', orderable: false, searchable: false },
             { data: 'province', orderable: false, searchable: false },
             { data: 'district', orderable: false, searchable: false },
-            { data: 'perimeter_status', orderable: false, searchable: false },
+            { data: 'perimeter_length', orderable: false, searchable: false },
             { data: 'created_at', name: 'created_at' },
             { data: 'updated_at', name: 'updated_at' },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
