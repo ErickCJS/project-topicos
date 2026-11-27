@@ -2,7 +2,9 @@
 
 > Estado: documentación de la aplicación web. La guía de despliegue móvil se agregará en una actualización posterior.
 
-Esta guía describe cómo publicar la aplicación web de SGRS JLO desde este repositorio en Render, utilizando el Dockerfile y el script de inicio que ya forman parte del proyecto.
+Esta guía no es una guía para ejecutar Laravel en localhost. Describe cómo publicar la aplicación web de SGRS JLO en internet, utilizando Render como alojamiento, Docker para construir la imagen, una base de datos MySQL externa y una URL HTTPS pública.
+
+Al finalizar, la aplicación debe quedar accesible desde una dirección pública de Render (o un dominio propio), sin depender de que el desarrollador mantenga abierto su equipo.
 
 ## 1. Arquitectura y configuración del proyecto
 
@@ -28,6 +30,8 @@ Archivos que intervienen en el despliegue:
 - bootstrap/app.php: registra la ruta de comprobación de salud /up.
 
 El repositorio no contiene actualmente un archivo render.yaml. Por eso, la primera configuración del servicio se realiza desde el panel de Render.
+
+**Importante:** ejecutar php artisan serve en una terminal local solo levanta un servidor de desarrollo en el equipo del desarrollador. Eso no publica la aplicación en internet ni sustituye los pasos de esta guía.
 
 ## 2. Requisitos previos
 
@@ -69,6 +73,8 @@ La clave debe mantenerse estable entre despliegues. No generar una clave nueva c
 No subir el archivo .env ni credenciales al repositorio. El archivo está excluido mediante .gitignore y .dockerignore.
 
 ## 4. Crear el servicio web en Render
+
+Para una prueba académica se puede utilizar el nivel gratuito de Render, teniendo en cuenta sus limitaciones. Para conservar archivos subidos en el servidor y ejecutar comandos desde Shell, se necesita un servicio compatible con las funciones de pago de Render. Esta guía describe el despliegue con esas capacidades habilitadas.
 
 1. Ingresar a [Render Dashboard](https://dashboard.render.com/).
 2. Seleccionar New y luego Web Service.
@@ -167,7 +173,11 @@ Para conservar las imágenes:
 
 El proyecto crea el enlace public/storage durante el inicio del contenedor. El disco debe montarse en la ruta indicada para que las imágenes guardadas en el disco público permanezcan disponibles.
 
-Los discos persistentes de Render están sujetos a las condiciones del plan contratado y tienen limitaciones de despliegue. Como alternativa, el proyecto ya cuenta con una configuración de disco S3 en config/filesystems.php, que puede utilizarse si se implementa y configura un almacenamiento de objetos.
+Los discos persistentes solo están disponibles para servicios de pago. Además, al adjuntar un disco, Render mantiene el servicio en una sola instancia y los despliegues pueden ocasionar una breve interrupción: no hay despliegue sin tiempo de inactividad mientras el disco esté conectado. No es posible escalar horizontalmente ese servicio con el disco adjunto.
+
+El nivel gratuito no ofrece discos persistentes. Por eso, si se despliega en Free, las imágenes y archivos guardados en el sistema de archivos local pueden perderse cuando Render reinicie o vuelva a desplegar el servicio. Para una instalación con archivos reales, utilizar un servicio de pago con disco persistente o configurar un almacenamiento de objetos externo.
+
+Como alternativa, el proyecto ya cuenta con una configuración de disco S3 en config/filesystems.php, que puede utilizarse si se implementa y configura un almacenamiento de objetos.
 
 Configurar el almacenamiento persistente antes de comenzar a cargar archivos reales en producción.
 
@@ -193,6 +203,8 @@ Durante el inicio, docker/entrypoint.sh prepara el almacenamiento, genera la cac
 ## 8. Sincronizar el catálogo de permisos
 
 Después de que la base de datos esté migrada y el servicio esté disponible, abrir la consola del servicio desde Render (Shell) y ejecutar:
+
+> El Shell de Render no está disponible en los servicios web Free. Para seguir este paso desde Render, el servicio debe utilizar un plan compatible con Shell.
 
 ~~~bash
 php artisan permissions:sync-routes
@@ -236,6 +248,8 @@ $tipo = \App\Models\UserType::firstOrCreate(
 El modelo de usuario aplica el hash de la contraseña mediante su configuración de atributos. Utilizar un DNI que cumpla la validación del sistema y no esté registrado.
 
 No incluir la contraseña real en este documento, en el repositorio, en capturas públicas ni en comentarios de la actividad. Una vez creada la cuenta, ingresar y comprobar el acceso administrativo.
+
+En un servicio Free no se dispone de Shell en el panel. En ese caso, se debe provisionar la cuenta usando una ejecución de Artisan desde un entorno seguro autorizado para conectarse a la base de datos de producción, o utilizar un plan compatible con Shell. Nunca habilitar una ruta web pública temporal para crear al administrador ni dejar credenciales de administración escritas en el código.
 
 ## 9. Comprobaciones posteriores al despliegue
 
@@ -284,6 +298,8 @@ No cambiar APP_KEY durante una actualización normal.
 - [Documentación de Render: Docker](https://render.com/docs/docker)
 - [Documentación de Render: variables de entorno](https://render.com/docs/configure-environment-variables)
 - [Documentación de Render: Persistent Disks](https://render.com/docs/disks)
+- [Documentación de Render: niveles gratuitos y sus limitaciones](https://render.com/docs/free)
+- [Documentación de Render: Shell y SSH](https://render.com/docs/ssh)
 - [Documentación de Laravel 12](https://laravel.com/docs/12.x)
 
 ---
