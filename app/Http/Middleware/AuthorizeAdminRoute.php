@@ -26,6 +26,11 @@ class AuthorizeAdminRoute
 
         $routeName = $request->route()?->getName();
 
+        // The welcome page is available to every authenticated active user.
+        if ($routeName === 'admin.home') {
+            return $next($request);
+        }
+
         $adminOnlyRoutes = config('permissions.admin_only_routes', []);
 
         if (
