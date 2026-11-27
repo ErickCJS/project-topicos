@@ -1,10 +1,11 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\\Feature;
 
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use App\\Models\\User;
+use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Illuminate\\Support\\Facades\\Gate;
+use Tests\\TestCase;
 
 class ProgrammingInterfaceTest extends TestCase
 {
@@ -13,7 +14,7 @@ class ProgrammingInterfaceTest extends TestCase
     protected function beforeRefreshingDatabase(): void
     {
         if (config('database.default') !== 'sqlite' || config('database.connections.sqlite.database') !== ':memory:') {
-            throw new \RuntimeException('Las pruebas de Programaciones requieren SQLite en memoria.');
+            throw new \\RuntimeException('Las pruebas de Programaciones requieren SQLite en memoria.');
         }
     }
 
@@ -49,8 +50,26 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertSee('Una gestión más eficiente')
             ->assertSee('Módulos disponibles')
             ->assertSee('css/welcome.css')
+            ->assertSee('css/dark-mode.css')
             ->assertSee('No tienes módulos asignados')
             ->assertDontSee('dashboardReschedulingModal');
+    }
+
+    public function test_welcome_page_only_displays_modules_allowed_for_the_user(): void
+    {
+        $this->actingAs(User::factory()->regular()->make(['id' => 1]));
+
+        Gate::define('permission', fn (User $user, string $permission) => $permission === 'personal.view');
+
+        $this->get(route('admin.home'))
+            ->assertOk()
+            ->assertSee('Gestión de personal')
+            ->assertSee(route('personal.employees.index'), false)
+            ->assertDontSee('Control de vehículos')
+            ->assertDontSee(route('vehicles.index'), false)
+            ->assertDontSee('Programación')
+            ->assertDontSee(route('programming.index'), false)
+            ->assertDontSee('No tienes módulos asignados');
     }
 
     public function test_dashboard_exposes_rescheduling_controls_and_related_navigation(): void
