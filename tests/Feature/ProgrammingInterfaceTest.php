@@ -46,7 +46,8 @@ class ProgrammingInterfaceTest extends TestCase
 
         $this->get(route('admin.home'))
             ->assertOk()
-            ->assertSee('BIENVENIDO AL SISTEMA')
+            ->assertSee('Una gestión más eficiente')
+            ->assertSee('Módulos disponibles')
             ->assertSee('No tienes módulos asignados')
             ->assertDontSee('dashboardReschedulingModal');
     }
