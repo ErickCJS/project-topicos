@@ -40,11 +40,21 @@ class ProgrammingInterfaceTest extends TestCase
             ->assertSee('css/programming.css');
     }
 
+    public function test_authenticated_users_can_open_the_welcome_page_without_dashboard_permission(): void
+    {
+        $this->actingAs(User::factory()->make(['id' => 1, 'is_admin' => false]));
+
+        $this->get(route('admin.home'))
+            ->assertOk()
+            ->assertSee('BIENVENIDO AL SISTEMA')
+            ->assertSee('No tienes módulos asignados');
+    }
+
     public function test_dashboard_exposes_rescheduling_controls_and_related_navigation(): void
     {
         $this->actingAs(User::factory()->make(['id' => 1]));
 
-        $this->get(route('admin.home'))
+        $this->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('dashboardReschedulingModal')
             ->assertSee('dashboardRescheduleDate')
