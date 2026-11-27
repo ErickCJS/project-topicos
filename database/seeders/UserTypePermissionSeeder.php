@@ -10,17 +10,18 @@ class UserTypePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $administrativeType = UserType::firstOrCreate(
-            ['name' => 'Administrativo'],
+        // DefaultAdminUserSeeder already creates this type in a normal install.
+        $administratorType = UserType::firstOrCreate(
+            ['name' => 'Administrador'],
             [
-                'description' => 'Plantilla administrativa inicial con todos los permisos del sistema. Puedes personalizarla desde Gestión de usuarios.',
+                'description' => 'Plantilla con todos los permisos granulares del sistema. Puedes personalizarla desde Gestión de usuarios.',
             ]
         );
 
-        // Solo se inicializa con acceso completo cuando se crea por primera vez.
-        // Las personalizaciones posteriores del administrador se respetan.
-        if ($administrativeType->wasRecentlyCreated) {
-            $administrativeType->permissions()->sync(
+        // Initialize the template only when it has not been configured yet.
+        // Existing customizations are preserved on subsequent seeder executions.
+        if (! $administratorType->permissions()->exists()) {
+            $administratorType->permissions()->sync(
                 Permission::query()->pluck('id')->all()
             );
         }
