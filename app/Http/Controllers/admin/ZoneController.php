@@ -139,8 +139,8 @@ class ZoneController extends Controller
         }
 
         return $meters >= 1000
-            ? '≈ '.number_format($meters / 1000, 2).' km'
-            : '≈ '.number_format($meters, 0).' m';
+            ? number_format($meters / 1000, 2).' km'
+            : number_format($meters, 0).' m';
     }
 
     private function validatedData(Request $request, ?Zone $zone = null): array
