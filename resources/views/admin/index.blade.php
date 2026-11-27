@@ -89,7 +89,7 @@
                             <i class="{{ $module['icon'] }}" aria-hidden="true"></i>
                         </span>
                         <span class="rsu-welcome-module-copy">
-                            <small>INGRESAR</small>
+                            <small>{{ $module['group'] }}</small>
                             <strong>{{ $module['title'] }}</strong>
                             <span>{{ $module['description'] }}</span>
                         </span>
