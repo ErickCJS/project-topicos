@@ -712,6 +712,19 @@ class UserPermissionSystemTest extends TestCase
             Permission::orderBy('id')->pluck('id')->all(),
             $type->permissions()->orderBy('permissions.id')->pluck('permissions.id')->all()
         );
+
+        $this->assertTrue($type->fresh()->permissions_configured);
+
+        // Una plantilla guardada vacía también debe conservarse al repetir el seeder.
+        $type->permissions()->sync([]);
+        $type->forceFill(['permissions_configured' => true])->save();
+
+        $this->seed(\Database\Seeders\\UserTypePermissionSeeder::class);
+
+        $this->assertSame(
+            [],
+            $type->fresh()->permissions()->pluck('permissions.id')->all()
+        );
     }
 
     public function test_test_user_seeder_assigns_individual_permissions_without_changing_existing_data(): void
