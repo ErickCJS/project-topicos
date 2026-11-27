@@ -55,6 +55,7 @@ class UserTypeController extends Controller
         $type = DB::transaction(function () use ($data, $permissionIds) {
             $type = UserType::create($data);
             $type->permissions()->sync($permissionIds);
+            $type->forceFill(['permissions_configured' => true])->save();
 
             return $type;
         });
@@ -85,6 +86,7 @@ class UserTypeController extends Controller
         DB::transaction(function () use ($type, $data, $permissionIds) {
             $type->update($data);
             $type->permissions()->sync($permissionIds);
+            $type->forceFill(['permissions_configured' => true])->save();
         });
 
         return response()->json([
