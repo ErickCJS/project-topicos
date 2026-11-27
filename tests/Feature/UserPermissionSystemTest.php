@@ -504,7 +504,7 @@ class UserPermissionSystemTest extends TestCase
             $user->permissions()->pluck('permissions.id')->all()
         );
 
-        $service = app(\\App\\Services\\UserPermissionService::class);
+        $service = app(\App\Services\UserPermissionService::class);
         $this->assertTrue($service->allows($user, 'dashboard.view'));
         $this->assertFalse($service->allows($user, 'vehiculos.details'));
     }
@@ -518,7 +518,7 @@ class UserPermissionSystemTest extends TestCase
         $permissions = Permission::whereIn('slug', [
             'dashboard.view',
             'vehiculos.view',
-        ])->pluck('id')->all();
+        ])->orderBy('id')->pluck('id')->all();
 
         $type->permissions()->sync($permissions);
 
@@ -703,7 +703,7 @@ class UserPermissionSystemTest extends TestCase
     {
         $this->catalog();
 
-        $this->seed(\\Database\\Seeders\\UserTypePermissionSeeder::class);
+        $this->seed(\Database\Seeders\UserTypePermissionSeeder::class);
 
         $type = UserType::where('name', 'Administrativo')->firstOrFail();
 
