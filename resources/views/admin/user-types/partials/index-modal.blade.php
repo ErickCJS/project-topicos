@@ -26,7 +26,7 @@ Consulta, edita las clasificaciones y configura sus permisos predeterminados.
         <div>
             <h6 class="mb-1">Listado de tipos</h6>
             <small class="text-muted">
-                Los cambios de clasificación no modifican los permisos individuales.
+                Los permisos de cada tipo se aplican como plantilla al crear o reasignar usuarios.
             </small>
         </div>
     </div>
@@ -40,6 +40,7 @@ Consulta, edita las clasificaciones y configura sus permisos predeterminados.
                 <tr>
                     <th>Nombre</th>
                     <th>Descripción</th>
+                    <th>Permisos</th>
                     <th>Fecha de creación</th>
                     <th>Última actualización</th>
                     <th class="text-center">Acciones</th>
