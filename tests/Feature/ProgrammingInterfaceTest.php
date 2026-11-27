@@ -1,11 +1,11 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\User;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Gate;
-use Tests\\TestCase;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
+use Tests\TestCase;
 
 class ProgrammingInterfaceTest extends TestCase
 {
@@ -14,7 +14,7 @@ class ProgrammingInterfaceTest extends TestCase
     protected function beforeRefreshingDatabase(): void
     {
         if (config('database.default') !== 'sqlite' || config('database.connections.sqlite.database') !== ':memory:') {
-            throw new \\RuntimeException('Las pruebas de Programaciones requieren SQLite en memoria.');
+            throw new \RuntimeException('Las pruebas de Programaciones requieren SQLite en memoria.');
         }
     }
 
