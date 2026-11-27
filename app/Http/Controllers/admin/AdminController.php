@@ -8,10 +8,74 @@ use App\Models\admin\Programming;
 use App\Models\admin\Shift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class AdminController extends Controller
 {
-    function index(Request $request)
+    public function index()
+    {
+        $modules = [
+            [
+                'title' => 'Gestión de personal',
+                'description' => 'Consulta y administra el personal municipal.',
+                'icon' => 'fas fa-users',
+                'route' => 'personal.employees.index',
+                'permission' => 'personal.view',
+            ],
+            [
+                'title' => 'Control de vehículos',
+                'description' => 'Administra la flota de vehículos municipales.',
+                'icon' => 'fas fa-truck',
+                'route' => 'vehicles.index',
+                'permission' => 'vehiculos.view',
+            ],
+            [
+                'title' => 'Programación',
+                'description' => 'Organiza turnos, zonas y recorridos.',
+                'icon' => 'fas fa-route',
+                'route' => 'programming.index',
+                'permission' => 'programacion.view',
+            ],
+            [
+                'title' => 'Gestión de contratos',
+                'description' => 'Consulta los contratos del personal.',
+                'icon' => 'fas fa-file-contract',
+                'route' => 'contracts.index',
+                'permission' => 'contratos.view',
+            ],
+            [
+                'title' => 'Asistencia',
+                'description' => 'Registra y consulta la asistencia.',
+                'icon' => 'fas fa-user-check',
+                'route' => 'attendances.index',
+                'permission' => 'asistencias.view',
+            ],
+            [
+                'title' => 'Zonas operativas',
+                'description' => 'Consulta y administra las zonas del distrito.',
+                'icon' => 'fas fa-map-marked-alt',
+                'route' => 'zones.index',
+                'permission' => 'zonas.view',
+            ],
+            [
+                'title' => 'Dashboard',
+                'description' => 'Revisa el estado de la operación diaria.',
+                'icon' => 'fas fa-chart-line',
+                'route' => 'admin.dashboard',
+                'permission' => 'dashboard.view',
+            ],
+        ];
+
+        $quickModules = array_values(array_filter(
+            $modules,
+            fn (array $module) => Gate::allows('permission', $module['permission'])
+                && \\Illuminate\\Support\\Facades\\Route::has($module['route'])
+        ));
+
+        return view('admin.index', compact('quickModules'));
+    }
+
+    public function dashboard(Request $request)
     {
         $filters = $request->validate([
             'fecha' => ['nullable', 'date_format:Y-m-d'],
