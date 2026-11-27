@@ -220,7 +220,7 @@
         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">
             Cancelar
         </button>
-        <button type="submit" class="btn btn-success">
+        <button type="submit" class="btn btn-success" @disabled($availableCount === 0)>
             <i class="bi bi-floppy me-1"></i>
             {{ $editing ? 'Guardar tipo y permisos' : 'Crear tipo' }}
         </button>
