@@ -24,7 +24,7 @@ class ZoneController extends Controller
                 ->addColumn('department', fn (Zone $zone) => $zone->district?->province?->department?->name ?? 'Sin departamento')
                 ->addColumn('province', fn (Zone $zone) => $zone->district?->province?->name ?? 'Sin provincia')
                 ->addColumn('district', fn (Zone $zone) => $zone->district?->name ?? 'Sin distrito')
-                ->addColumn('perimeter_status', fn (Zone $zone) => $zone->perimeter ? 'Definido' : 'Sin perímetro')
+                ->addColumn('perimeter_length', fn (Zone $zone) => $this->formatPerimeterLength($zone))
                 ->editColumn('created_at', fn (Zone $zone) => $zone->created_at?->format('d/m/Y H:i:s'))
                 ->editColumn('updated_at', fn (Zone $zone) => $zone->updated_at?->format('d/m/Y H:i:s'))
                 ->addColumn('actions', function (Zone $zone) {
@@ -38,7 +38,9 @@ class ZoneController extends Controller
                 ->toJson();
         }
 
-        return view('admin.zones.index');
+        $jloDistrictId = District::query()->where('code', '140105')->value('id');
+
+        return view('admin.zones.index', compact('jloDistrictId'));
     }
 
     public function create()
@@ -126,6 +128,19 @@ class ZoneController extends Controller
             'defaultDistrict' => $defaultDistrict,
             'zone' => $zone,
         ];
+    }
+
+    private function formatPerimeterLength(Zone $zone): string
+    {
+        $meters = \App\Support\GeoJsonPerimeter::meters($zone->perimeter);
+
+        if ($meters === null) {
+            return '—';
+        }
+
+        return $meters >= 1000
+            ? number_format($meters / 1000, 2).' km'
+            : number_format($meters, 0).' m';
     }
 
     private function validatedData(Request $request, ?Zone $zone = null): array

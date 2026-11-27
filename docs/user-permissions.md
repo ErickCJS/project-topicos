@@ -1,275 +1,156 @@
-
 # Gestión de usuarios, tipos y permisos
 
-## 1. Arquitectura general
+## 1. Modelo de acceso
 
-El sistema utiliza tres elementos independientes para administrar el acceso de los usuarios:
+El sistema separa cuatro elementos:
 
-- `user_types`: catálogo de clasificaciones descriptivas.
-- `users.is_admin`: determina si una cuenta tiene acceso administrativo total.
-- `user_permissions`: almacena los permisos individuales asignados a cada usuario.
+- \`user_types\`: catálogo de tipos de usuario que funcionan como plantillas de permisos.
+- \`user_type_permissions\`: permisos predeterminados asociados a cada tipo.
+- \`user_permissions\`: copia de los permisos efectivos asignados a cada cuenta, que después puede personalizarse individualmente.
+- \`users.is_admin\`: indicador independiente que concede acceso administrativo total.
 
-Los tipos de usuario no conceden permisos automáticamente.
+Un tipo de usuario ya no es solamente descriptivo. Define los permisos iniciales de las cuentas que se crean o se reasignan a ese tipo.
 
-Dos usuarios pueden pertenecer al mismo tipo y tener diferentes permisos dentro del sistema.
+## 2. Plantillas de tipos de usuario
 
-## 2. Tipos de usuario
+Cada tipo tiene un nombre, una descripción y una matriz de permisos organizada por módulos y submódulos.
 
-La tabla `user_types` contiene:
+Ejemplos:
+
+- Administrador: plantilla inicial con todos los permisos del catálogo.
+- Supervisor: puede consultar y gestionar los módulos que se habiliten.
+- Operador: recibe únicamente las acciones operativas seleccionadas.
+
+Desde Gestión de usuarios se puede crear o editar un tipo en un modal. La matriz permite seleccionar todos los permisos, deseleccionarlos o configurar un módulo o submódulo concreto.
+
+La tabla \`user_type_permissions\` relaciona:
 
 | Campo | Descripción |
 |---|---|
-| id | Identificador del tipo |
-| name | Nombre de la clasificación |
-| description | Descripción opcional |
-| created_at | Fecha de creación |
-| updated_at | Fecha de actualización |
+| user_type_id | Tipo de usuario |
+| permission_id | Permiso incluido en la plantilla |
 
-La tabla `users` utiliza `user_type_id` como clave foránea nullable para relacionar cada cuenta con una clasificación.
+## 3. Cómo se aplican los permisos a los usuarios
 
-Ejemplos de tipos:
+La plantilla se copia a la cuenta en estos casos:
 
-- Administrador
-- Operador
-- Supervisor
-- Usuario de prueba
+1. Al crear un usuario y seleccionar un tipo.
+2. Al cambiar el tipo de un usuario existente.
 
-Estos nombres son descriptivos y pueden modificarse desde Gestión de usuarios.
+La copia se guarda en \`user_permissions\`. Después, los permisos de esa cuenta pueden editarse individualmente desde la matriz de permisos del usuario.
 
-### Reglas
+Reglas importantes:
 
-1. Un usuario puede tener un tipo o permanecer sin clasificación.
-2. Varios usuarios pueden compartir el mismo tipo.
-3. Cambiar el tipo de un usuario no modifica sus permisos.
-4. Cambiar el nombre de un tipo actualiza su denominación visible para los usuarios relacionados.
-5. Eliminar un tipo no debe eliminar usuarios ni sus permisos. La relación permite dejar `user_type_id` en NULL.
+- Editar una plantilla no sobrescribe los permisos de los usuarios que ya estaban asignados a ella.
+- Los nuevos usuarios sí reciben la versión actualizada de la plantilla.
+- Cuando se cambia un usuario a otro tipo, se reemplaza su asignación individual por la plantilla del nuevo tipo.
+- Si se edita un usuario sin cambiar su tipo, sus permisos individuales se conservan.
+- La edición de la plantilla no modifica ni elimina las cuentas asociadas.
 
-## 3. Acceso administrativo
+Este comportamiento permite usar tipos como valores iniciales sin quitar la flexibilidad de personalizar una cuenta.
 
-El campo `users.is_admin` controla el acceso administrativo total.
+## 4. Acceso administrativo total
 
-Un usuario activo con `is_admin = true` dispone de acceso administrativo mediante `UserPermissionService`.
+El campo \`users.is_admin\` es independiente de la plantilla.
 
-La clasificación descriptiva no determina esta condición.
+Una cuenta activa con \`is_admin = true\` tiene acceso administrativo total mediante \`UserPermissionService\`, aunque su tipo sea otro.
 
-Por ejemplo:
+El tipo \`Administrador\` se crea inicialmente con todos los permisos granulares del catálogo, pero no convierte automáticamente a sus usuarios en administradores globales. Su acceso sigue limitado a los permisos de la plantilla y a las reglas de rutas reservadas al administrador del sistema.
 
-| Usuario | Tipo | is_admin |
-|---|---|---|
-| Usuario 1 | Operador | false |
-| Usuario 2 | Operador | false |
-| Usuario 3 | Supervisor | true |
+## 5. Permisos individuales
 
-Los tres mantienen su clasificación independiente del indicador de acceso administrativo.
+Los permisos efectivos copiados a cada usuario se almacenan en \`user_permissions\`, mediante:
 
-## 4. Permisos individuales
+- \`user_id\`
+- \`permission_id\`
 
-Los permisos se almacenan en `user_permissions`, mediante la relación entre:
-
-- `user_id`
-- `permission_id`
-
-Cada cuenta administra sus propios permisos.
-
-Ejemplo:
-
-| Usuario | Tipo | Permisos asignados |
-|---|---|---|
-| Usuario 1 | Operador | Vehículos: Ver |
-| Usuario 2 | Operador | Vehículos: Ver, Editar |
-| Usuario 3 | Supervisor | Programación: Ver |
-
-Compartir un tipo no implica compartir asignaciones.
-
-### Reglas de autorización
-
-- Los administradores activos tienen acceso total.
-- Los usuarios normales dependen de sus permisos individuales.
-- Los usuarios inactivos no pueden acceder al sistema.
-- Modificar un tipo no modifica `user_permissions`.
-- La administración de permisos individuales se realiza desde el modal de permisos de cada usuario.
+La administración individual sigue disponible desde el botón de permisos del listado de usuarios. Modificar la matriz de una cuenta no cambia la plantilla del tipo ni los permisos de otros usuarios.
 
 La lógica de autorización se centraliza en:
 
-`app/Services/UserPermissionService.php`
+\`app/Services/UserPermissionService.php\`
 
-## 5. Gestión de usuarios
+## 6. Catálogo de módulos y rutas
 
-La pantalla principal se encuentra en:
+La configuración está en:
 
-`resources/views/admin/user/index.blade.php`
+\`config/permissions.php\`
 
-Dispone de tres operaciones principales:
+El catálogo define grupos, módulos, acciones y correspondencias con rutas administrativas.
 
-### Nuevo usuario
+El comando:
 
-Registra una cuenta y permite seleccionar un tipo descriptivo.
+\`\`\`bash
+php artisan permissions:sync-routes
+\`\`\`
 
-### Nuevo tipo de usuario
+sincroniza módulos, permisos y rutas con esa configuración. Debe ejecutarse antes de inicializar la plantilla Administrador para que el catálogo esté completo.
 
-Registra una clasificación en el catálogo `user_types`.
+Las rutas de gestión de usuarios y tipos continúan reservadas al administrador del sistema, independientemente de los permisos de una plantilla.
 
-### Gestionar tipos
-
-Permite consultar y editar las clasificaciones registradas.
-
-En los formularios de creación y edición de usuarios se utiliza el campo `user_type_id`.
-
-El checkbox de acceso administrativo total se mantiene independiente del selector de tipos.
-
-## 6. Protección de rutas
-
-La configuración de los permisos se encuentra en:
-
-`config/permissions.php`
-
-Las rutas de administración del catálogo de tipos se encuentran en `admin_only_routes`:
-
-- `user-types.index`
-- `user-types.create`
-- `user-types.store`
-- `user-types.edit`
-- `user-types.update`
-
-Estas operaciones requieren acceso administrativo y no se asignan como permisos heredados de los tipos de usuario.
-
-Los permisos individuales del módulo de usuarios siguen siendo independientes.
-
-## 7. Migraciones de base de datos
+## 7. Migraciones
 
 La migración:
 
-`2026_11_19_000001_restore_descriptive_user_types.php`
+\`2026_11_19_000001_restore_descriptive_user_types.php\`
 
-restaura el catálogo descriptivo y relaciona los usuarios existentes con sus clasificaciones.
+restaura la tabla \`user_types\` y la relación \`users.user_type_id\` en las bases de datos que ejecutaron la migración histórica que eliminaba esos elementos.
 
-Realiza las siguientes operaciones:
+La nueva migración:
 
-1. Crea `user_types`.
-2. Agrega `users.user_type_id`.
-3. Recupera las clasificaciones existentes desde `user_type_label`.
-4. Crea los tipos correspondientes.
-5. Asocia a los usuarios con sus tipos.
-6. Elimina el antiguo campo `user_type_label`.
+\`2026_11_27_000001_create_user_type_permissions_table.php\`
 
-La migración conserva:
+crea la relación entre tipos y permisos predeterminados.
 
-- `users.is_admin`.
-- `user_permissions`.
-- Las asignaciones individuales existentes.
+Para actualizar una base de datos existente:
 
-No recupera la antigua tabla `user_type_permissions`.
-
-Las migraciones históricas no deben modificarse para incorporar cambios posteriores.
-
-### Actualización de la base de datos
-
-Después de obtener los cambios del repositorio:
-
-```bash
+\`\`\`bash
 php artisan migrate
-```
-
-Laravel ejecutará las migraciones pendientes.
-
-Para sincronizar el catálogo de permisos con las rutas y configuraciones:
-
-```bash
 php artisan permissions:sync-routes
-```
+php artisan db:seed --class=UserTypePermissionSeeder
+\`\`\`
 
-Este comando actualiza la correspondencia entre las rutas administrativas y los permisos existentes. No asigna permisos según el tipo descriptivo.
+No se debe utilizar \`migrate:fresh\` para esta actualización, porque eliminaría las tablas y los datos existentes.
 
 ## 8. Seeders
 
 ### DefaultAdminUserSeeder
 
-Ubicación:
+Crea o recupera la cuenta inicial de administración y le asigna el tipo descriptivo \`Administrador\`. El acceso total se controla con \`users.is_admin\`.
 
-`database/seeders/DefaultAdminUserSeeder.php`
+### UserTypePermissionSeeder
 
-Crea o recupera la cuenta administrativa inicial y garantiza que tenga una clasificación descriptiva de Administrador.
+Crea el tipo \`Administrador\` con todos los permisos granulares disponibles en el momento de su creación. La inicialización es idempotente y no vuelve a sobrescribir una plantilla que ya fue personalizada.
 
-El acceso total se establece mediante `is_admin`, no mediante el tipo.
+### DatabaseSeeder
 
-### DevelopmentTestUserSeeder
+Después de crear los datos base, ejecuta \`permissions:sync-routes\` y \`UserTypePermissionSeeder\` para dejar disponible la plantilla inicial.
 
-Ubicación:
+## 9. Interfaz
 
-`database/seeders/DevelopmentTestUserSeeder.php`
+La gestión se realiza desde:
 
-Se ejecuta únicamente en entornos `local` y `testing`.
+\`resources/views/admin/user/index.blade.php\`
 
-Administra la cuenta de demostración:
+Las ventanas modales permiten:
 
-`user@gmail.com`
+- Crear y editar usuarios.
+- Crear tipos de usuario.
+- Configurar los permisos predeterminados de un tipo.
+- Editar los permisos particulares de una cuenta.
 
-Le asigna una clasificación descriptiva de Usuario de prueba cuando corresponde y sincroniza sus permisos individuales.
-
-No debe utilizarse para crear cuentas de demostración en producción.
-
-Para ejecutarlo manualmente:
-
-```bash
-php artisan db:seed --class=DevelopmentTestUserSeeder
-```
-
-## 9. API de acceso
-
-El endpoint:
-
-`GET /api/me/access`
-
-mantiene el campo `user_type_label` como denominación descriptiva, obtenida mediante la relación `userType`.
-
-También conserva:
-
-- `is_admin`
-- `modulos`
-- `permisos`
-
-El nombre del tipo no interviene en el cálculo de autorizaciones.
+La pantalla muestra el número de permisos que tiene configurado cada tipo.
 
 ## 10. Pruebas
 
-La batería principal de pruebas se encuentra en:
+Las pruebas principales están en:
 
-`tests/Feature/UserPermissionSystemTest.php`
+\`tests/Feature/UserPermissionSystemTest.php\`
 
-Incluye verificaciones de:
+Incluyen la persistencia de permisos de tipos, creación de usuarios con copia de plantilla, reasignación de tipo, edición de permisos individuales y protección del último administrador.
 
-- Migración histórica de permisos individuales.
-- Recuperación del catálogo descriptivo.
-- Usuarios con el mismo tipo y distintos permisos.
-- Creación, edición y listado de tipos.
-- Rechazo de nombres duplicados.
-- Selección de tipos en formularios.
-- Cambio de clasificación sin modificación de permisos.
-- Actualización del nombre de una clasificación.
-- Guardado de permisos individuales.
-- Respuesta de la API.
-- Seeders.
-- Protección del último administrador.
-- Autenticación y cierre de sesión.
+Ejecutar:
 
-Para ejecutar estas pruebas:
-
-```bash
+\`\`\`bash
 php artisan test --filter=UserPermissionSystemTest
-```
-
-## 11. Consideraciones para GitHub y otros entornos
-
-Los archivos de migración y código deben incorporarse al repositorio.
-
-Cada entorno debe actualizar su código y ejecutar las migraciones pendientes.
-
-No se deben utilizar:
-
-```bash
-php artisan migrate:fresh
-```
-
-ni operaciones que eliminen las tablas existentes para actualizar esta funcionalidad.
-
-La actualización debe realizarse mediante migraciones incrementales y compatibles con la información existente.
+\`\`\`

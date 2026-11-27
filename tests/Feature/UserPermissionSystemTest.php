@@ -348,10 +348,14 @@ class UserPermissionSystemTest extends TestCase
 
         $admin = User::factory()->create();
 
+        $viewPermission = Permission::where('slug', 'vehiculos.view')->firstOrFail();
+        $editPermission = Permission::where('slug', 'vehiculos.details')->firstOrFail();
+
         $this->actingAs($admin)
             ->postJson(route('user-types.store'), [
                 'name' => 'Supervisor',
                 'description' => 'Personal de supervisión.',
+                'permissions' => [$viewPermission->id],
             ])
             ->assertOk()
             ->assertJsonFragment([
@@ -364,6 +368,7 @@ class UserPermissionSystemTest extends TestCase
             ->putJson(route('user-types.update', $type->id), [
                 'name' => 'Supervisor General',
                 'description' => 'Supervisión general del sistema.',
+                'permissions' => [$editPermission->id],
             ])
             ->assertOk()
             ->assertJsonFragment([
@@ -375,6 +380,11 @@ class UserPermissionSystemTest extends TestCase
             'name' => 'Supervisor General',
             'description' => 'Supervisión general del sistema.',
         ]);
+
+        $this->assertSame(
+            [$editPermission->id],
+            $type->fresh()->permissions()->pluck('permissions.id')->all()
+        );
     }
 
     public function test_duplicate_user_type_names_are_rejected(): void
@@ -453,7 +463,7 @@ class UserPermissionSystemTest extends TestCase
             ->assertSee('Operador');
     }
 
-    public function test_changing_user_type_does_not_modify_individual_permissions(): void
+    public function test_changing_user_type_applies_the_new_type_permission_template(): void
     {
         $this->catalog();
 
@@ -462,17 +472,17 @@ class UserPermissionSystemTest extends TestCase
         $firstType = $this->createType('Operador');
         $secondType = $this->createType('Supervisor');
 
+        $firstPermission = Permission::where('slug', 'vehiculos.details')->firstOrFail();
+        $secondPermission = Permission::where('slug', 'dashboard.view')->firstOrFail();
+
+        $firstType->permissions()->sync([$firstPermission->id]);
+        $secondType->permissions()->sync([$secondPermission->id]);
+
         $user = User::factory()->regular()->create([
             'dni' => '12345678',
             'user_type_id' => $firstType->id,
         ]);
-
-        $permission = Permission::where(
-            'slug',
-            'vehiculos.details'
-        )->firstOrFail();
-
-        $user->permissions()->sync([$permission->id]);
+        $user->permissions()->sync([$firstPermission->id]);
 
         $this->actingAs($admin)
             ->putJson(route('users.update', $user), [
@@ -489,15 +499,47 @@ class UserPermissionSystemTest extends TestCase
         $user->refresh();
 
         $this->assertSame($secondType->id, $user->user_type_id);
-
         $this->assertSame(
-            [$permission->id],
+            [$secondPermission->id],
             $user->permissions()->pluck('permissions.id')->all()
         );
 
-        $this->assertTrue(
-            app(\App\Services\UserPermissionService::class)
-                ->allows($user, 'vehiculos.details')
+        $service = app(\App\Services\UserPermissionService::class);
+        $this->assertTrue($service->allows($user, 'dashboard.view'));
+        $this->assertFalse($service->allows($user, 'vehiculos.details'));
+    }
+
+    public function test_creating_user_copies_the_selected_type_permission_template(): void
+    {
+        $this->catalog();
+
+        $admin = User::factory()->create();
+        $type = $this->createType('Operador de campo');
+        $permissions = Permission::whereIn('slug', [
+            'dashboard.view',
+            'vehiculos.view',
+        ])->orderBy('id')->pluck('id')->all();
+
+        $type->permissions()->sync($permissions);
+
+        $this->actingAs($admin)
+            ->postJson(route('users.store'), [
+                'name' => 'Usuario nuevo',
+                'last_name' => 'De plantilla',
+                'dni' => '76543210',
+                'email' => 'plantilla@example.test',
+                'password' => 'Password123',
+                'user_type_id' => $type->id,
+                'is_admin' => false,
+                'is_active' => true,
+            ])
+            ->assertCreated();
+
+        $createdUser = User::where('email', 'plantilla@example.test')->firstOrFail();
+
+        $this->assertSame(
+            $permissions,
+            $createdUser->permissions()->orderBy('permissions.id')->pluck('permissions.id')->all()
         );
     }
 
@@ -655,6 +697,34 @@ class UserPermissionSystemTest extends TestCase
 
         $this->assertSame($type->id, $admin->user_type_id);
         $this->assertSame('Administrador', $admin->user_type_label);
+    }
+
+    public function test_administrative_type_starts_with_all_permissions(): void
+    {
+        $this->catalog();
+
+        $this->seed(\Database\Seeders\UserTypePermissionSeeder::class);
+
+        $type = UserType::where('name', 'Administrador')->firstOrFail();
+
+        $this->assertGreaterThan(0, Permission::count());
+        $this->assertSame(
+            Permission::orderBy('id')->pluck('id')->all(),
+            $type->permissions()->orderBy('permissions.id')->pluck('permissions.id')->all()
+        );
+
+        $this->assertTrue($type->fresh()->permissions_configured);
+
+        // Una plantilla guardada vacía también debe conservarse al repetir el seeder.
+        $type->permissions()->sync([]);
+        $type->forceFill(['permissions_configured' => true])->save();
+
+        $this->seed(\Database\Seeders\\UserTypePermissionSeeder::class);
+
+        $this->assertSame(
+            [],
+            $type->fresh()->permissions()->pluck('permissions.id')->all()
+        );
     }
 
     public function test_test_user_seeder_assigns_individual_permissions_without_changing_existing_data(): void
