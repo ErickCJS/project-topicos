@@ -38,7 +38,9 @@ class ZoneController extends Controller
                 ->toJson();
         }
 
-        return view('admin.zones.index');
+        $jloDistrictId = District::query()->where('code', '140105')->value('id');
+
+        return view('admin.zones.index', compact('jloDistrictId'));
     }
 
     public function create()
