@@ -1,140 +1,120 @@
 @extends('adminlte::page')
 
-@section('title', 'Inicio | RSU')
+@section('title', 'Inicio | SGRS JLO')
 
-@section('content_header')
-    <div class="rsu-page-heading">
-        <div><span class="rsu-eyebrow">Panel principal</span><h1>Inicio</h1></div>
-        <div class="rsu-date" aria-label="Fecha de la jornada operativa de residuos sólidos urbanos">
-            <i class="far fa-calendar-alt" aria-hidden="true"></i>
+@section('content')
+<div class="rsu-welcome-page">
+    <header class="rsu-welcome-masthead">
+        <a href="{{ route('admin.home') }}" class="rsu-welcome-identity" aria-label="Ir al inicio del Sistema de Gestión RSU">
+            <span class="rsu-welcome-crest">
+                <img
+                    src="https://jloenlinea.munijlo.gob.pe/denuncia-consumidor/assets/logo-DBHCGE0v.jpeg"
+                    alt="Escudo municipal de José Leonardo Ortiz"
+                    loading="eager"
+                    referrerpolicy="no-referrer"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">
+                <i class="fas fa-landmark" aria-hidden="true"></i>
+            </span>
+            <span class="rsu-welcome-identity-copy">
+                <small>MUNICIPALIDAD DISTRITAL DE</small>
+                <strong>JOSÉ LEONARDO ORTIZ</strong>
+                <span>Sistema de Gestión de Residuos Sólidos</span>
+            </span>
+        </a>
+
+        <div class="rsu-welcome-date">
+            <span class="rsu-welcome-live" aria-hidden="true"></span>
             <span>
-                <small>Jornada operativa RSU</small>
+                <small>PLATAFORMA INSTITUCIONAL</small>
                 <strong>{{ now()->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</strong>
             </span>
         </div>
-    </div>
-@stop
+    </header>
 
-@section('content')
-<div class="rsu-dashboard">
-    <section class="rsu-hero">
-        <div class="rsu-hero-copy">
-            <span class="rsu-kicker"><i></i>Sistema de gestión de residuos sólidos urbanos</span>
-            <h2>Gestión que cuida<br>nuestro distrito.</h2>
-            <p>Consulta el estado operativo y accede rápidamente a los módulos disponibles para ti.</p>
-            <a href="#accesos" class="rsu-primary-action">Ver módulos <i class="fas fa-arrow-right"></i></a>
-        </div>
-<div class="rsu-hero-art" aria-hidden="true">
-    <div class="rsu-eco-circle">
-        <i class="fas fa-recycle"></i>
-    </div>
-</div>
-    </section>
-
-    <section class="rsu-metrics" aria-label="Resumen operativo">
-        <article class="rsu-metric-card"><span class="rsu-icon blue"><i class="fas fa-truck"></i></span><div><strong>12</strong><p>Vehículos operativos</p><small><i class="fas fa-arrow-up"></i> 2 disponibles hoy</small></div></article>
-        <article class="rsu-metric-card"><span class="rsu-icon green"><i class="fas fa-route"></i></span><div><strong>28</strong><p>Rutas programadas</p><small><i class="fas fa-arrow-up"></i> 4 esta semana</small></div></article>
-        <article class="rsu-metric-card"><span class="rsu-icon amber"><i class="fas fa-users"></i></span><div><strong>85</strong><p>Personal asignado</p><small><i class="fas fa-check"></i> Turnos cubiertos</small></div></article>
-        <article class="rsu-metric-card"><span class="rsu-icon violet"><i class="fas fa-clipboard-check"></i></span><div><strong>1,254</strong><p>Servicios ejecutados</p><small><i class="fas fa-arrow-up"></i> 12% este mes</small></div></article>
-    </section>
-
-    <!-- RSU-INSTITUCIONAL-V1 -->
-    <section class="rsu-main-grid">
-        <div class="rsu-institutional" id="accesos">
-
-            <div class="rsu-institutional-header">
-                <i class="fas fa-landmark"></i>
-                <span>Municipalidad Distrital de José; Leonardo Ortiz</span>
-                <span class="rsu-institutional-tag">GESTIÓN RSU</span>
+    <main class="rsu-welcome-main">
+        <section class="rsu-welcome-hero">
+            <div class="rsu-welcome-hero-copy">
+                <span class="rsu-welcome-eyebrow">GESTIÓN PÚBLICA · SERVICIO A LA CIUDAD</span>
+                <h1>Una gestión más eficiente para un distrito más limpio.</h1>
+                <p>
+                    Administra los recursos, el personal y las operaciones de limpieza pública
+                    desde un solo lugar.
+                </p>
+                <a href="#rsu-modules" class="rsu-welcome-hero-link">
+                    Explorar módulos
+                    <i class="fas fa-arrow-down" aria-hidden="true"></i>
+                </a>
             </div>
 
-            <div class="rsu-institutional-body">
-
-                <div class="rsu-institutional-photo">
-                    @if(file_exists(public_path('images/dashboard/brigada-rsu.png')))
-                        <img src="{{ asset('images/dashboard/brigada-rsu.png') }}"
-                             alt="Equipo de limpieza publica">
-                    @else
-                        <div class="rsu-photo-placeholder">
-                            <i class="fas fa-city"></i>
-                            <span>José Leonardo Ortiz</span>
-                        </div>
-                    @endif
-
-                    <div class="rsu-photo-caption">
-                        <i class="fas fa-leaf"></i>
-                        Por un distrito más limpio
+            <div class="rsu-welcome-hero-image">
+                @if(file_exists(public_path('images/dashboard/brigada-rsu.png')))
+                    <img
+                        src="{{ asset('images/dashboard/brigada-rsu.png') }}"
+                        alt="Equipo de trabajo de limpieza pública de José Leonardo Ortiz">
+                @else
+                    <div class="rsu-welcome-crest-panel">
+                        <img
+                            src="https://jloenlinea.munijlo.gob.pe/denuncia-consumidor/assets/logo-DBHCGE0v.jpeg"
+                            alt="Escudo de la Municipalidad Distrital de José Leonardo Ortiz"
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';">
+                        <i class="fas fa-landmark" aria-hidden="true"></i>
                     </div>
+                @endif
+                <div class="rsu-welcome-image-caption">
+                    <span>JOSÉ LEONARDO ORTIZ</span>
+                    <strong>Compromiso con nuestra ciudad</strong>
                 </div>
-
-                <div class="rsu-institutional-info">
-                    <div class="rsu-info-top">
-                        <span class="rsu-info-kicker">BIENVENIDO AL SISTEMA</span>
-                        <h3>Comprometidos con nuestro distrito</h3>
-                        <p>
-                            Plataforma para administrar los recursos,
-                            el personal y las operaciones relacionadas
-                            con la gestión de residuos sólidos urbanos.
-                        </p>
-                    </div>
-
-                    <h4 class="rsu-module-title">
-                        <i class="fas fa-th-large"></i>
-                        Módulos del sistema
-                    </h4>
-
-                    <div class="rsu-module-list">
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-users"></i>
-                            <span>Gesti&oacute;n de personal</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                        <a href="{{ route('vehicles.index') }}" class="rsu-module-link">
-                            <i class="fas fa-truck"></i>
-                            <span>Control de veh&iacute;culos</span>
-                            <i class="fas fa-arrow-right rsu-module-arrow"></i>
-                        </a>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-route"></i>
-                            <span>Planificaci&oacute;n de rutas</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-file-contract"></i>
-                            <span>Gesti&oacute;n de contratos</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-user-check"></i>
-                            <span>Asistencia</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                        <div class="rsu-module-link rsu-module-pending">
-                            <i class="fas fa-chart-bar"></i>
-                            <span>Reportes</span>
-                            <small>Pr&oacute;ximamente</small>
-                        </div>
-
-                    </div>
-                </div>
-
             </div>
-        </div>
-    </section>
-    <section class="rsu-values">
-        <div><span><i class="fas fa-leaf"></i></span><p><b>Ecoeficiente</b><small>Decisiones que cuidan el entorno.</small></p></div>
-        <div><span><i class="fas fa-recycle"></i></span><p><b>Sostenible</b><small>Procesos responsables y circulares.</small></p></div>
-        <div><span><i class="fas fa-hands-helping"></i></span><p><b>Al servicio de todos</b><small>Una ciudad más ordenada y saludable.</small></p></div>
-    </section>
+        </section>
+
+        <section class="rsu-welcome-modules" id="rsu-modules">
+            <div class="rsu-welcome-section-heading">
+                <div>
+                    <span class="rsu-welcome-eyebrow">ACCESO AL SISTEMA</span>
+                    <h2>¿Qué necesitas gestionar?</h2>
+                    <p>Selecciona uno de los módulos habilitados para tu cuenta.</p>
+                </div>
+                <span class="rsu-welcome-module-count">
+                    <strong>{{ count($quickModules) }}</strong>
+                    <small>{{ count($quickModules) === 1 ? 'módulo disponible' : 'módulos disponibles' }}</small>
+                </span>
+            </div>
+
+            <div class="rsu-welcome-module-grid">
+                @forelse($quickModules as $module)
+                    <a href="{{ route($module['route']) }}" class="rsu-welcome-module">
+                        <span class="rsu-welcome-module-icon">
+                            <i class="{{ $module['icon'] }}" aria-hidden="true"></i>
+                        </span>
+                        <span class="rsu-welcome-module-copy">
+                            <small>{{ $module['group'] }}</small>
+                            <strong>{{ $module['title'] }}</strong>
+                            <span>{{ $module['description'] }}</span>
+                        </span>
+                        <span class="rsu-welcome-module-arrow" aria-hidden="true">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </a>
+                @empty
+                    <div class="rsu-welcome-empty">
+                        <i class="fas fa-lock" aria-hidden="true"></i>
+                        <strong>No tienes módulos asignados</strong>
+                        <span>Comunícate con el administrador del sistema para solicitar acceso.</span>
+                    </div>
+                @endforelse
+            </div>
+        </section>
+    </main>
+
+    <footer class="rsu-welcome-footer">
+        <span>Municipalidad Distrital de José Leonardo Ortiz</span>
+        <span>SGRS JLO <i class="fas fa-circle" aria-hidden="true"></i> Sistema de Gestión RSU</span>
+    </footer>
 </div>
 @stop
 
 @section('css')
-<link rel="stylesheet" href="{{ asset('css/admin-indexes.css') }}">
+<link rel="stylesheet" href="{{ asset('css/welcome.css') }}">
 @stop

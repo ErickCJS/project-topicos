@@ -772,6 +772,11 @@ return [
             'text' => 'Inicio',
             'route' => 'admin.home',
             'icon' => 'fas fa-house',
+        ],
+        [
+            'text' => 'Dashboard',
+            'route' => 'admin.dashboard',
+            'icon' => 'fas fa-chart-line',
             'can' => 'permission', 'model' => ['dashboard.view'],
         ],
         [

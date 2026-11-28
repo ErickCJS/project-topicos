@@ -26,6 +26,11 @@ class AuthorizeAdminRoute
 
         $routeName = $request->route()?->getName();
 
+        // The welcome page is available to every authenticated active user.
+        if ($routeName === 'admin.home') {
+            return $next($request);
+        }
+
         $adminOnlyRoutes = config('permissions.admin_only_routes', []);
 
         if (
@@ -46,7 +51,9 @@ class AuthorizeAdminRoute
             return redirect()->route('access.restricted');
         }
 
-        if ($routeName && str_starts_with($routeName, 'users.')) {
+        // User listing is permission-based; account and permission
+        // administration routes remain restricted below.
+        if ($routeName && str_starts_with($routeName, 'users.') && $routeName !== 'users.index') {
             abort(403);
         }
 
@@ -56,7 +63,13 @@ class AuthorizeAdminRoute
                 ->first()?->permission
             : null;
 
-        if (!$permission || !$permissions->allows($user, $permission->slug)) {
+        // Prefer the synchronized database mapping, but fall back to the
+        // permission catalog so a newly added route is still protected.
+        $authorized = $permission
+            ? $permissions->allows($user, $permission->slug)
+            : ($routeName !== null && $permissions->allowsRoute($user, $routeName));
+
+        if (!$authorized) {
             abort(403);
         }
 

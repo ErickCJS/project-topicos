@@ -1,0 +1,359 @@
+/*
+|--------------------------------------------------------------------------
+| Global dark theme
+|--------------------------------------------------------------------------
+| Loaded after page-specific styles so common surfaces remain consistent
+| when the user switches the application theme.
+*/
+html.dark {
+    color-scheme: dark;
+    --rsu-dark-canvas: #101410;
+    --rsu-dark-surface: #191f1a;
+    --rsu-dark-surface-raised: #202820;
+    --rsu-dark-border: #303b32;
+    --rsu-dark-text: #e5ece6;
+    --rsu-dark-muted: #a4afa6;
+    --rsu-dark-input: #151b16;
+}
+
+html.dark body,
+html.dark .app-wrapper,
+html.dark .app-main,
+html.dark .content-wrapper,
+html.dark .content,
+html.dark .content-header {
+    background-color: var(--rsu-dark-canvas) !important;
+    color: var(--rsu-dark-text);
+}
+
+html.dark .card,
+html.dark .modal-content,
+html.dark .dropdown-menu,
+html.dark .offcanvas,
+html.dark .popover,
+html.dark .toast,
+html.dark .list-group-item,
+html.dark .accordion-item,
+html.dark .alert-light,
+html.dark .bg-white {
+    background-color: var(--rsu-dark-surface) !important;
+    border-color: var(--rsu-dark-border) !important;
+    color: var(--rsu-dark-text);
+}
+
+html.dark .card-header,
+html.dark .card-footer,
+html.dark .modal-header,
+html.dark .modal-footer,
+html.dark .accordion-header,
+html.dark .accordion-body {
+    border-color: var(--rsu-dark-border) !important;
+}
+
+html.dark .card-title,
+html.dark .modal-title,
+html.dark .accordion-button,
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6,
+html.dark .text-dark,
+html.dark .dropdown-item,
+html.dark .list-group-item-action {
+    color: var(--rsu-dark-text) !important;
+}
+
+html.dark p,
+html.dark label,
+html.dark .form-label,
+html.dark .form-check-label,
+html.dark .text-body,
+html.dark .text-body-secondary,
+html.dark .small,
+html.dark small {
+    color: var(--rsu-dark-muted);
+}
+
+html.dark .text-muted,
+html.dark .text-secondary {
+    color: var(--rsu-dark-muted) !important;
+}
+
+html.dark a:not(.btn):not(.nav-link):not(.dropdown-item) {
+    color: #91c9a5;
+}
+
+html.dark a:not(.btn):not(.nav-link):not(.dropdown-item):hover {
+    color: #b4dfc1;
+}
+
+html.dark .form-control,
+html.dark .form-select,
+html.dark .input-group-text,
+html.dark .form-control:disabled,
+html.dark .form-select:disabled,
+html.dark textarea,
+html.dark select,
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]) {
+    background-color: var(--rsu-dark-input);
+    border-color: #3a463c;
+    color: var(--rsu-dark-text);
+}
+
+html.dark .form-control::placeholder,
+html.dark textarea::placeholder,
+html.dark input::placeholder {
+    color: #89968c;
+    opacity: 1;
+}
+
+html.dark .form-control:focus,
+html.dark .form-select:focus,
+html.dark textarea:focus,
+html.dark input:focus {
+    border-color: #57966b;
+    box-shadow: 0 0 0 .2rem rgb(87 150 107 / 18%);
+}
+
+html.dark .form-check-input {
+    background-color: var(--rsu-dark-input);
+    border-color: #59665b;
+}
+
+html.dark .form-check-input:checked {
+    background-color: #28784b;
+    border-color: #28784b;
+}
+
+html.dark .table {
+    --bs-table-color: var(--rsu-dark-text);
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--rsu-dark-border);
+    --bs-table-striped-bg: #1d251f;
+    --bs-table-striped-color: var(--rsu-dark-text);
+    --bs-table-hover-bg: #253028;
+    --bs-table-hover-color: var(--rsu-dark-text);
+    color: var(--rsu-dark-text);
+    border-color: var(--rsu-dark-border);
+}
+
+html.dark .table thead th,
+html.dark .table tfoot th {
+    color: #b9c6bc !important;
+    border-color: var(--rsu-dark-border);
+}
+
+html.dark .table td,
+html.dark .table th,
+html.dark .table > :not(caption) > * > * {
+    border-color: var(--rsu-dark-border);
+}
+
+html.dark hr,
+html.dark .border,
+html.dark .border-top,
+html.dark .border-bottom {
+    border-color: var(--rsu-dark-border) !important;
+}
+
+html.dark .dropdown-divider {
+    border-color: var(--rsu-dark-border);
+}
+
+html.dark .dropdown-item:hover,
+html.dark .dropdown-item:focus,
+html.dark .list-group-item-action:hover,
+html.dark .list-group-item-action:focus {
+    background-color: var(--rsu-dark-surface-raised);
+    color: var(--rsu-dark-text) !important;
+}
+
+html.dark .btn-light,
+html.dark .btn-outline-secondary {
+    background-color: #252e27;
+    border-color: #465448;
+    color: var(--rsu-dark-text);
+}
+
+html.dark .btn-light:hover,
+html.dark .btn-outline-secondary:hover {
+    background-color: #303c32;
+    border-color: #607363;
+    color: #fff;
+}
+
+html.dark .page-link {
+    background-color: var(--rsu-dark-surface);
+    border-color: var(--rsu-dark-border);
+    color: #a9d6b6;
+}
+
+html.dark .page-item.active .page-link {
+    background-color: #246b42;
+    border-color: #246b42;
+    color: #fff;
+}
+
+html.dark .dataTables_wrapper,
+html.dark .dataTables_info,
+html.dark .dataTables_length,
+html.dark .dataTables_filter,
+html.dark .dataTables_paginate {
+    color: var(--rsu-dark-muted) !important;
+}
+
+html.dark .select2-container--default .select2-selection--single,
+html.dark .select2-container--default .select2-selection--multiple,
+html.dark .select2-dropdown {
+    background-color: var(--rsu-dark-input);
+    border-color: #3a463c;
+    color: var(--rsu-dark-text);
+}
+
+html.dark .select2-container--default .select2-results__option {
+    background-color: var(--rsu-dark-surface);
+    color: var(--rsu-dark-text);
+}
+
+html.dark .select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #285f3d;
+    color: #fff;
+}
+
+html.dark .swal2-popup {
+    background-color: var(--rsu-dark-surface);
+    color: var(--rsu-dark-text);
+}
+
+html.dark .swal2-title,
+html.dark .swal2-html-container {
+    color: var(--rsu-dark-text);
+}
+
+html.dark .swal2-input,
+html.dark .swal2-textarea,
+html.dark .swal2-select {
+    background-color: var(--rsu-dark-input);
+    border-color: #3a463c;
+    color: var(--rsu-dark-text);
+}
+
+/* Welcome page */
+html.dark .content-wrapper:has(.rsu-welcome-page),
+html.dark .rsu-welcome-page {
+    background: var(--rsu-dark-canvas) !important;
+    color: var(--rsu-dark-text);
+}
+
+html.dark .rsu-welcome-masthead,
+html.dark .rsu-welcome-footer {
+    border-color: var(--rsu-dark-border);
+}
+
+html.dark .rsu-welcome-identity,
+html.dark .rsu-welcome-identity:hover,
+html.dark .rsu-welcome-identity-copy strong,
+html.dark .rsu-welcome-section-heading h2,
+html.dark .rsu-welcome-empty strong {
+    color: var(--rsu-dark-text) !important;
+}
+
+html.dark .rsu-welcome-identity-copy small,
+html.dark .rsu-welcome-identity-copy span,
+html.dark .rsu-welcome-date,
+html.dark .rsu-welcome-date strong,
+html.dark .rsu-welcome-section-heading p,
+html.dark .rsu-welcome-module-count small,
+html.dark .rsu-welcome-module-copy small,
+html.dark .rsu-welcome-module-copy > span,
+html.dark .rsu-welcome-empty,
+html.dark .rsu-welcome-empty span,
+html.dark .rsu-welcome-footer,
+html.dark .rsu-welcome-footer > span:last-child {
+    color: var(--rsu-dark-muted);
+}
+
+html.dark .rsu-welcome-module-count {
+    border-color: var(--rsu-dark-border);
+}
+
+html.dark .rsu-welcome-module-count strong {
+    color: #a9d6b6;
+}
+
+html.dark .rsu-welcome-module {
+    background: var(--rsu-dark-surface);
+    border-color: var(--rsu-dark-border);
+    border-left-color: #57966b;
+    color: var(--rsu-dark-text) !important;
+}
+
+html.dark .rsu-welcome-module:hover {
+    background: var(--rsu-dark-surface-raised);
+    border-color: #526655;
+    border-left-color: #82bd91;
+    color: #fff !important;
+}
+
+html.dark .rsu-welcome-module-copy strong {
+    color: #e5ece6;
+}
+
+html.dark .rsu-welcome-module-icon {
+    background: #26382b;
+    color: #a9d6b6;
+}
+
+html.dark .rsu-welcome-module-arrow,
+html.dark .rsu-welcome-empty i {
+    color: #9baa9e;
+}
+
+html.dark .rsu-welcome-empty {
+    background: var(--rsu-dark-surface);
+    border-color: #465449;
+}
+
+html.dark .rsu-welcome-crest {
+    background: #f8faf8;
+    border-color: var(--rsu-dark-border);
+}
+
+html.dark .rsu-welcome-hero-image,
+html.dark .rsu-welcome-crest-panel {
+    background: #222a24;
+}
+
+
+/* Additional Bootstrap and plugin surfaces */
+html.dark .bg-light,
+html.dark .bg-gradient-light,
+html.dark .table-light {
+    background-color: var(--rsu-dark-surface-raised) !important;
+    color: var(--rsu-dark-text) !important;
+}
+
+html.dark .accordion-button {
+    background-color: var(--rsu-dark-surface);
+    color: var(--rsu-dark-text);
+}
+
+html.dark .accordion-button:not(.collapsed) {
+    background-color: #26372b;
+    color: #d8eadc;
+    box-shadow: inset 0 calc(-1 * var(--bs-accordion-border-width, 1px)) 0 var(--rsu-dark-border);
+}
+
+html.dark .btn-close {
+    filter: invert(1) grayscale(100%) brightness(180%);
+}
+
+html.dark .rsu-welcome-hero h1 {
+    color: #fff;
+}
+
+html.dark .rsu-welcome-hero-copy > p {
+    color: #d1dfd4;
+}

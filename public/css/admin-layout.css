@@ -202,3 +202,55 @@ html.dark .card, html.dark .modal-content { background: var(--rsu-surface); bord
 html.dark .card-title { color: #e7efe9; }
 html.dark .form-control, html.dark .form-select { background-color: #171b18; border-color: #364038; color: #e7efe9; }
 @media (max-width: 575.98px) { .content-header { padding: 18px 14px 6px; } .content { padding: 12px 14px 24px; } }
+
+/* Municipal identity in the application sidebar. */
+.rsu-sidebar-brand {
+    gap: 10px;
+    min-height: 54px;
+    padding: 5px 8px;
+}
+
+.rsu-sidebar-logo {
+    display: block;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    padding: 3px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid var(--sidebar-border);
+    border-radius: 50%;
+}
+
+.rsu-sidebar-brand-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.15;
+}
+
+.rsu-sidebar-brand-copy strong {
+    color: var(--sidebar-text);
+    font-size: 14px;
+    font-weight: 750;
+}
+
+.rsu-sidebar-brand-copy small {
+    color: var(--sidebar-muted);
+    font-size: 9px;
+    font-weight: 500;
+    white-space: normal;
+}
+
+.rsu-sidebar-brand:focus-visible {
+    outline: 2px solid var(--sidebar-accent, #27945f);
+    outline-offset: 3px;
+    border-radius: 6px;
+}
+
+@media (max-width: 767.98px) {
+    .rsu-sidebar-brand-copy small {
+        font-size: 8px;
+    }
+}

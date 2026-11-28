@@ -25,6 +25,7 @@ use App\Http\Controllers\admin\VehicletypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AdminController::class, 'index'])->name('admin.home');
+Route::get('dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
 
 Route::get('programming', [ProgrammingController::class, 'index'])->name('programming.index');
 Route::get('programming/holidays', [ProgrammingController::class, 'holidays'])->name('programming.holidays');

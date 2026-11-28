@@ -1857,12 +1857,12 @@ class ProgrammingBackendTest extends TestCase
         $this->seed(ReasonSeeder::class);
         $this->generate(['start_date' => '2026-11-02', 'end_date' => '2026-11-02', 'days' => [1]]);
         $origin = Programming::firstOrFail();
-        $this->get(route('admin.home', ['fecha' => '2026-11-02']))
+        $this->get(route('admin.dashboard', ['fecha' => '2026-11-02']))
             ->assertOk()->assertSee('rsu-btn-reschedule')->assertSee('dashboardReschedulingModal');
         $payload = ['destination_date' => '2026-11-04', 'shift_id' => $origin->shift_id, 'vehicle_id' => $origin->vehicle_id, 'driver_id' => $this->driver->id, 'helpers' => [$this->helper->id], 'reason_id' => Reason::first()->id];
         $check = $this->postJson(route('programming.rescheduling.check', $origin), $payload)->assertOk()->assertJsonPath('valid', true);
         $this->postJson(route('programming.rescheduling.store', $origin), [...$payload, 'validation_token' => $check->json('validation_token')])->assertCreated();
-        $this->get(route('admin.home', ['fecha' => '2026-11-02']))->assertOk()->assertSee('Reprogramado');
+        $this->get(route('admin.dashboard', ['fecha' => '2026-11-02']))->assertOk()->assertSee('Reprogramado');
     }
 
     public function test_driver_location_discards_only_exact_consecutive_coordinates_and_saves_final_location(): void

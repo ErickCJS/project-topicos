@@ -1,0 +1,619 @@
+/* Full-width institutional welcome screen */
+.content-wrapper:has(.rsu-welcome-page) {
+    display: flex;
+    min-height: calc(100vh - 56px);
+    flex-direction: column;
+    background: #f3f5f2;
+}
+
+.content-wrapper:has(.rsu-welcome-page) > .content {
+    display: flex;
+    flex: 1 0 auto;
+    padding: 0 !important;
+}
+
+.content-wrapper:has(.rsu-welcome-page) > .content > .container-fluid {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    flex: 1 0 auto;
+    margin: 0;
+    padding: 0;
+}
+
+.rsu-welcome-page {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    min-height: calc(100vh - 56px);
+    flex-direction: column;
+    gap: clamp(22px, 2.8vw, 38px);
+    padding: clamp(22px, 3vw, 42px);
+    color: #202c24;
+    background: #f3f5f2;
+}
+
+.rsu-welcome-masthead,
+.rsu-welcome-identity,
+.rsu-welcome-date,
+.rsu-welcome-section-heading,
+.rsu-welcome-module {
+    display: flex;
+    align-items: center;
+}
+
+.rsu-welcome-masthead {
+    min-width: 0;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 0 18px;
+    border-bottom: 1px solid #dce3dc;
+}
+
+.rsu-welcome-identity {
+    min-width: 0;
+    gap: 13px;
+    color: #203329 !important;
+    text-decoration: none !important;
+}
+
+.rsu-welcome-identity:hover {
+    color: #203329 !important;
+}
+
+.rsu-welcome-crest {
+    position: relative;
+    display: grid;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid #dce3dc;
+    border-radius: 50%;
+    background: #fff;
+}
+
+.rsu-welcome-crest img,
+.rsu-welcome-crest i {
+    grid-area: 1 / 1;
+}
+
+.rsu-welcome-crest img {
+    width: 100%;
+    height: 100%;
+    padding: 3px;
+    object-fit: contain;
+}
+
+.rsu-welcome-crest i {
+    display: none;
+    color: #236440;
+    font-size: 21px;
+}
+
+.rsu-welcome-identity-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.rsu-welcome-identity-copy small {
+    color: #6b786e;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+}
+
+.rsu-welcome-identity-copy strong {
+    margin-top: 2px;
+    color: #1d3929;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .025em;
+}
+
+.rsu-welcome-identity-copy span {
+    margin-top: 3px;
+    color: #6d796f;
+    font-size: 11px;
+}
+
+.rsu-welcome-date {
+    flex: 0 0 auto;
+    gap: 10px;
+    color: #526257;
+}
+
+.rsu-welcome-live {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-radius: 50%;
+    background: #368657;
+}
+
+.rsu-welcome-date > span:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    text-align: right;
+}
+
+.rsu-welcome-date small {
+    color: #879188;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .09em;
+}
+
+.rsu-welcome-date strong {
+    color: #435247;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.rsu-welcome-main {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex: 1 0 auto;
+    flex-direction: column;
+    gap: clamp(25px, 3vw, 40px);
+}
+
+.rsu-welcome-hero {
+    display: grid;
+    min-height: clamp(285px, 34vh, 390px);
+    grid-template-columns: minmax(0, 1.08fr) minmax(300px, .92fr);
+    overflow: hidden;
+    background: #173e2b;
+    border: 1px solid #173e2b;
+    border-radius: 4px;
+}
+
+.rsu-welcome-hero-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: clamp(28px, 4vw, 58px);
+}
+
+.rsu-welcome-eyebrow {
+    display: inline-block;
+    color: #668573;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .13em;
+}
+
+.rsu-welcome-hero .rsu-welcome-eyebrow {
+    color: #b9d5c1;
+}
+
+.rsu-welcome-hero h1 {
+    max-width: 690px;
+    margin: 17px 0 14px;
+    color: #fff;
+    font-size: clamp(31px, 3.35vw, 49px);
+    font-weight: 650;
+    letter-spacing: -.045em;
+    line-height: 1.12;
+}
+
+.rsu-welcome-hero-copy > p {
+    max-width: 510px;
+    margin: 0;
+    color: #d1dfd4;
+    font-size: clamp(12px, 1vw, 14px);
+    line-height: 1.75;
+}
+
+.rsu-welcome-hero-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 25px;
+    padding: 10px 0;
+    color: #fff !important;
+    border-bottom: 1px solid rgba(255, 255, 255, .45);
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none !important;
+    transition: gap .18s ease, border-color .18s ease;
+}
+
+.rsu-welcome-hero-link:hover {
+    gap: 17px;
+    border-color: #fff;
+}
+
+.rsu-welcome-hero-link i {
+    font-size: 10px;
+}
+
+.rsu-welcome-hero-image {
+    position: relative;
+    min-width: 0;
+    min-height: 260px;
+    overflow: hidden;
+    background: #e8eee8;
+}
+
+.rsu-welcome-hero-image::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(23, 62, 43, .22), transparent 50%),
+                linear-gradient(0deg, rgba(12, 34, 22, .68), transparent 38%);
+    content: "";
+    pointer-events: none;
+}
+
+.rsu-welcome-hero-image > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    position: absolute;
+    inset: 0;
+    object-fit: cover;
+    object-position: center;
+}
+
+.rsu-welcome-crest-panel {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: #e9eee8;
+}
+
+.rsu-welcome-crest-panel img,
+.rsu-welcome-crest-panel i {
+    grid-area: 1 / 1;
+}
+
+.rsu-welcome-crest-panel img {
+    width: min(48%, 235px);
+    height: min(72%, 235px);
+    object-fit: contain;
+}
+
+.rsu-welcome-crest-panel i {
+    display: none;
+    color: #286343;
+    font-size: 82px;
+}
+
+.rsu-welcome-image-caption {
+    position: absolute;
+    z-index: 1;
+    right: 24px;
+    bottom: 22px;
+    left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: #fff;
+}
+
+.rsu-welcome-image-caption span {
+    color: #d3e4d7;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .14em;
+}
+
+.rsu-welcome-image-caption strong {
+    font-size: 15px;
+    font-weight: 650;
+}
+
+.rsu-welcome-modules {
+    width: 100%;
+}
+
+.rsu-welcome-section-heading {
+    min-width: 0;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 17px;
+}
+
+.rsu-welcome-section-heading h2 {
+    margin: 5px 0 4px;
+    color: #24382b;
+    font-size: clamp(20px, 2vw, 26px);
+    font-weight: 700;
+    letter-spacing: -.035em;
+}
+
+.rsu-welcome-section-heading p {
+    margin: 0;
+    color: #758177;
+    font-size: 12px;
+}
+
+.rsu-welcome-module-count {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: baseline;
+    gap: 7px;
+    padding-left: 17px;
+    border-left: 1px solid #d7ded7;
+}
+
+.rsu-welcome-module-count strong {
+    color: #244d34;
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.rsu-welcome-module-count small {
+    color: #718075;
+    font-size: 10px;
+}
+
+.rsu-welcome-module-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 11px;
+}
+
+.rsu-welcome-module {
+    position: relative;
+    min-width: 0;
+    min-height: 112px;
+    gap: 13px;
+    padding: 17px 16px;
+    color: #24372b !important;
+    background: #fff;
+    border: 1px solid #dfe6df;
+    border-left: 3px solid #3c8055;
+    border-radius: 3px;
+    text-decoration: none !important;
+    transition: background-color .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.rsu-welcome-module:hover {
+    color: #193f2b !important;
+    background: #f9fcf9;
+    border-color: #aebfae;
+    border-left-color: #24633e;
+    transform: translateY(-2px);
+}
+
+.rsu-welcome-module:focus-visible,
+.rsu-welcome-hero-link:focus-visible,
+.rsu-welcome-identity:focus-visible {
+    outline: 2px solid #2e7950;
+    outline-offset: 3px;
+}
+
+.rsu-welcome-module-icon {
+    display: grid;
+    width: 39px;
+    height: 39px;
+    flex: 0 0 39px;
+    place-items: center;
+    color: #2c6942;
+    background: #edf3ed;
+    font-size: 15px;
+}
+
+.rsu-welcome-module-copy {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.rsu-welcome-module-copy small {
+    color: #7c897f;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .1em;
+}
+
+.rsu-welcome-module-copy strong {
+    margin-top: 4px;
+    color: #27392d;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.rsu-welcome-module-copy > span {
+    margin-top: 5px;
+    color: #748076;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.rsu-welcome-module-arrow {
+    align-self: center;
+    flex: 0 0 auto;
+    color: #849286;
+    font-size: 10px;
+    transition: transform .16s ease, color .16s ease;
+}
+
+.rsu-welcome-module:hover .rsu-welcome-module-arrow {
+    color: #286443;
+    transform: translateX(3px);
+}
+
+.rsu-welcome-empty {
+    display: flex;
+    min-height: 115px;
+    grid-column: 1 / -1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 20px;
+    color: #647168;
+    background: #fff;
+    border: 1px dashed #cbd5cc;
+    text-align: center;
+}
+
+.rsu-welcome-empty i {
+    color: #8a978d;
+    font-size: 20px;
+}
+
+.rsu-welcome-empty strong {
+    color: #34453a;
+    font-size: 13px;
+}
+
+.rsu-welcome-empty span {
+    font-size: 11px;
+}
+
+.rsu-welcome-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding-top: 15px;
+    color: #818c82;
+    border-top: 1px solid #dce3dc;
+    font-size: 10px;
+}
+
+.rsu-welcome-footer > span:last-child {
+    color: #66756a;
+    font-weight: 650;
+}
+
+.rsu-welcome-footer i {
+    margin: 0 5px;
+    color: #7d9a82;
+    font-size: 5px;
+    vertical-align: middle;
+}
+
+@media (min-width: 1500px) {
+    .rsu-welcome-module-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1100px) {
+    .rsu-welcome-module-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .rsu-welcome-hero {
+        grid-template-columns: minmax(0, 1fr) minmax(260px, .78fr);
+    }
+}
+
+@media (max-width: 767.98px) {
+    .content-wrapper:has(.rsu-welcome-page),
+    .rsu-welcome-page {
+        min-height: calc(100vh - 56px);
+    }
+
+    .rsu-welcome-page {
+        gap: 23px;
+        padding: 18px 16px 15px;
+    }
+
+    .rsu-welcome-masthead {
+        align-items: flex-start;
+    }
+
+    .rsu-welcome-date {
+        max-width: 180px;
+        align-items: flex-start;
+        padding-top: 4px;
+    }
+
+    .rsu-welcome-date > span:last-child {
+        text-align: left;
+    }
+
+    .rsu-welcome-date strong {
+        line-height: 1.4;
+    }
+
+    .rsu-welcome-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .rsu-welcome-hero-copy {
+        padding: 28px 25px 30px;
+    }
+
+    .rsu-welcome-hero h1 {
+        max-width: 580px;
+        font-size: clamp(30px, 7vw, 42px);
+    }
+
+    .rsu-welcome-hero-image {
+        min-height: 210px;
+    }
+
+    .rsu-welcome-hero-image > img {
+        position: absolute;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .rsu-welcome-masthead {
+        flex-direction: column;
+        gap: 13px;
+    }
+
+    .rsu-welcome-date {
+        max-width: none;
+        padding-left: 61px;
+    }
+
+    .rsu-welcome-module-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rsu-welcome-module {
+        min-height: 96px;
+    }
+
+    .rsu-welcome-section-heading {
+        align-items: flex-start;
+    }
+
+    .rsu-welcome-module-count {
+        gap: 5px;
+        padding-left: 10px;
+    }
+
+    .rsu-welcome-module-count strong {
+        font-size: 22px;
+    }
+
+    .rsu-welcome-module-count small {
+        max-width: 65px;
+        line-height: 1.3;
+    }
+
+    .rsu-welcome-footer {
+        flex-direction: column;
+        gap: 6px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rsu-welcome-module,
+    .rsu-welcome-module-arrow,
+    .rsu-welcome-hero-link {
+        transition: none;
+    }
+}

@@ -70,6 +70,7 @@ $(function () {
     // Nominatim (OpenStreetMap) is used without credentials. Requests are cached,
     // serialized and kept below the public service's recommended rate.
     const geocoderUrl = 'https://nominatim.openstreetmap.org/search';
+    const defaultJloBounds = [[-6.7636192, -79.8854297], [-6.7177597, -79.7864530]];
     const geocodeCache = new Map();
     let geocodeSequence = 0;
     let activeGeocodeRequest = null;
@@ -165,25 +166,27 @@ $(function () {
         return option.data('location-name') || option.text().replace(/\s*\([^)]*\)\s*$/, '').trim();
     }
 
-    function applyGeocodedLocation(map, result) {
+    function applyGeocodedLocation(map, result, fitBounds) {
         const locationLayer = map._zoneLocationLayer;
         if (locationLayer) locationLayer.clearLayers();
         if (result.geojson && ['Polygon', 'MultiPolygon', 'LineString'].includes(result.geojson.type)) {
             const boundary = L.geoJSON(result.geojson, {
-                style: { color: '#0d6efd', weight: 2, dashArray: '6 5', fillOpacity: .05 }
+                style: { color: '#0066cc', weight: 2.5, opacity: .95, fillColor: '#0066cc', fillOpacity: .1 }
             });
             boundary.addTo(locationLayer);
-            if (boundary.getBounds().isValid()) map.fitBounds(boundary.getBounds(), { padding: [28, 28], maxZoom: 14 });
+            if (fitBounds && boundary.getBounds().isValid()) {
+                map.fitBounds(boundary.getBounds(), { padding: [28, 28], maxZoom: 14 });
+            }
             return;
         }
         const latitude = Number(result.lat);
         const longitude = Number(result.lon);
-        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        if (fitBounds && Number.isFinite(latitude) && Number.isFinite(longitude)) {
             map.flyTo([latitude, longitude], result.type === 'city' ? 12 : 13, { duration: .8 });
         }
     }
 
-    function geolocate(map, query) {
+    function geolocate(map, query, fitBounds) {
         if (!query || !map) return;
         const cacheKey = query.toLowerCase();
         const sequence = ++geocodeSequence;
@@ -191,7 +194,7 @@ $(function () {
         if (geocodeTimer) clearTimeout(geocodeTimer);
         if (geocodeCache.has(cacheKey)) {
             const cached = geocodeCache.get(cacheKey);
-            if (cached) applyGeocodedLocation(map, cached);
+            if (cached) applyGeocodedLocation(map, cached, fitBounds);
             return;
         }
         const wait = Math.max(0, 1100 - (Date.now() - lastGeocodeAt));
@@ -206,7 +209,7 @@ $(function () {
                 if (sequence !== geocodeSequence) return;
                 const result = results[0] || null;
                 geocodeCache.set(cacheKey, result);
-                if (result) applyGeocodedLocation(map, result);
+                if (result) applyGeocodedLocation(map, result, fitBounds);
             })
             .catch(function (error) {
                 if (error.name !== 'AbortError') console.warn('No se pudo ubicar la selección geográfica.', error);
@@ -233,10 +236,9 @@ $(function () {
         const selectedProvince = province.attr('data-selected') || province.val();
         const selectedDistrict = district.attr('data-selected') || district.val();
         const mapElement = form.find('[data-zone-map]');
-        const hasExistingPerimeter = Boolean(form.find('[data-zone-perimeter]').val());
-        function moveTo(level) {
+        function moveTo(level, fitBounds) {
             const move = mapElement.data('zone-geolocate');
-            if (move) move(selectedLocationQuery(form, level));
+            if (move) move(selectedLocationQuery(form, level), fitBounds !== false);
         }
 
         department.off('change.zone').on('change.zone', function () {
@@ -259,7 +261,9 @@ $(function () {
             }).fail(function () {
                 alertMessage(false, 'No se pudo cargar la selección geográfica.');
             }).then(function () {
-                if (!hasExistingPerimeter) moveTo('district');
+                const hasZonePerimeter = Boolean(form.find('[data-zone-perimeter]').val());
+                const isEditingZone = Boolean(form.attr('data-zone-id'));
+                moveTo('district', !isEditingZone || !hasZonePerimeter);
             });
         }
         initializeEditableMap(mapElement, form.find('[data-zone-perimeter]'));
@@ -323,7 +327,11 @@ function parseGeoJson(value) {
     function initializeEditableMap(element, input) {
         if (!element.length || typeof L === 'undefined' || element.data('leaflet-map')) return;
         const map = L.map(element[0]);
-        map.fitWorld();
+        const form = element.closest('form');
+        const currentZoneId = form.attr('data-zone-id') || '';
+        if (!currentZoneId) {
+            map.fitBounds(defaultJloBounds, { padding: [20, 20], maxZoom: 14 });
+        }
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap contributors; geocoding: Nominatim'
@@ -336,7 +344,6 @@ function parseGeoJson(value) {
         // Capa exclusiva del polígono que se está dibujando o editando.
         const layers = new L.FeatureGroup().addTo(map);
 
-        const currentZoneId = element.closest('form').attr('data-zone-id') || '';
         loadExistingZones(map, existingZonesLayer, currentZoneId);
         const controls = new L.Control.Draw({
             edit: { featureGroup: layers },
@@ -389,7 +396,7 @@ function parseGeoJson(value) {
         element.data('zone-sync-perimeter', sync);
         element.data('zone-fit-perimeter', fitPerimeter);
         element.data('zone-edit-state', editState);
-        element.data('zone-geolocate', function (query) { geolocate(map, query); });
+        element.data('zone-geolocate', function (query, fitBounds) { geolocate(map, query, fitBounds); });
         element.data('leaflet-map', map);
     }
 

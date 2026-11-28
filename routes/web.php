@@ -30,6 +30,6 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', function () {
-        return redirect()->route('admin.home');
+        return redirect()->route('admin.dashboard');
     })->name('dashboard');
 });
